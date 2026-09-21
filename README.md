@@ -116,4 +116,36 @@ cp .env.example .env        # ajustar DATABASE_URL a tu Postgres local
 uvicorn app.main:app --reload
 ```
 
+### Datos de ejemplo (seeds)
+
+Con la API corriendo, cargá el catálogo y los usuarios de prueba:
+
+```bash
+docker compose exec api python -m app.seeds     # Docker
+python -m app.seeds                             # venv, dentro de backend/
+```
+
+Se puede correr las veces que haga falta: solo inserta lo que falta. Con `--reset`
+borra usuarios y recursos antes de volver a insertarlos.
+
+Crea **7 usuarios** (uno por cada rol, más uno con dos roles) y **10 recursos**
+en distintos estados. La contraseña de todos es `prestamos123`.
+
+| Email | Rol |
+|---|---|
+| `diego@unsa.edu.pe` | ESTUDIANTE |
+| `lucia@unsa.edu.pe` | DOCENTE |
+| `pedro@unsa.edu.pe` | CUSTODIO_CE |
+| `rosa@unsa.edu.pe` | CUSTODIO_INFRA |
+| `elena@unsa.edu.pe` | DIRECCION_ESCUELA |
+| `ivan@unsa.edu.pe` | ADMINISTRADOR_SISTEMA |
+| `marta@unsa.edu.pe` | DOCENTE + CUSTODIO_CE |
+
+> Son credenciales de desarrollo, solo para la demo. No usar en nada real.
+
+> **Nota sobre el esquema:** todavía no hay migraciones (Alembic). Las tablas se crean
+> al arrancar la API a partir de los modelos, y `create_all` **no** modifica tablas ya
+> existentes: si cambian las columnas de un modelo, hay que recrear la base con
+> `docker compose down -v`.
+
 > Repositorio del semestre; se irá completando conforme avancen las entregas del curso.

@@ -5,20 +5,26 @@ se implementan en routers/auth.py.
 """
 from datetime import datetime, timedelta, timezone
 
+import bcrypt
 from jose import jwt
-from passlib.context import CryptContext
 
 from .config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+#: bcrypt solo considera los primeros 72 bytes y a partir de la versión 4.1
+#: lanza error si se le pasa más, en vez de truncar. Truncamos nosotros.
+MAX_PASSWORD_BYTES = 72
+
+
+def _a_bytes(password: str) -> bytes:
+    return password.encode("utf-8")[:MAX_PASSWORD_BYTES]
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(_a_bytes(password), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    return bcrypt.checkpw(_a_bytes(plain), hashed.encode("utf-8"))
 
 
 def create_access_token(subject: str, roles: list[str]) -> str:

@@ -1,0 +1,285 @@
+# Contrato de API — login y catálogo (entrega del 30%)
+
+> **Para qué sirve:** es el acuerdo entre backend y frontend para los dos endpoints
+> de la entrega del 30%. Quien hace el frontend puede maquetar y programar el `fetch`
+> **sin esperar** a que el backend esté listo: basta con respetar estas formas.
+>
+> Alcance: `POST /api/auth/login` (RF7) y `GET /api/recursos` (RF1). El resto de
+> endpoints está esbozado en [`01-sdd.md`](01-sdd.md) §4 y se detallará en su issue.
+>
+> Issues que dependen de este documento: #7 y #8 (backend), #10 y #11 (catálogo),
+> #13 y #14 (login).
+
+---
+
+## 1. Convenciones generales
+
+| Aspecto | Valor |
+|---|---|
+| Base URL (desarrollo) | `http://localhost:8000/api` |
+| Formato | JSON en request y response (`Content-Type: application/json`) |
+| Autenticación | `Authorization: Bearer <access_token>` en todo endpoint salvo `POST /auth/login` |
+| Codificación | UTF-8 |
+
+### Formato de error
+
+**Todos** los errores usan la misma forma (es la de FastAPI):
+
+```jsonc
+{ "detail": "Credenciales inválidas" }
+```
+
+La única excepción es el **422** de validación, que FastAPI genera automáticamente
+cuando el JSON enviado no cumple el esquema. Ahí `detail` es una lista:
+
+```jsonc
+{ "detail": [ { "loc": ["body", "email"], "msg": "field required", "type": "missing" } ] }
+```
+
+> **Para el frontend:** mostrá `detail` si es string; si es lista, mostrá un mensaje
+> genérico del tipo "Revisá los datos del formulario". No asumas que siempre es string.
+
+### Códigos de estado
+
+| Código | Cuándo |
+|---|---|
+| `200` | Todo bien |
+| `401` | Sin token, token vencido/inválido, o credenciales incorrectas en el login |
+| `403` | Autenticado pero sin el rol necesario |
+| `404` | El recurso no existe |
+| `422` | El JSON enviado no cumple el esquema |
+
+---
+
+## 2. `POST /api/auth/login` — RF7
+
+Público (no lleva token). Devuelve el JWT con el que se firman las demás llamadas.
+
+### Request
+
+```jsonc
+{
+  "email": "diego@unsa.edu.pe",
+  "password": "secreto123"
+}
+```
+
+| Campo | Tipo | Obligatorio | Notas |
+|---|---|---|---|
+| `email` | string | sí | Se usa el email, **no** el código, como identificador de login |
+| `password` | string | sí | En texto plano sobre HTTPS; el backend compara contra el hash bcrypt |
+
+### Response `200`
+
+```jsonc
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer",
+  "user": {
+    "id": 1,
+    "codigo": "20200001",
+    "nombres": "Diego Ramírez",
+    "email": "diego@unsa.edu.pe",
+    "roles": ["ESTUDIANTE", "DOCENTE"]
+  }
+}
+```
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `access_token` | string | JWT. Vence a las 8 h (`JWT_EXPIRE_MINUTES=480`) |
+| `token_type` | string | Siempre `"bearer"` |
+| `user.roles` | string[] | **Siempre un array**, aunque tenga un solo rol. Valores del enum `Rol` (§4) |
+
+> `user` viene incluido en la respuesta del login a propósito: evita que el frontend
+> tenga que llamar a `/auth/me` inmediatamente después para saber a qué pantalla redirigir.
+
+### Errores
+
+| Código | Cuerpo | Cuándo |
+|---|---|---|
+| `401` | `{ "detail": "Credenciales inválidas" }` | Email inexistente **o** contraseña incorrecta |
+| `401` | `{ "detail": "Usuario inactivo" }` | Existe y la contraseña es correcta, pero `activo = false` |
+| `422` | lista de validación | Falta `email` o `password`, o el email está malformado |
+
+> **Seguridad:** email inexistente y contraseña incorrecta devuelven **el mismo**
+> mensaje a propósito, para no revelar qué emails están registrados.
+
+### Relacionado: `GET /api/auth/me`
+
+Fuera de los dos endpoints del issue, pero el frontend lo necesita para revalidar la
+sesión al recargar la página. Requiere token y devuelve el mismo objeto `user` de arriba.
+Si el token venció o es inválido: `401 { "detail": "Token inválido o expirado" }`.
+
+---
+
+## 3. `GET /api/recursos` — RF1
+
+Lista el catálogo. Requiere estar autenticado (cualquier rol).
+
+### Query params — todos opcionales
+
+| Param | Tipo | Ejemplo | Efecto |
+|---|---|---|---|
+| `tipo` | enum `TipoRecurso` | `?tipo=LIBRO` | Filtra por tipo de recurso |
+| `estado` | enum `EstadoRecurso` | `?estado=DISPONIBLE` | Filtra por estado exacto |
+| `disponible` | boolean | `?disponible=true` | Atajo de `estado=DISPONIBLE`. Si se manda junto con `estado`, gana `estado` |
+| `q` | string | `?q=clean` | Búsqueda parcial, **sin distinguir mayúsculas**, sobre `nombre` y `codigo` |
+
+Se combinan con AND: `?tipo=LIBRO&disponible=true&q=clean`.
+
+Un valor inválido en `tipo` o `estado` devuelve `422` (lo valida FastAPI con el enum).
+
+### Response `200`
+
+Un **array** (vacío `[]` si no hay coincidencias, nunca `null` ni un 404).
+
+```jsonc
+[
+  {
+    "id": 10,
+    "codigo": "LIB-001",
+    "nombre": "Clean Code",
+    "descripcion": "Manual de estilo y buenas prácticas",
+    "ubicacion": "Estante B-2",
+    "estado": "DISPONIBLE",
+    "gestor": "CENTRO_ESTUDIANTES",
+    "tipo_recurso": "LIBRO",
+    "disponible": true,
+    "isbn": "9780132350884",
+    "autor": "Robert C. Martin",
+    "categoria": "Software"
+  },
+  {
+    "id": 11,
+    "codigo": "DEP-004",
+    "nombre": "Balón de fútbol",
+    "descripcion": null,
+    "ubicacion": "Depósito CE",
+    "estado": "PRESTADO",
+    "gestor": "CENTRO_ESTUDIANTES",
+    "tipo_recurso": "DEPORTIVO",
+    "disponible": false,
+    "tipo_deportivo": "Fútbol"
+  },
+  {
+    "id": 12,
+    "codigo": "ACA-002",
+    "nombre": "Proyector Epson X05",
+    "descripcion": null,
+    "ubicacion": "Oficina de Infraestructura",
+    "estado": "DISPONIBLE",
+    "gestor": "INFRAESTRUCTURA",
+    "tipo_recurso": "ACADEMICO",
+    "disponible": true,
+    "codigo_patrimonial": "PAT-9981",
+    "requiere_aval": true
+  }
+]
+```
+
+### Campos
+
+**Comunes a todo recurso** — siempre presentes:
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | int | |
+| `codigo` | string | Único en todo el catálogo |
+| `nombre` | string | |
+| `descripcion` | string \| **null** | |
+| `ubicacion` | string \| **null** | |
+| `estado` | enum `EstadoRecurso` | |
+| `gestor` | enum `Gestor` | |
+| `tipo_recurso` | enum `TipoRecurso` | Discrimina qué campos extra trae el objeto |
+| `disponible` | boolean | Derivado: `estado == "DISPONIBLE"`. Viene calculado para que el frontend no repita la regla |
+
+**Según `tipo_recurso`** — presentes **solo** en su tipo:
+
+| `tipo_recurso` | Campos extra |
+|---|---|
+| `LIBRO` | `isbn`, `autor`, `categoria` (string \| null) |
+| `DEPORTIVO` | `tipo_deportivo` (string \| null) |
+| `ACADEMICO` | `codigo_patrimonial` (string \| null), `requiere_aval` (boolean \| null) |
+
+> ⚠️ **Lo más importante para el frontend:** las claves de un tipo **no aparecen** en los
+> objetos de otro tipo — un `DEPORTIVO` no trae la clave `autor` ni siquiera en `null`.
+> Accedé siempre con guarda (`recurso.autor ?? "—"`) o ramificá por `tipo_recurso`.
+>
+> Y ojo con la diferencia: `tipo_recurso` es el enum del sistema; `tipo_deportivo` es
+> texto libre que describe el deporte. No son lo mismo.
+
+### Errores
+
+| Código | Cuerpo | Cuándo |
+|---|---|---|
+| `401` | `{ "detail": "No autenticado" }` | Falta el header `Authorization` o el token venció |
+| `422` | lista de validación | `tipo` o `estado` con un valor fuera del enum |
+
+---
+
+## 4. Valores de los enums
+
+El frontend debe tratarlos como **strings exactos, en mayúsculas**. Son los que viajan
+por la API; el texto bonito para el usuario se arma en el frontend.
+
+| Enum | Valores |
+|---|---|
+| `Rol` | `ESTUDIANTE` · `DOCENTE` · `CUSTODIO_CE` · `CUSTODIO_INFRA` · `DIRECCION_ESCUELA` · `ADMINISTRADOR_SISTEMA` |
+| `TipoRecurso` | `LIBRO` · `DEPORTIVO` · `ACADEMICO` |
+| `EstadoRecurso` | `DISPONIBLE` · `RESERVADO` · `PRESTADO` · `MANTENIMIENTO` |
+| `Gestor` | `CENTRO_ESTUDIANTES` · `INFRAESTRUCTURA` |
+
+Regla de coherencia que garantiza el backend: los `ACADEMICO` siempre tienen
+`gestor = INFRAESTRUCTURA`, y los `LIBRO` / `DEPORTIVO` siempre `CENTRO_ESTUDIANTES`.
+
+---
+
+## 5. Cómo lo consume el frontend
+
+Guardá el token al hacer login y mandalo en cada llamada posterior:
+
+```js
+// 1. Login
+const res = await fetch("http://localhost:8000/api/auth/login", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email, password }),
+});
+if (!res.ok) {
+  const err = await res.json();
+  throw new Error(typeof err.detail === "string" ? err.detail : "Datos inválidos");
+}
+const { access_token, user } = await res.json();
+localStorage.setItem("token", access_token);
+
+// 2. Catálogo, ya con el token
+const recursos = await fetch("http://localhost:8000/api/recursos?disponible=true", {
+  headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+}).then((r) => r.json());
+```
+
+Si una llamada devuelve `401`, borrá el token y mandá al usuario al login: significa
+que la sesión venció.
+
+> El helper reutilizable que envuelve esto vive en `frontend/js/api.js` (issue #5).
+
+### CORS
+
+El backend solo acepta los orígenes listados en `CORS_ORIGINS`. Ya vienen habilitados:
+
+- `http://localhost:5500` y `http://127.0.0.1:5500` — Live Server de VS Code
+- `http://localhost:8080` — solo si levantás con Docker (está en `docker-compose.yml`)
+
+Si servís el frontend en otro puerto, agregalo a `CORS_ORIGINS` (en `docker-compose.yml`
+si usás Docker, o en `backend/.env` si corrés con venv) o la petición falla en el
+navegador aunque el endpoint funcione bien desde Swagger.
+
+---
+
+## 6. Pendiente de definir
+
+- Paginación de `GET /api/recursos`. Para el 30% el catálogo es chico y se devuelve
+  completo; cuando crezca habrá que decidir entre `?page/?size` o `?limit/?offset`.
+- Orden por defecto del listado (hoy: sin orden garantizado; conviene fijar `codigo ASC`).
+- `POST /api/recursos` (alta, issue #8) — se documenta acá cuando se implemente.

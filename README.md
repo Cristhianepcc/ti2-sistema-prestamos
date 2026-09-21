@@ -72,8 +72,9 @@ El dominio se organiza en subdominios:
 **Invariante:** `registradoPorId ≠ prestatarioId` — un custodio no puede autoregistrarse un préstamo.
 
 > **Fuente de verdad:** el contexto/alcance/dominio está en
-> [`docs/00-contexto-alcance-propuesta.md`](docs/00-contexto-alcance-propuesta.md) y el diseño
-> técnico en [`docs/01-sdd.md`](docs/01-sdd.md). Este README es un resumen.
+> [`docs/00-contexto-alcance-propuesta.md`](docs/00-contexto-alcance-propuesta.md), el diseño
+> técnico en [`docs/01-sdd.md`](docs/01-sdd.md) y el contrato de los endpoints del 30% en
+> [`docs/02-contrato-api.md`](docs/02-contrato-api.md). Este README es un resumen.
 
 ## Stack
 

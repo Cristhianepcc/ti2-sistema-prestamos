@@ -269,6 +269,10 @@ Además de los `CHECK` de BD, la **capa de servicio** garantiza:
 
 ## 4. Diseño de la API (contrato REST)
 
+> Los endpoints del 30% (`POST /auth/login` y `GET /recursos`) están detallados campo por
+> campo en [`02-contrato-api.md`](02-contrato-api.md) — esa es la referencia para el frontend.
+> Esta sección es el mapa general de toda la API.
+
 - **Base URL:** `/api`  · **Auth:** `Authorization: Bearer <JWT>` (salvo `POST /auth/login`).
 - **Errores:** `{ "detail": "mensaje" }` con código HTTP apropiado (400/401/403/404/409/422).
 - **Roles:** el rol requerido se indica por endpoint. `[público]` = sin token.

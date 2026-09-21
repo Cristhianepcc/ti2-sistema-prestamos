@@ -1,0 +1,8 @@
+/* Estilos propios (complementan Bootstrap). */
+body {
+  background-color: #f6f8fb;
+}
+
+.brand {
+  font-weight: 700;
+}

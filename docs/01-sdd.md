@@ -527,10 +527,14 @@ sequenceDiagram
 - **Autenticación:** login propio (mock institucional). Al validar credenciales se emite un
   **JWT** firmado (HS256) con `sub` (id de usuario) y `roles`; expira (p. ej. 8 h). El frontend
   lo guarda y lo envía en `Authorization: Bearer`.
-- **Contraseñas:** nunca en texto plano — hash con `passlib[bcrypt]` (`password_hash`).
-- **Autorización por rol:** dependencia FastAPI `require_role("CUSTODIO_CE", ...)` que lee los
-  roles del token y devuelve `403` si no corresponde. El `ADMINISTRADOR_SISTEMA` gestiona
-  cuentas pero **no** aprueba préstamos (regla de negocio, no solo de UI).
+- **Contraseñas:** nunca en texto plano — hash con **bcrypt** (`password_hash`). Se usa la
+  librería `bcrypt` directamente: `passlib` quedó sin mantenimiento desde 2020 y es
+  incompatible con `bcrypt` 5.x.
+- **Autorización por rol:** dependencia FastAPI `require_role(Rol.CUSTODIO_CE, ...)` que
+  devuelve `403` si no corresponde. Los roles se leen **del usuario en base de datos**, no
+  del token, para que quitar un permiso tenga efecto sin esperar a que expire el JWT.
+  El `ADMINISTRADOR_SISTEMA` gestiona cuentas pero **no** aprueba préstamos (regla de
+  negocio, no solo de UI).
 - **Validación de entrada:** Pydantic valida y tipa todo request (evita inyección/valores inválidos).
 - **Protección de datos (DNI/CUI):** no se exponen en respuestas salvo a roles autorizados;
   no se registran en logs.

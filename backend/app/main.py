@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .database import init_db
-from .routers import health
+from .routers import auth, health
 
 
 @asynccontextmanager
@@ -30,8 +30,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Routers por feature (se irán agregando: auth, recursos, reservas, ...)
+# Routers por feature (se irán agregando: recursos, reservas, préstamos, ...)
 app.include_router(health.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
 
 
 @app.get("/")

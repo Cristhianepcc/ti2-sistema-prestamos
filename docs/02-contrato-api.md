@@ -105,11 +105,25 @@ Público (no lleva token). Devuelve el JWT con el que se firman las demás llama
 > **Seguridad:** email inexistente y contraseña incorrecta devuelven **el mismo**
 > mensaje a propósito, para no revelar qué emails están registrados.
 
-### Relacionado: `GET /api/auth/me`
+### `GET /api/auth/me`
 
-Fuera de los dos endpoints del issue, pero el frontend lo necesita para revalidar la
-sesión al recargar la página. Requiere token y devuelve el mismo objeto `user` de arriba.
-Si el token venció o es inválido: `401 { "detail": "Token inválido o expirado" }`.
+Sirve para revalidar la sesión al recargar la página. Requiere token y devuelve
+exactamente el mismo objeto que `user` del login (sin envolver):
+
+```jsonc
+{ "id": 1, "codigo": "20200001", "nombres": "Diego Ramírez",
+  "email": "diego@unsa.edu.pe", "roles": ["ESTUDIANTE"] }
+```
+
+| Código | Cuerpo | Cuándo |
+|---|---|---|
+| `401` | `{ "detail": "No autenticado" }` | Falta el header `Authorization` |
+| `401` | `{ "detail": "Token inválido o expirado" }` | Token malformado, firmado con otra clave, vencido, o el usuario ya no existe |
+| `401` | `{ "detail": "Usuario inactivo" }` | La cuenta fue desactivada después de emitirse el token |
+
+> Los roles se leen de la base de datos en cada request, no del token: si un administrador
+> le quita un rol a alguien, el cambio aplica en la siguiente llamada sin esperar a que
+> venza el JWT. Lo mismo con la desactivación de la cuenta.
 
 ---
 

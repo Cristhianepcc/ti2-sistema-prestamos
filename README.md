@@ -87,9 +87,13 @@ El dominio se organiza en subdominios:
 ```
 backend/     API FastAPI (app/: main, models, schemas, routers, services, security)
 frontend/    Cliente web estático (HTML/CSS/JS + Bootstrap)
-docs/        Documentación (contexto, SDD, modelo de dominio)
+docs/        Documentación (contexto, SDD, contrato de API, modelo de dominio)
 docker-compose.yml
 ```
+
+> Si vas a trabajar en el frontend, empezá por
+> [`frontend/README.md`](frontend/README.md): explica cómo usar los helpers
+> `api.js` y `render.js` con ejemplos de login y catálogo listos para copiar.
 
 ## Cómo ejecutar (desarrollo)
 

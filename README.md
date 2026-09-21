@@ -44,18 +44,19 @@ El dominio se organiza en subdominios:
 - **Reserva** — se crea cuando el recurso no está disponible; `prioridad` ordena la cola
   (`EXCEPCIONAL > POR_CURSO > SIMPLE`).
 - **SolicitudAcademica** — solo para préstamos `POR_CURSO` y `EXCEPCIONAL`.
-- **Prestamo** — entidad núcleo, con `tipoPrestamo`, `categoriaPrestatario` y `modalidadUso`.
+- **Prestamo** — entidad núcleo, con `tipoPrestamo` y `modalidadUso`
+  (la categoría del prestatario se deriva del rol; ver auditoría §8 del doc base).
 - **Garantia**, **Sancion** (`RETRASO`, `DANIO`, `PERDIDA`), **Reporte**.
 
 ### Roles
 
-`ESTUDIANTE`, `DOCENTE`, `PERSONAL_ADMINISTRATIVO`, `CUSTODIO_CE`,
-`CUSTODIO_ADMINISTRATIVO`, `DIRECCION_ESCUELA`, `ADMINISTRADOR_SISTEMA`.
+`ESTUDIANTE`, `DOCENTE`, `CUSTODIO_CE`, `CUSTODIO_INFRA`,
+`DIRECCION_ESCUELA`, `ADMINISTRADOR_SISTEMA`.
 
 - **Solicitar:** cualquier rol, único requisito no tener sanción activa.
 - **Aprobar/gestionar:**
   - `CUSTODIO_CE` → préstamos **SIMPLE** de libros/deportivos.
-  - `CUSTODIO_ADMINISTRATIVO` → aprueba **POR_CURSO** y **EXCEPCIONAL**.
+  - `CUSTODIO_INFRA` → aprueba **POR_CURSO** y **EXCEPCIONAL**.
   - `DOCENTE` → avala solicitudes **POR_CURSO**.
   - `DIRECCION_ESCUELA` → autoriza **EXCEPCIONAL**.
   - `ADMINISTRADOR_SISTEMA` → rol técnico; gestiona cuentas y permisos, **no** aprueba préstamos (RF7).

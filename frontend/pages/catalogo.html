@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Catálogo de Préstamos</title>
+        <!-- Bootstrap 5 CDN -->
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+        <style>
+/* Ajuste para que la columna izquierda tenga scroll si el catálogo es muy largo */
+.catalogo-scroll {
+    height: calc(100vh - 70px);
+    overflow-y: auto;
+}
+        /* Estilo para la imagen de la derecha */
+        .imagen-fondo {
+            width: 100%;
+            height: 100vh;
+            object-fit: cover;
+        }
+        </style>
+    </head>
+    <body class="overflow-hidden">
+
+        <!-- BARRA SUPERIOR (NAVBAR) -->
+        <nav class="navbar navbar-light bg-light px-4 shadow-sm border-bottom" style="height: 70px;">
+            <!-- 3 Botones a la Izquierda -->
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-dark">☰ Menú</button>
+                <button class="btn btn-outline-secondary">Mis Préstamos</button>
+                <button class="btn btn-outline-secondary">Perfil</button>
+            </div>
+
+            <!-- Centro libre (Bootstrap space-between lo empuja a los lados) -->
+
+            <!-- 2 Botones a la Derecha -->
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-primary">Notificaciones</button>
+                <button class="btn btn-danger">Cerrar Sesión</button>
+            </div>
+        </nav>
+
+        <!-- CONTENEDOR PRINCIPAL 50/50 -->
+        <div class="container-fluid p-0">
+            <div class="row g-0">
+
+                <!-- MITAD IZQUIERDA: CATÁLOGO (50% en escritorio, 100% en móviles) -->
+                <div class="col-lg-6 col-12 p-4 catalogo-scroll">
+
+                    <!-- Buscador tipo burbuja -->
+                    <div class="mb-4">
+                        <input type="text" id="inputBuscador" class="form-control rounded-pill px-4 py-2 shadow-sm" placeholder="🔍 Buscar libros, implementos, aulas..." onkeyup="filtrarCatalogo()">
+                    </div>
+
+                    <h3 class="mb-3">Catálogo de Recursos</h3>
+
+                    <!-- Contenedor donde JS inyectará las tarjetas -->
+                    <div id="listaRecursos" class="d-flex flex-column gap-3"></div>
+
+                    <!-- Botón de Solicitud Especial -->
+                    <div class="mt-5 mb-4">
+                        <hr>
+                        <p class="text-muted">¿No encuentras lo que buscas?</p>
+                        <a href="solicitud_especial.html" class="btn btn-warning text-dark fw-bold w-100 rounded-pill py-2 shadow-sm">
+                            ¿Deseas hacer una solicitud especial?
+                        </a>
+                    </div>
+                </div>
+
+                <!-- MITAD DERECHA: IMAGEN (Oculta en móviles, 50% en escritorio) -->
+                <div class="col-lg-6 d-none d-lg-block">
+                    <img src="https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070&auto=format&fit=crop" alt="Biblioteca" class="imagen-fondo">
+                </div>
+
+            </div>
+        </div>
+
+        <!-- JAVASCRIPT: Lógica del Mockup -->
+        <script>
+            // Datos de prueba (Mockup) basándonos en tu JSON (Issue #10)
+            // Usamos los campos exactos: id, codigo, nombre, descripcion, gestor, tipo_recurso, categoria, etc.
+            const datosMock = [
+                // CENTRO DE ESTUDIANTES
+                { id: 1, codigo: "LIB-001", nombre: "Aprende C++", descripcion: "Libro de Lenguajes de programación", gestor: "CENTRO_ESTUDIANTES", tipo_recurso: "LIBRO", categoria: "Software", estado: "DISPONIBLE" },
+                { id: 2, codigo: "LIB-002", nombre: "The linux command line", descripcion: "Libro de Sistemas Operativos", gestor: "CENTRO_ESTUDIANTES", tipo_recurso: "LIBRO", categoria: "OS", estado: "DISPONIBLE" },
+                { id: 3, codigo: "DEP-001", nombre: "Pelota de Voley", descripcion: "Implementos Deportivos", gestor: "CENTRO_ESTUDIANTES", tipo_recurso: "DEPORTE", categoria: "Deportes", estado: "DISPONIBLE" },
+
+                // CUSTODIO EPCC
+                { id: 4, codigo: "AUL-101", nombre: "Aula 101", descripcion: "Salones de clase", gestor: "CUSTODIO_EPCC", tipo_recurso: "SALON", categoria: "Infraestructura", estado: "DISPONIBLE" },
+                { id: 5, codigo: "AUL-201", nombre: "Aula 201", descripcion: "Salones de clase", gestor: "CUSTODIO_EPCC", tipo_recurso: "SALON", categoria: "Infraestructura", estado: "DISPONIBLE" },
+                { id: 6, codigo: "ROB-001", nombre: "Robot Arduino", descripcion: "Robots para laboratorio", gestor: "CUSTODIO_EPCC", tipo_recurso: "EQUIPO", categoria: "Laboratorio", estado: "DISPONIBLE" },
+                { id: 10, codigo: "LIB-999", nombre: "Clean Code", descripcion: "Manual de estilo y buenas prácticas", gestor: "CENTRO_ESTUDIANTES", tipo_recurso: "LIBRO", categoria: "Software", estado: "DISPONIBLE" } // Extraído de la imagen
+            ];
+
+            const contenedor = document.getElementById('listaRecursos');
+
+            // Función para dibujar (renderizar) las tarjetas
+            function renderizarCatalogo(recursos) {
+                contenedor.innerHTML = ""; // Limpiar lista
+
+                if(recursos.length === 0) {
+                    contenedor.innerHTML = "<p class='text-muted'>No se encontraron recursos.</p>";
+                    return;
+                }
+
+                recursos.forEach(recurso => {
+                    // Si es un SALÓN, agregamos el input de horas al HTML de la tarjeta
+                    let inputHoras = "";
+                    if (recurso.tipo_recurso === "SALON") {
+                        inputHoras = `
+                        <div class="mt-2">
+                            <label class="form-label text-muted small mb-1">Tiempo de uso (Horas):</label>
+                            <input type="number" class="form-control form-control-sm w-50" min="1" max="5" placeholder="Ej: 2">
+                        </div>
+                    `;
+                    }
+
+                    // Estructura de la tarjeta
+                    const cardHtml = `
+                    <div class="card shadow-sm border-0 bg-light recurso-item">
+                        <div class="card-body d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="badge bg-secondary mb-2">${recurso.gestor}</span>
+                                <span class="badge bg-info text-dark mb-2">${recurso.tipo_recurso}</span>
+                                <h5 class="card-title mb-1">${recurso.nombre}</h5>
+                                <p class="card-text text-muted small mb-0">${recurso.descripcion} | Código: ${recurso.codigo}</p>
+                                ${inputHoras}
+                            </div>
+                            <div>
+                                <button class="btn btn-success btn-sm px-4 rounded-pill">Solicitar</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                    contenedor.innerHTML += cardHtml;
+                });
+            }
+
+            // Función para el buscador
+            function filtrarCatalogo() {
+                const textoBusqueda = document.getElementById('inputBuscador').value.toLowerCase();
+                const recursosFiltrados = datosMock.filter(recurso => 
+                    recurso.nombre.toLowerCase().includes(textoBusqueda) || 
+                    recurso.descripcion.toLowerCase().includes(textoBusqueda) ||
+                    recurso.tipo_recurso.toLowerCase().includes(textoBusqueda)
+                );
+                renderizarCatalogo(recursosFiltrados);
+            }
+
+            // Ejecutar al cargar la página por primera vez
+            renderizarCatalogo(datosMock);
+        </script>
+    </body>
+</html>

@@ -5,34 +5,34 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     const password = document.getElementById('password').value;
     const errorAlert = document.getElementById('error-alert');
 
-    // Limpiar errores previos
+    // Ocultar alerta de errores previas
     errorAlert.classList.add('d-none');
 
     try {
+        // 1. POST /auth/login (o /api/auth/login según la API de FastAPI)
         const response = await fetch('http://localhost:8000/api/auth/login', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json' 
+            },
             body: JSON.stringify({ email, password })
         });
 
         const data = await response.json();
 
         if (!response.ok) {
-            // Manejo del ESTADO DE ERROR DE CREDENCIALES
-            throw new Error(data.detail || 'Credenciales incorrectas');
+            throw new Error(data.detail || 'Credenciales inválidas');
         }
 
-        // Obtener el token (sea access_token o token)
+        // 2. Guardar token JWT en localStorage
         const token = data.access_token || data.token;
-        if (token) {
-            localStorage.setItem('token', token);
-        }
+        localStorage.setItem('token', token);
 
-        // Redirigir al catálogo/inicio
+        // 3. Redirección al catálogo (index.html)
         window.location.href = 'index.html';
 
     } catch (err) {
-        // Mostrar mensaje de error en la interfaz
+        // Mostrar error en pantalla
         errorAlert.textContent = err.message;
         errorAlert.classList.remove('d-none');
     }

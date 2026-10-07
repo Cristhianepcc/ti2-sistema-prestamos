@@ -343,3 +343,71 @@ Devuelve un objeto `ReservaPublica`:
 `recurso` es el mismo objeto `RecursoPublico` que devuelve `GET /api/recursos` (docs/02-contrato-api.md Sección 3); se incluye anidado para que el frontend no tenga que pedir el catálogo completo solo para mostrar el nombre.
 
 `EstadoReserva`: `PENDIENTE`, `CONFIRMADA`, `CANCELADA` o `VENCIDA`.
+
+---
+
+## Anexo RF3 — `POST /api/prestamos`
+
+Requiere autenticación con `Authorization: Bearer <access_token>` y rol `CUSTODIO_CE` o `CUSTODIO_INFRA`.
+
+### Request
+
+~~~json
+{
+  "recurso_id": 10,
+  "prestatario_id": 1,
+  "reserva_id": null,
+  "fecha_limite": "2026-10-10T12:00:00Z",
+  "tipo_prestamo": "SIMPLE",
+  "modalidad_uso": "RETIRO_TEMPORAL",
+  "condicion_entrega": "Buen estado",
+  "garantia": {
+    "tipo": "CARNET",
+    "valor": 0
+  }
+}
+~~~
+
+| Campo | Tipo | Obligatorio | Notas |
+|---|---|---|---|
+| `recurso_id` | int | Sí | ID del recurso |
+| `prestatario_id` | int | Sí | ID del usuario que recibe el préstamo |
+| `reserva_id` | int o `null` | No | Reserva asociada, si corresponde |
+| `fecha_limite` | string (ISO 8601) | Sí | Fecha y hora límite de devolución, con zona horaria |
+| `tipo_prestamo` | enum `TipoPrestamo` | Sí | `SIMPLE`, `POR_CURSO` o `EXCEPCIONAL` |
+| `modalidad_uso` | enum `ModalidadUso` | Sí | `EN_SITIO` o `RETIRO_TEMPORAL` |
+| `condicion_entrega` | string o `null` | No | Condición del recurso al entregarlo |
+| `garantia` | objeto o `null` | No | Garantía asociada al préstamo |
+
+En `garantia`, `tipo` es obligatorio y admite hasta 60 caracteres. `valor` es decimal con hasta 10 dígitos y 2 decimales; si se omite, vale `0`.
+
+El backend asigna `registrado_por_id`, `fecha_entrega` y `estado`. Al crear el préstamo, `estado` inicia en `ACTIVO`; `fecha_devolucion` y `condicion_devolucion` empiezan en `null`.
+
+### Response `201`
+
+~~~json
+{
+  "id": 1,
+  "recurso_id": 10,
+  "prestatario_id": 1,
+  "registrado_por_id": 3,
+  "reserva_id": null,
+  "fecha_entrega": "2026-10-07T05:00:00Z",
+  "fecha_limite": "2026-10-10T12:00:00Z",
+  "fecha_devolucion": null,
+  "estado": "ACTIVO",
+  "tipo_prestamo": "SIMPLE",
+  "modalidad_uso": "RETIRO_TEMPORAL",
+  "condicion_entrega": "Buen estado",
+  "condicion_devolucion": null,
+  "garantia": {
+    "id": 1,
+    "prestamo_id": 1,
+    "tipo": "CARNET",
+    "valor": "0.00",
+    "devuelta": false
+  }
+}
+~~~
+
+`garantia` será `null` si el préstamo no tiene una asociada. `valor` se devuelve como cadena decimal para conservar su precisión.

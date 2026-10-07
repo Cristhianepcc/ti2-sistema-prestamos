@@ -40,3 +40,11 @@ class EstadoRecurso(str, enum.Enum):
     RESERVADO = "RESERVADO"
     PRESTADO = "PRESTADO"
     MANTENIMIENTO = "MANTENIMIENTO"
+
+class EstadoReserva(str, enum.Enum):
+    """Estados del ciclo de vida de una reserva."""
+
+    PENDIENTE = "PENDIENTE"
+    CONFIRMADA = "CONFIRMADA"
+    CANCELADA = "CANCELADA"
+    VENCIDA = "VENCIDA"

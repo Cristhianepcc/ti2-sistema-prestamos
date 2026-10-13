@@ -78,6 +78,19 @@ const ETIQUETA_ESTADO = {
   MANTENIMIENTO: { texto: "En mantenimiento", color: "danger" },
 };
 
+// Estados de una RESERVA (no confundir con ETIQUETA_ESTADO, que es del recurso).
+const ETIQUETA_RESERVA = {
+  PENDIENTE: { texto: "Pendiente", color: "warning" },
+  CONFIRMADA: { texto: "Confirmada", color: "success" },
+  CANCELADA: { texto: "Cancelada", color: "secondary" },
+  VENCIDA: { texto: "Vencida", color: "danger" },
+};
+
+function badgeReserva(estado) {
+  const e = ETIQUETA_RESERVA[estado] || { texto: estado, color: "light" };
+  return `<span class="badge text-bg-${e.color}">${esc(e.texto)}</span>`;
+}
+
 const ETIQUETA_TIPO = {
   LIBRO: "Libro",
   DEPORTIVO: "Implemento deportivo",

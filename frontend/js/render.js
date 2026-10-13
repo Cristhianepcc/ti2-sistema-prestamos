@@ -93,6 +93,18 @@ const ETIQUETA_ROL = {
   ADMINISTRADOR_SISTEMA: "Administrador del sistema",
 };
 
+// Estados de un PRÉSTAMO (no confundir con ETIQUETA_ESTADO, que es del recurso).
+const ETIQUETA_PRESTAMO = {
+  ACTIVO: { texto: "Activo", color: "info" },
+  DEVUELTO: { texto: "Devuelto", color: "secondary" },
+  ATRASADO: { texto: "Atrasado", color: "danger" },
+};
+
+function badgePrestamo(estado) {
+  const e = ETIQUETA_PRESTAMO[estado] || { texto: estado, color: "light" };
+  return `<span class="badge text-bg-${e.color}">${esc(e.texto)}</span>`;
+}
+
 function badgeEstado(estado) {
   const e = ETIQUETA_ESTADO[estado] || { texto: estado, color: "light" };
   return `<span class="badge text-bg-${e.color}">${esc(e.texto)}</span>`;

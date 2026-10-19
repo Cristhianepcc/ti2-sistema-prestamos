@@ -49,3 +49,26 @@ class EstadoReserva(str, enum.Enum):
     CONFIRMADA = "CONFIRMADA"
     CANCELADA = "CANCELADA"
     VENCIDA = "VENCIDA"
+
+
+class EstadoPrestamo(str, enum.Enum):
+    """Estados del ciclo de vida de un préstamo."""
+
+    ACTIVO = "ACTIVO"
+    DEVUELTO = "DEVUELTO"
+    ATRASADO = "ATRASADO"
+
+
+class TipoPrestamo(str, enum.Enum):
+    """Tipos de préstamo permitidos."""
+
+    SIMPLE = "SIMPLE"
+    POR_CURSO = "POR_CURSO"
+    EXCEPCIONAL = "EXCEPCIONAL"
+
+
+class ModalidadUso(str, enum.Enum):
+    """Modalidad de uso del recurso prestado."""
+
+    EN_SITIO = "EN_SITIO"
+    RETIRO_TEMPORAL = "RETIRO_TEMPORAL"

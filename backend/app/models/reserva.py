@@ -3,7 +3,7 @@
 from datetime import date, datetime
 
 from sqlalchemy import Date, DateTime, Enum, ForeignKey, Integer, String, func, text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
 from .enums import EstadoReserva
@@ -21,6 +21,7 @@ class Reserva(Base):
     recurso_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("recurso.id"), nullable=False
     )
+    recurso: Mapped["Recurso"] = relationship()
     fecha: Mapped[date] = mapped_column(Date, nullable=False)
     franja: Mapped[str] = mapped_column(String(30), nullable=False)
     estado: Mapped[EstadoReserva] = mapped_column(

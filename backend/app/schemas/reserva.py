@@ -5,6 +5,7 @@ from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..models.enums import EstadoReserva
+from .recurso import RecursoPublico
 
 
 class ReservaCreate(BaseModel):
@@ -23,6 +24,7 @@ class ReservaPublica(BaseModel):
     id: int
     usuario_id: int
     recurso_id: int
+    recurso: RecursoPublico
     fecha: date
     franja: str
     estado: EstadoReserva

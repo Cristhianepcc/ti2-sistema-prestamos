@@ -41,6 +41,7 @@ class EstadoRecurso(str, enum.Enum):
     PRESTADO = "PRESTADO"
     MANTENIMIENTO = "MANTENIMIENTO"
 
+
 class EstadoReserva(str, enum.Enum):
     """Estados del ciclo de vida de una reserva."""
 

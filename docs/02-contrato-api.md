@@ -331,6 +331,7 @@ Devuelve un objeto `ReservaPublica`:
   "id": 1,
   "usuario_id": 1,
   "recurso_id": 10,
+  "recurso": { "id": 10, "codigo": "LIB-001", "nombre": "Clean Code", "...": "resto de RecursoPublico" },
   "fecha": "2026-09-25",
   "franja": "10:00-12:00",
   "estado": "PENDIENTE",
@@ -338,5 +339,7 @@ Devuelve un objeto `ReservaPublica`:
   "created_at": "2026-09-24T15:30:00-05:00"
 }
 ```
+
+`recurso` es el mismo objeto `RecursoPublico` que devuelve `GET /api/recursos` (docs/02-contrato-api.md Sección 3); se incluye anidado para que el frontend no tenga que pedir el catálogo completo solo para mostrar el nombre.
 
 `EstadoReserva`: `PENDIENTE`, `CONFIRMADA`, `CANCELADA` o `VENCIDA`.

@@ -297,3 +297,49 @@ navegador aunque el endpoint funcione bien desde Swagger.
   completo; cuando crezca habrá que decidir entre `?page/?size` o `?limit/?offset`.
 - Orden por defecto del listado (hoy: sin orden garantizado; conviene fijar `codigo ASC`).
 - `POST /api/recursos` (alta, issue #8) — se documenta acá cuando se implemente.
+
+---
+
+## Anexo RF2 — `POST /api/reservas`
+
+Requiere autenticación mediante `Authorization: Bearer <access_token>`.
+
+### Request
+
+```json
+{
+  "recurso_id": 10,
+  "fecha": "2026-09-25",
+  "franja": "10:00-12:00"
+}
+```
+
+| Campo | Tipo | Obligatorio | Notas |
+|---|---|---|---|
+| `recurso_id` | int | Sí | ID del recurso que se quiere reservar |
+| `fecha` | string (`YYYY-MM-DD`) | Sí | Fecha de la reserva |
+| `franja` | string | Sí | Máximo 30 caracteres; por ejemplo, `10:00-12:00` |
+
+El backend asigna `usuario_id`, `estado`, `prioridad` y `created_at`; no se envían en el request.
+
+### Response `201`
+
+Devuelve un objeto `ReservaPublica`:
+
+```json
+{
+  "id": 1,
+  "usuario_id": 1,
+  "recurso_id": 10,
+  "recurso": { "id": 10, "codigo": "LIB-001", "nombre": "Clean Code", "...": "resto de RecursoPublico" },
+  "fecha": "2026-09-25",
+  "franja": "10:00-12:00",
+  "estado": "PENDIENTE",
+  "prioridad": 1,
+  "created_at": "2026-09-24T15:30:00-05:00"
+}
+```
+
+`recurso` es el mismo objeto `RecursoPublico` que devuelve `GET /api/recursos` (docs/02-contrato-api.md Sección 3); se incluye anidado para que el frontend no tenga que pedir el catálogo completo solo para mostrar el nombre.
+
+`EstadoReserva`: `PENDIENTE`, `CONFIRMADA`, `CANCELADA` o `VENCIDA`.

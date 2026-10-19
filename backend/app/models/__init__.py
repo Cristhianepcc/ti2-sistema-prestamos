@@ -1,15 +1,13 @@
-"""Entidades ORM (SQLAlchemy). Ver docs/01-sdd.md §3.
+﻿"""Entidades ORM (SQLAlchemy). Ver docs/01-sdd.md §3."""
 
-Importar los módulos aquí es lo que registra las tablas en `Base.metadata`,
-así que cualquier modelo nuevo (reserva, préstamo, sanción, ...) debe añadirse
-a este archivo además de a su propio módulo.
-"""
-from .enums import EstadoRecurso, Gestor, Rol, TipoRecurso
+from .enums import EstadoReserva, EstadoRecurso, Gestor, Rol, TipoRecurso
 from .recurso import ImplementoAcademico, ImplementoDeportivo, Libro, Recurso
+from .reserva import Reserva
 from .usuario import Usuario, UsuarioRol
 
 __all__ = [
     # Enums
+    "EstadoReserva",
     "EstadoRecurso",
     "Gestor",
     "Rol",
@@ -22,4 +20,6 @@ __all__ = [
     "Libro",
     "ImplementoDeportivo",
     "ImplementoAcademico",
+    # Reservas
+    "Reserva",
 ]

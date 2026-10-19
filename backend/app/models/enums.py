@@ -50,6 +50,7 @@ class EstadoReserva(str, enum.Enum):
     CANCELADA = "CANCELADA"
     VENCIDA = "VENCIDA"
 
+
 class EstadoPrestamo(str, enum.Enum):
     """Estados del ciclo de vida de un préstamo."""
 

@@ -357,7 +357,6 @@ Requiere autenticación con `Authorization: Bearer <access_token>` y rol `CUSTOD
   "recurso_id": 10,
   "prestatario_id": 1,
   "reserva_id": null,
-  "fecha_limite": "2026-10-10T12:00:00Z",
   "tipo_prestamo": "SIMPLE",
   "modalidad_uso": "RETIRO_TEMPORAL",
   "condicion_entrega": "Buen estado",
@@ -373,7 +372,7 @@ Requiere autenticación con `Authorization: Bearer <access_token>` y rol `CUSTOD
 | `recurso_id` | int | Sí | ID del recurso |
 | `prestatario_id` | int | Sí | ID del usuario que recibe el préstamo |
 | `reserva_id` | int o `null` | No | Reserva asociada, si corresponde |
-| `fecha_limite` | string (ISO 8601) | Sí | Fecha y hora límite de devolución, con zona horaria |
+| `fecha_limite` | string (ISO 8601) o `null` | No | Si no se manda, `prestamo_service` (#30) la calcula según `tipo_recurso`/`tipo_prestamo`. El form del custodio (#33) no la pide |
 | `tipo_prestamo` | enum `TipoPrestamo` | Sí | `SIMPLE`, `POR_CURSO` o `EXCEPCIONAL` |
 | `modalidad_uso` | enum `ModalidadUso` | Sí | `EN_SITIO` o `RETIRO_TEMPORAL` |
 | `condicion_entrega` | string o `null` | No | Condición del recurso al entregarlo |
@@ -381,7 +380,7 @@ Requiere autenticación con `Authorization: Bearer <access_token>` y rol `CUSTOD
 
 En `garantia`, `tipo` es obligatorio y admite hasta 60 caracteres. `valor` es decimal con hasta 10 dígitos y 2 decimales; si se omite, vale `0`.
 
-El backend asigna `registrado_por_id`, `fecha_entrega` y `estado`. Al crear el préstamo, `estado` inicia en `ACTIVO`; `fecha_devolucion` y `condicion_devolucion` empiezan en `null`.
+El backend asigna `registrado_por_id`, `fecha_entrega` y `estado`; y `fecha_limite` si no vino en el request. Al crear el préstamo, `estado` inicia en `ACTIVO`; `fecha_devolucion` y `condicion_devolucion` empiezan en `null`.
 
 ### Response `201`
 
@@ -389,6 +388,7 @@ El backend asigna `registrado_por_id`, `fecha_entrega` y `estado`. Al crear el p
 {
   "id": 1,
   "recurso_id": 10,
+  "recurso": { "id": 10, "codigo": "LIB-001", "nombre": "Clean Code", "...": "resto de RecursoPublico" },
   "prestatario_id": 1,
   "registrado_por_id": 3,
   "reserva_id": null,
@@ -410,4 +410,4 @@ El backend asigna `registrado_por_id`, `fecha_entrega` y `estado`. Al crear el p
 }
 ~~~
 
-`garantia` será `null` si el préstamo no tiene una asociada. `valor` se devuelve como cadena decimal para conservar su precisión.
+`recurso` es el mismo objeto `RecursoPublico` de la Sección 3, anidado. `garantia` será `null` si el préstamo no tiene una asociada. `valor` se devuelve como cadena decimal para conservar su precisión.

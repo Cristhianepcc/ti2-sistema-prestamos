@@ -6,6 +6,7 @@ from decimal import Decimal
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..models.enums import EstadoPrestamo, ModalidadUso, TipoPrestamo
+from .recurso import RecursoPublico
 
 
 class GarantiaCreate(BaseModel):
@@ -33,7 +34,9 @@ class PrestamoCreate(BaseModel):
     recurso_id: int
     prestatario_id: int
     reserva_id: int | None = None
-    fecha_limite: datetime
+    # Opcional: el form del custodio (#33) no la pide. Si no llega,
+    # prestamo_service (#30) la calcula según tipo_recurso/tipo_prestamo.
+    fecha_limite: datetime | None = None
     tipo_prestamo: TipoPrestamo
     modalidad_uso: ModalidadUso
     condicion_entrega: str | None = None
@@ -47,6 +50,7 @@ class PrestamoPublico(BaseModel):
 
     id: int
     recurso_id: int
+    recurso: RecursoPublico
     prestatario_id: int
     registrado_por_id: int
     reserva_id: int | None

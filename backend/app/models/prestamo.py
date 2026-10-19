@@ -16,7 +16,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
 from .enums import EstadoPrestamo, ModalidadUso, TipoPrestamo
@@ -37,6 +37,7 @@ class Prestamo(Base):
     recurso_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("recurso.id"), nullable=False
     )
+    recurso: Mapped["Recurso"] = relationship()
     prestatario_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("usuario.id"), nullable=False
     )
@@ -69,6 +70,7 @@ class Prestamo(Base):
     )
     condicion_entrega: Mapped[str | None] = mapped_column(Text, nullable=True)
     condicion_devolucion: Mapped[str | None] = mapped_column(Text, nullable=True)
+    garantia: Mapped["Garantia | None"] = relationship(uselist=False)
 
     def __repr__(self) -> str:
         return f"<Prestamo id={self.id} recurso_id={self.recurso_id} prestatario_id={self.prestatario_id}>"

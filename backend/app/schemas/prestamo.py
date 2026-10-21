@@ -34,8 +34,9 @@ class PrestamoCreate(BaseModel):
     recurso_id: int
     prestatario_id: int
     reserva_id: int | None = None
-    # Requerida temporalmente: el equipo aún no definió plazos predeterminados.
-    fecha_limite: datetime
+    # Opcional: el form del custodio (#33) no la pide. Si no llega,
+    # prestamo_service (#30) la calcula según tipo_recurso/tipo_prestamo.
+    fecha_limite: datetime | None = None
     tipo_prestamo: TipoPrestamo
     modalidad_uso: ModalidadUso
     condicion_entrega: str | None = None

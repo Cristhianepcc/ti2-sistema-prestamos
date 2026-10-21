@@ -1,6 +1,6 @@
 ﻿"""Reglas de negocio de préstamos (RF3, issue #30)."""
 
-from datetime import datetime, timezone
+from datetime import datetime, time, timedelta, timezone
 from typing import Any, Mapping
 
 from sqlalchemy import update
@@ -30,6 +30,31 @@ class RegistroPrestamoNoEncontrado(ErrorPrestamo):
     """No se encontró el préstamo, recurso o usuario indicado."""
 
 
+# Plazos provisionales hasta que el equipo defina duraciones oficiales (#30).
+# DEPORTIVO no está acá: por docs/00-contexto-alcance-propuesta.md §5 es
+# préstamo del mismo día y su plazo se calcula aparte (fin del día de entrega).
+_PLAZOS_POR_DEFECTO: dict[tuple[TipoRecurso, TipoPrestamo], timedelta] = {
+    (TipoRecurso.LIBRO, TipoPrestamo.SIMPLE): timedelta(days=7),
+    (TipoRecurso.ACADEMICO, TipoPrestamo.POR_CURSO): timedelta(days=1),
+    (TipoRecurso.ACADEMICO, TipoPrestamo.EXCEPCIONAL): timedelta(days=3),
+}
+
+
+def _calcular_fecha_limite(
+    tipo_recurso: TipoRecurso,
+    tipo_prestamo: TipoPrestamo,
+    fecha_entrega: datetime,
+) -> datetime:
+    """Calcula el plazo cuando el custodio no envía `fecha_limite`."""
+    if tipo_recurso == TipoRecurso.DEPORTIVO:
+        return datetime.combine(
+            fecha_entrega.date(), time(23, 59, 59), tzinfo=fecha_entrega.tzinfo
+        )
+
+    plazo = _PLAZOS_POR_DEFECTO.get((tipo_recurso, tipo_prestamo), timedelta(days=7))
+    return fecha_entrega + plazo
+
+
 def _validar_sancion_activa(db: Session, usuario_id: int) -> None:
     """Punto de extensión para el bloqueo por sanciones de RF5.
 
@@ -46,9 +71,9 @@ def crear_prestamo(
     recurso_id: int,
     prestatario_id: int,
     registrado_por_id: int,
-    fecha_limite: datetime,
     tipo_prestamo: TipoPrestamo,
     modalidad_uso: ModalidadUso,
+    fecha_limite: datetime | None = None,
     reserva_id: int | None = None,
     condicion_entrega: str | None = None,
     garantia: Mapping[str, Any] | None = None,
@@ -96,6 +121,11 @@ def crear_prestamo(
         )
 
     _validar_sancion_activa(db, prestatario_id)
+
+    if fecha_limite is None:
+        fecha_limite = _calcular_fecha_limite(
+            recurso.tipo_recurso, tipo_prestamo, datetime.now(timezone.utc)
+        )
 
     datos_garantia = Garantia(**dict(garantia)) if garantia is not None else None
     prestamo = Prestamo(

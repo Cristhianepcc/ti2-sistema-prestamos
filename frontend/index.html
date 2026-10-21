@@ -4,33 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Sistema de Préstamos</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/styles.css" rel="stylesheet">
 </head>
-<body class="bg-light d-flex align-items-center vh-100">
+<body class="pagina-login">
 
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-12 col-md-6 col-lg-4">
-                <div class="card shadow-sm border-0">
-                    <div class="card-body p-4">
-                        <h3 class="card-title text-center mb-4">Iniciar Sesión</h3>
-                        
-                        <!-- Estado de error de credenciales -->
-                        <div id="error-alert" class="alert alert-danger d-none text-center" role="alert"></div>
+    <div class="login-frame">
+        <div class="login-split">
+            <div class="login-hero">
+                <div class="marca">Sistema de Préstamos</div>
+                <h2>Bienvenido de vuelta</h2>
+                <p>Catálogo de libros, implementos deportivos y académicos de la Escuela. Solicita, reserva y gestiona tus préstamos desde un solo lugar.</p>
+            </div>
+            <div class="login-form">
+                <h3 class="page-title">Iniciar sesión</h3>
 
-                        <form id="login-form">
-                            <div class="mb-3">
-                                <label for="email" class="form-label">Correo Institucional</label>
-                                <input type="email" class="form-control" id="email" required placeholder="usuario@unsa.edu.pe">
-                            </div>
-                            <div class="mb-3">
-                                <label for="password" class="form-label">Contraseña</label>
-                                <input type="password" class="form-control" id="password" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100 mt-2">Ingresar</button>
-                        </form>
-                    </div>
-                </div>
+                <div id="error-alert" class="alert-danger" hidden role="alert"></div>
+
+                <form id="login-form">
+                    <label class="field">Correo institucional
+                        <input type="email" id="email" required placeholder="usuario@unsa.edu.pe">
+                    </label>
+                    <label class="field">Contraseña
+                        <input type="password" id="password" required>
+                    </label>
+                    <button type="submit" class="btn btn-primary btn-block">Ingresar</button>
+                </form>
+                <p class="hint">¿No tienes cuenta? Las credenciales las crea Dirección de Escuela.</p>
             </div>
         </div>
     </div>

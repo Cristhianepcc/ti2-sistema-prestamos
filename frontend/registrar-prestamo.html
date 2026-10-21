@@ -1,94 +1,90 @@
 <!DOCTYPE html>
 <html lang="es">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Gestión de Préstamos - Custodio</title>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-        <link href="css/styles.css" rel="stylesheet">
-    </head>
-    <body class="bg-light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Custodio</title>
+    <link href="css/styles.css" rel="stylesheet">
+</head>
+<body>
 
-        <!-- BARRA SUPERIOR -->
-        <nav class="navbar navbar-light bg-white px-4 shadow-sm border-bottom mb-4" style="height: 70px;">
-            <div class="d-flex gap-2">
-                <a href="catalogo.html" class="btn btn-outline-secondary">Catálogo</a>
-                <span class="navbar-brand mb-0 h1 ms-2">Panel de Custodio</span>
-            </div>
-            <div>
-                <button id="btn-cerrar-sesion" class="btn btn-danger btn-sm">Cerrar Sesión</button>
-            </div>
-        </nav>
+    <div class="app">
+        <aside class="app-sidebar" id="app-sidebar"></aside>
 
-        <div class="container pb-5">
-            <div class="row g-4">
-                <!-- SECCIÓN 1: REGISTRAR ENTREGA -->
-                <div class="col-lg-5">
-                    <div class="card shadow-sm border-0">
-                        <div class="card-body">
-                            <h4 class="card-title mb-3">Registrar Nueva Entrega</h4>
-                            <form id="form-registrar-prestamo">
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold small">Recurso Disponible</label>
-                                    <select name="recurso_id" id="select-recurso" class="form-select form-select-sm" required>
-                                        <option value="">Seleccione un recurso...</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold small">ID del Prestatario</label>
-                                    <input type="number" name="prestatario_id" class="form-control form-control-sm" placeholder="Ej. ID numérico" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold small">Tipo de Préstamo</label>
-                                    <select name="tipo_prestamo" class="form-select form-select-sm" required>
-                                        <option value="SIMPLE">SIMPLE</option>
-                                        <option value="POR_CURSO">POR_CURSO</option>
-                                        <option value="EXCEPCIONAL">EXCEPCIONAL</option>
-                                    </select>
-                                    <div class="form-text small">Nota: Recursos académicos/deportivos usan SIMPLE.</div>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold small">Modalidad de Uso</label>
-                                    <select name="modalidad_uso" class="form-select form-select-sm" required>
-                                        <option value="EN_SITIO">EN_SITIO</option>
-                                        <option value="RETIRO_TEMPORAL">RETIRO_TEMPORAL</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold small">Condición de Entrega</label>
-                                    <input type="text" name="condicion_entrega" class="form-control form-control-sm" placeholder="Estado físico inicial" required>
-                                </div>
-                                <hr>
-                                <h6 class="text-muted small fw-bold">Garantía (Opcional)</h6>
-                                <div class="row g-2 mb-3">
-                                    <div class="col-7">
-                                        <input type="text" name="garantia_tipo" class="form-control form-control-sm" placeholder="Tipo (ej. CARNET, DNI)">
-                                    </div>
-                                    <div class="col-5">
-                                        <input type="number" name="garantia_valor" class="form-control form-control-sm" value="0" placeholder="Valor">
-                                    </div>
-                                </div>
-                                <div class="form-error-msg alert alert-danger d-none py-2 small" role="alert"></div>
-                                <button type="submit" class="btn btn-success w-100 btn-sm">Registrar Préstamo / Entrega</button>
-                            </form>
+        <div class="app-main">
+            <h2 class="page-title">Panel Custodio — Entregas</h2>
+
+            <div class="custodio-grid">
+                <div class="form-card">
+                    <form id="form-registrar-prestamo">
+                        <label class="field">Recurso disponible
+                            <select name="recurso_id" id="select-recurso" required>
+                                <option value="">Seleccione un recurso...</option>
+                            </select>
+                        </label>
+
+                        <label class="field">ID del prestatario
+                            <input type="number" name="prestatario_id" placeholder="Ej. ID numérico" required>
+                        </label>
+
+                        <label class="field">Tipo de préstamo
+                            <span class="chip-toggle" data-chip-grupo="tipo_prestamo">
+                                <span class="chip-opt on" data-valor="SIMPLE">SIMPLE</span>
+                                <span class="chip-opt" data-valor="POR_CURSO">POR_CURSO</span>
+                                <span class="chip-opt" data-valor="EXCEPCIONAL">EXCEPCIONAL</span>
+                            </span>
+                            <input type="hidden" name="tipo_prestamo" value="SIMPLE">
+                            <span class="hint">Recursos académicos usan POR_CURSO/EXCEPCIONAL; libros y deportivos, SIMPLE.</span>
+                        </label>
+
+                        <label class="field">Modalidad de uso
+                            <span class="chip-toggle" data-chip-grupo="modalidad_uso">
+                                <span class="chip-opt" data-valor="EN_SITIO">EN_SITIO</span>
+                                <span class="chip-opt on" data-valor="RETIRO_TEMPORAL">RETIRO_TEMPORAL</span>
+                            </span>
+                            <input type="hidden" name="modalidad_uso" value="RETIRO_TEMPORAL">
+                        </label>
+
+                        <label class="field">Condición de entrega
+                            <input type="text" name="condicion_entrega" placeholder="Estado físico inicial" required>
+                        </label>
+
+                        <hr>
+                        <span class="seccion-titulo">Garantía (opcional)</span>
+                        <div class="fila-doble">
+                            <input type="text" name="garantia_tipo" list="opciones-garantia" placeholder="Tipo (ej. CARNET, DNI)">
+                            <input type="number" name="garantia_valor" value="0" placeholder="Valor" style="max-width:100px;">
                         </div>
-                    </div>
+                        <datalist id="opciones-garantia">
+                            <option value="CARNET">
+                            <option value="DNI">
+                        </datalist>
+
+                        <div class="alert-danger form-error-msg" hidden role="alert"></div>
+                        <button type="submit" class="btn btn-success btn-block">Registrar préstamo / entrega</button>
+                    </form>
                 </div>
 
-                <!-- SECCIÓN 2: LISTA DE PRÉSTAMOS ACTIVOS Y DEVOLUCIÓN -->
-                <div class="col-lg-7">
-                    <div class="card shadow-sm border-0">
-                        <div class="card-body">
-                            <h4 class="card-title mb-3">Préstamos Activos</h4>
-                            <div id="lista-prestamos-activos"></div>
-                        </div>
+                <div>
+                    <div class="toolbar">
+                        <input type="text" id="buscar-activos" class="search" placeholder="Buscar por recurso o prestatario...">
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr><th>Recurso</th><th>Prestatario</th><th>Entregado</th><th>Vence</th><th>Estado</th><th></th></tr>
+                            </thead>
+                            <tbody id="lista-prestamos-activos"></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <script src="js/api.js"></script>
-        <script src="js/render.js"></script>
-        <script src="js/registrar-prestamo.js"></script>
-    </body>
+    <script src="js/api.js"></script>
+    <script src="js/render.js"></script>
+    <script src="js/shell.js"></script>
+    <script src="js/registrar-prestamo.js"></script>
+</body>
 </html>

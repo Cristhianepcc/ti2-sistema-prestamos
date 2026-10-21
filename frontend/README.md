@@ -26,17 +26,22 @@ Cargá siempre los dos scripts antes de tu lógica:
 
 ```html
 <form id="form-login">
-  <div id="login-error" class="d-none"></div>
+  <div id="login-error" class="alert-danger" hidden></div>
 
-  <label class="form-label" for="email">Correo institucional</label>
-  <input class="form-control" id="email" name="email" type="email" required>
+  <label class="field">Correo institucional
+    <input id="email" name="email" type="email" required>
+  </label>
+  <label class="field">Contraseña
+    <input id="password" name="password" type="password" required>
+  </label>
 
-  <label class="form-label mt-3" for="password">Contraseña</label>
-  <input class="form-control" id="password" name="password" type="password" required>
-
-  <button id="btn-entrar" class="btn btn-primary w-100 mt-4" type="submit">Entrar</button>
+  <button id="btn-entrar" class="btn btn-primary btn-block" type="submit">Entrar</button>
 </form>
 ```
+
+> No hay Bootstrap: las clases vienen de `css/styles.css` (ver `.field`, `.btn`,
+> `.alert-danger`, etc.). Los estados que se ocultan/muestran usan el atributo
+> `hidden`, no una clase `d-none`.
 
 ```js
 const form = document.getElementById("form-login");
@@ -73,11 +78,18 @@ form.addEventListener("submit", async (evento) => {
 ## 3. Catálogo (issue #10 / #11)
 
 ```html
-<div id="catalogo"></div>
+<div class="app">
+  <aside class="app-sidebar" id="app-sidebar"></aside>
+  <div class="app-main">
+    <div id="catalogo"></div>
+  </div>
+</div>
 ```
 
 ```js
 if (!requireAuth()) throw new Error("sin sesión");  // corta si no hay token
+
+renderSidebar("catalogo");  // pinta el sidebar y resalta el item activo (js/shell.js)
 
 const caja = document.getElementById("catalogo");
 
@@ -93,15 +105,11 @@ async function cargarCatalogo(filtros = "") {
 
 function tarjetaRecurso(r) {
   return `
-    <div class="card mb-2">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-start">
-          <h2 class="h6 mb-1">${esc(r.nombre)}</h2>
-          ${badgeEstado(r.estado)}
-        </div>
-        <p class="text-muted small mb-1">
-          ${esc(ETIQUETA_TIPO[r.tipo_recurso])} · ${esc(r.codigo)}
-        </p>
+    <div class="tarjeta">
+      <div class="cuerpo">
+        <div class="nombre">${esc(r.nombre)}</div>
+        ${badgeEstado(r.estado)}
+        <p class="detalle">${esc(ETIQUETA_TIPO[r.tipo_recurso])} · ${esc(r.codigo)}</p>
         ${detalleSegunTipo(r)}
       </div>
     </div>`;
@@ -163,15 +171,28 @@ try {
 | Función | Qué hace |
 |---|---|
 | `esc(texto)` | Escapa texto de la API antes de meterlo en `innerHTML`. **Usalo siempre** |
-| `showLoading(el)` | Spinner de carga |
-| `showError(el, msg)` | Alerta roja |
-| `showEmpty(el, msg)` | Mensaje de "no hay datos" |
-| `renderList(el, items, fn, vacío)` | Pinta una lista; si está vacía muestra el mensaje |
+| `showLoading(el, colspan?)` | Spinner de carga |
+| `showError(el, msg, colspan?)` | Alerta roja |
+| `showEmpty(el, msg, colspan?)` | Mensaje de "no hay datos" |
+| `renderList(el, items, fn, vacío, colspan?)` | Pinta una lista; si está vacía muestra el mensaje |
 | `formValues(form)` | Los campos del form como objeto |
 | `setBusy(boton, true/false)` | Deshabilita el botón con spinner mientras se envía |
-| `showFormError(el, msg)` | Muestra el error del form; con `null` lo oculta |
-| `badgeEstado(estado)` | Badge de color según el estado del recurso |
-| `ETIQUETA_TIPO` · `ETIQUETA_ROL` · `ETIQUETA_ESTADO` | Enum → texto legible en español |
+| `showFormError(el, msg)` | Muestra el error del form (usa `el.hidden`); con `null` lo oculta |
+| `badgeEstado` · `badgeReserva` · `badgePrestamo` | Badge de color (`ok`/`warn`/`danger`/`neutral`) según el estado |
+| `ETIQUETA_TIPO` · `ETIQUETA_ROL` · `ETIQUETA_ESTADO` · `ETIQUETA_RESERVA` · `ETIQUETA_PRESTAMO` | Enum → texto legible en español |
+
+> El parámetro `colspan` es solo para cuando `el` es un `<tbody>` (una lista en
+> forma de tabla, como "Mis Reservas" o el Panel Custodio): envuelve el mensaje
+> en una fila con `colspan` para no romper la tabla. Omitilo en listas normales.
+
+### `shell.js`
+
+| Función | Qué hace |
+|---|---|
+| `renderSidebar(activa)` | Pinta el sidebar de navegación en `#app-sidebar` y resalta el item `activa` (`"catalogo"`, `"reservas"`, `"prestamos"` o `"custodio"`). Incluye el botón de cerrar sesión. Llamalo una vez al cargar cualquier página con sesión |
+
+El Panel Custodio solo aparece en el sidebar para `CUSTODIO_CE`/`CUSTODIO_INFRA`
+(usa `hasRole()` internamente) — no hace falta ocultarlo a mano.
 
 ---
 

@@ -1,5 +1,9 @@
 if (!requireAuth()) throw new Error("sin sesión");
 
+if (hasRole("CUSTODIO_CE", "CUSTODIO_INFRA")) {
+    document.getElementById("link-panel-custodio").hidden = false;
+}
+
 const caja = document.getElementById("catalogo");
 const inputBuscador = document.getElementById("input-buscador");
 

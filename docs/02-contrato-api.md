@@ -451,3 +451,68 @@ El backend asigna `registrado_por_id`, `fecha_entrega` y `estado`; y `fecha_limi
 ~~~
 
 `recurso` es el mismo objeto `RecursoPublico` de la Sección 3, anidado. `garantia` será `null` si el préstamo no tiene una asociada. `valor` se devuelve como cadena decimal para conservar su precisión.
+
+### Errores de `POST /api/prestamos`
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `403` | El usuario no es `CUSTODIO_CE` ni `CUSTODIO_INFRA` |
+| `404` | `recurso_id`, `prestatario_id` o el registrador no existen |
+| `409` | `registrado_por_id == prestatario_id` ("El registrador no puede ser el prestatario") |
+| `409` | El recurso no está `DISPONIBLE` |
+| `409` | `tipo_prestamo=SIMPLE` sobre un recurso `ACADEMICO`, o `POR_CURSO`/`EXCEPCIONAL` sobre uno que no lo es |
+| `409` | `tipo_prestamo=EXCEPCIONAL` con `modalidad_uso` distinta de `RETIRO_TEMPORAL` |
+
+---
+
+### POST `/api/prestamos/{id}/devolucion` — Registrar devolución
+
+Requiere autenticación con rol `CUSTODIO_CE` o `CUSTODIO_INFRA`.
+
+#### Request
+
+~~~json
+{ "condicion_devolucion": "Buen estado, sin daños", "danado": false }
+~~~
+
+| Campo | Tipo | Obligatorio | Notas |
+|---|---|---|---|
+| `condicion_devolucion` | string o `null` | No | |
+| `danado` | boolean | No (default `false`) | Si es `true`, el recurso pasa a `MANTENIMIENTO` en vez de `DISPONIBLE` |
+
+Solo se pueden devolver préstamos en estado `ACTIVO` o `ATRASADO`. Al devolver, `estado` pasa a `DEVUELTO`, se completa `fecha_devolucion`, y el recurso vuelve a `DISPONIBLE` (o `MANTENIMIENTO` si `danado=true`).
+
+#### Response `200`
+
+Mismo objeto `PrestamoPublico` de arriba, ya con `estado: "DEVUELTO"`.
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `403` | El usuario no es `CUSTODIO_CE` ni `CUSTODIO_INFRA` |
+| `404` | El préstamo no existe |
+| `409` | El préstamo no está `ACTIVO` ni `ATRASADO` |
+
+---
+
+### GET `/api/prestamos` — Listar préstamos
+
+Requiere autenticación. Dos modos, combinables:
+
+| Param | Tipo | Efecto |
+|---|---|---|
+| `mios` | boolean | `true`: solo los préstamos donde el usuario autenticado es el prestatario (cualquier rol) |
+| `estado` | enum `EstadoPrestamo` | Filtra por estado. Sin `mios=true`, solo lo puede usar un custodio (ve los préstamos de todos) |
+
+Sin `mios=true`, un usuario que no sea custodio recibe `403`. `mios=true` y `estado` se pueden combinar (ej. `?mios=true&estado=ACTIVO`).
+
+#### Response `200`
+
+Un array de `PrestamoPublico` (`[]` si no hay coincidencias).
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `403` | Pide préstamos de otros usuarios (sin `mios=true`) sin ser custodio |
+| `422` | `estado` no es un valor válido del enum |

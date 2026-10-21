@@ -155,16 +155,22 @@ formModal.addEventListener("submit", async (evento) => {
     const datos = formValues(formModal);
     const boton = formModal.querySelector('button[type="submit"]');
 
+    if (datos.hora_fin <= datos.hora_inicio) {
+        showFormError(errorModal, "La hora de fin debe ser posterior a la de inicio.");
+        return;
+    }
+
     setBusy(boton, true, "Reservando…");
     showFormError(errorModal, "");
 
+    const franja = `${datos.hora_inicio}-${datos.hora_fin}`;
     const nombreRecurso = recursoReservando.nombre;
 
     try {
         await api.post("/reservas", {
             recurso_id: recursoReservando.id,
             fecha: datos.fecha,
-            franja: datos.franja,
+            franja,
         });
         cerrarModal();
         await cargarCatalogo();

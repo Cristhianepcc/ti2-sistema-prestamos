@@ -36,12 +36,15 @@
             <p class="modal-sub" id="modal-recurso-nombre"></p>
 
             <form id="form-modal-reservar">
-                <div class="form-fila">
-                    <label class="field">Fecha
-                        <input type="date" name="fecha" required>
+                <label class="field">Fecha
+                    <input type="date" name="fecha" required>
+                </label>
+                <div class="form-fila" style="margin-top: 10px;">
+                    <label class="field">Desde
+                        <input type="time" name="hora_inicio" required>
                     </label>
-                    <label class="field">Franja
-                        <input type="text" name="franja" placeholder="ej: 10:00-12:00" required>
+                    <label class="field">Hasta
+                        <input type="time" name="hora_fin" required>
                     </label>
                 </div>
                 <div class="alert-danger form-error-msg" hidden style="margin-top: 10px;"></div>

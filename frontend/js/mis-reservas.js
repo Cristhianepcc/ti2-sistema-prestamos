@@ -6,7 +6,7 @@
 // ⚠️ MIENTRAS EL BACKEND NO ESTÉ LISTO: USAR_PRUEBA = true muestra datos de
 // ejemplo y simula la cancelación. Al integrar con #26, cambiar SOLO esa línea
 // a `false`.
-const USAR_PRUEBA = true;
+const USAR_PRUEBA = false;
 
 if (!requireAuth()) throw new Error("sin sesión"); // corta si no hay token
 

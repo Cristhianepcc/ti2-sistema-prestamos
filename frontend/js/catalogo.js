@@ -58,33 +58,14 @@ function tarjetaRecurso(r) {
 
     return `
     <div class="tarjeta">
-        <div class="tp-col">
-            <div class="tp-main">
-                <div class="tp-media">
-                    ${ICONO_IMAGEN_PENDIENTE}
-                    <span class="tp-badge">${badgeEstado(r.estado)}</span>
-                </div>
-                <div class="tp-nombre">${esc(r.nombre)}</div>
-                <p class="tp-detalle">${esc(r.codigo)} · ${detalleSegunTipo(r)}</p>
-                ${boton}
+        <div class="tp-main">
+            <div class="tp-media">
+                ${ICONO_IMAGEN_PENDIENTE}
+                <span class="tp-badge">${badgeEstado(r.estado)}</span>
             </div>
-            <div class="form-reservar" data-id="${esc(r.id)}" hidden>
-                <form>
-                    <div class="fila">
-                        <label class="field">Fecha
-                            <input type="date" name="fecha" required>
-                        </label>
-                        <label class="field">Franja
-                            <input type="text" name="franja" placeholder="ej: 10:00-12:00" required>
-                        </label>
-                    </div>
-                    <div class="alert-danger form-error-msg" hidden></div>
-                    <div class="acciones">
-                        <button type="button" class="btn btn-ghost btn-sm btn-cancelar-reserva">Cancelar</button>
-                        <button type="submit" class="btn btn-primary btn-sm">Confirmar reserva</button>
-                    </div>
-                </form>
-            </div>
+            <div class="tp-nombre">${esc(r.nombre)}</div>
+            <p class="tp-detalle">${esc(r.codigo)} · ${detalleSegunTipo(r)}</p>
+            ${boton}
         </div>
         <div class="tp-etiqueta"><span>${esc(ETIQUETA_TIPO[r.tipo_recurso])}</span></div>
     </div>`;
@@ -108,50 +89,95 @@ filtrosTipo.addEventListener("click", (evento) => {
     pintarCatalogo();
 });
 
-// --- Reservar ---------------------------------------------------------------
+// --- Aviso de éxito (banner que se oculta solo) -------------------------------
+
+const avisoExito = document.getElementById("aviso-exito");
+let avisoTimeout = null;
+
+function mostrarAvisoExito(mensaje) {
+    avisoExito.textContent = mensaje;
+    avisoExito.hidden = false;
+    clearTimeout(avisoTimeout);
+    avisoTimeout = setTimeout(() => {
+        avisoExito.hidden = true;
+    }, 5000);
+}
+
+// --- Modal de reserva ---------------------------------------------------------
+
+const modal = document.getElementById("modal-reservar");
+const formModal = document.getElementById("form-modal-reservar");
+const inputFecha = formModal.querySelector('input[name="fecha"]');
+const errorModal = formModal.querySelector(".form-error-msg");
+let recursoReservando = null;
+
+function hoyISO() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function abrirModal(recursoId) {
+    recursoReservando = recursos.find((r) => String(r.id) === String(recursoId));
+    if (!recursoReservando) return;
+
+    document.getElementById("modal-recurso-nombre").textContent =
+        `${recursoReservando.nombre} · ${recursoReservando.codigo}`;
+    formModal.reset();
+    inputFecha.min = hoyISO();
+    showFormError(errorModal, "");
+    modal.hidden = false;
+}
+
+function cerrarModal() {
+    modal.hidden = true;
+    recursoReservando = null;
+}
 
 caja.addEventListener("click", (evento) => {
     const btnReservar = evento.target.closest(".btn-reservar");
-    if (btnReservar) {
-        const tarjeta = btnReservar.closest(".tarjeta");
-        tarjeta.classList.add("reservando");
-        tarjeta.querySelector(".form-reservar").hidden = false;
-        btnReservar.hidden = true;
+    if (btnReservar) abrirModal(btnReservar.dataset.id);
+});
+
+document.getElementById("btn-cerrar-modal").addEventListener("click", cerrarModal);
+
+// Cerrar al hacer clic fuera del cuadro, o con Escape.
+modal.addEventListener("click", (evento) => {
+    if (evento.target === modal) cerrarModal();
+});
+document.addEventListener("keydown", (evento) => {
+    if (evento.key === "Escape" && !modal.hidden) cerrarModal();
+});
+
+formModal.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+    if (!recursoReservando) return;
+
+    const datos = formValues(formModal);
+    const boton = formModal.querySelector('button[type="submit"]');
+
+    if (datos.hora_fin <= datos.hora_inicio) {
+        showFormError(errorModal, "La hora de fin debe ser posterior a la de inicio.");
         return;
     }
 
-    const btnCancelar = evento.target.closest(".btn-cancelar-reserva");
-    if (btnCancelar) {
-        const tarjeta = btnCancelar.closest(".tarjeta");
-        tarjeta.classList.remove("reservando");
-        tarjeta.querySelector(".form-reservar").hidden = true;
-        const boton = tarjeta.querySelector(".btn-reservar");
-        if (boton) boton.hidden = false;
-    }
-});
-
-caja.addEventListener("submit", async (evento) => {
-    const contenedor = evento.target.closest(".form-reservar");
-    if (!contenedor) return;
-    evento.preventDefault();
-
-    const form = evento.target;
-    const datos = formValues(form);
-    const boton = form.querySelector('button[type="submit"]');
-    const errorDiv = form.querySelector(".form-error-msg");
-
     setBusy(boton, true, "Reservando…");
-    showFormError(errorDiv, "");
+    showFormError(errorModal, "");
+
+    const franja = `${datos.hora_inicio}-${datos.hora_fin}`;
+    const nombreRecurso = recursoReservando.nombre;
 
     try {
         await api.post("/reservas", {
-            recurso_id: Number(contenedor.dataset.id),
+            recurso_id: recursoReservando.id,
             fecha: datos.fecha,
-            franja: datos.franja,
+            franja,
         });
-        contenedor.innerHTML = `<p class="alert-success">Reserva creada — queda <b>PENDIENTE</b> hasta que un custodio la confirme.</p>`;
+        cerrarModal();
+        await cargarCatalogo();
+        mostrarAvisoExito(`Reserva creada para ${nombreRecurso} — queda PENDIENTE hasta que un custodio la confirme.`);
     } catch (e) {
-        showFormError(errorDiv, e.message);
+        showFormError(errorModal, e.message);
+    } finally {
         setBusy(boton, false);
     }
 });

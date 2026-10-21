@@ -21,11 +21,14 @@ from sqlalchemy.orm import Session
 from .database import SessionLocal, init_db
 from .models import (
     EstadoRecurso,
+    Garantia,
     Gestor,
     ImplementoAcademico,
     ImplementoDeportivo,
     Libro,
+    Prestamo,
     Recurso,
+    Reserva,
     Rol,
     Usuario,
     UsuarioRol,
@@ -157,12 +160,15 @@ def _sembrar_recursos(db: Session) -> int:
 
 
 def _reset(db: Session) -> None:
-    """Borra usuarios y recursos. No toca el resto de tablas (aún no existen)."""
+    """Borra usuarios y recursos (y lo que dependa de ellos: reservas y préstamos)."""
+    db.query(Garantia).delete()
+    db.query(Prestamo).delete()
+    db.query(Reserva).delete()
     db.query(UsuarioRol).delete()
     db.query(Usuario).delete()
     db.query(Recurso).delete()
     db.commit()
-    print("reset: usuarios y recursos borrados")
+    print("reset: usuarios, recursos, reservas y préstamos borrados")
 
 
 def run(reset: bool = False) -> None:

@@ -43,6 +43,13 @@ class PrestamoCreate(BaseModel):
     garantia: GarantiaCreate | None = None
 
 
+class DevolucionCreate(BaseModel):
+    """Datos para registrar la devolución de un préstamo."""
+
+    condicion_devolucion: str | None = None
+    danado: bool = False
+
+
 class PrestamoPublico(BaseModel):
     """Representación pública de un préstamo."""
 

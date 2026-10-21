@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .database import init_db
-from .routers import auth, health, recurso, reserva
+from .routers import auth, health, prestamo, recurso, reserva
 
 
 @asynccontextmanager
@@ -35,6 +35,7 @@ app.include_router(health.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(recurso.router, prefix="/api")
 app.include_router(reserva.router, prefix="/api")
+app.include_router(prestamo.router, prefix="/api")
 
 
 @app.get("/")

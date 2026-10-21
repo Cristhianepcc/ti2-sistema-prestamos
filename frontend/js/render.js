@@ -15,23 +15,31 @@ function esc(texto) {
 
 // --- Estados de una zona de la página ---------------------------------------
 
-function showLoading(el) {
-  el.innerHTML = `<div class="text-center text-muted py-4">
-    <div class="spinner-border" role="status"></div>
-    <div class="mt-2">Cargando…</div></div>`;
+// `colspan`: si `el` es un <tbody> (lista en forma de tabla), envuelve el
+// contenido en una fila con una sola celda que abarca todas las columnas.
+function envolverSiEsTabla(el, html, colspan) {
+  return colspan ? `<tr><td colspan="${colspan}">${html}</td></tr>` : html;
 }
 
-function showError(el, msg) {
-  el.innerHTML = `<div class="alert alert-danger" role="alert">${esc(msg)}</div>`;
+function showLoading(el, colspan) {
+  el.innerHTML = envolverSiEsTabla(
+    el,
+    `<div class="estado-carga"><div class="spinner" role="status"></div><p>Cargando…</p></div>`,
+    colspan
+  );
 }
 
-function showEmpty(el, msg = "No hay datos.") {
-  el.innerHTML = `<div class="text-center text-muted py-4">${esc(msg)}</div>`;
+function showError(el, msg, colspan) {
+  el.innerHTML = envolverSiEsTabla(el, `<div class="alert-danger" role="alert">${esc(msg)}</div>`, colspan);
+}
+
+function showEmpty(el, msg = "No hay datos.", colspan) {
+  el.innerHTML = envolverSiEsTabla(el, `<div class="estado-vacio">${esc(msg)}</div>`, colspan);
 }
 
 // Renderiza una lista usando una función que devuelve el HTML de cada item.
-function renderList(el, items, itemHtml, emptyMsg) {
-  if (!items || items.length === 0) return showEmpty(el, emptyMsg);
+function renderList(el, items, itemHtml, emptyMsg, colspan) {
+  if (!items || items.length === 0) return showEmpty(el, emptyMsg, colspan);
   el.innerHTML = items.map(itemHtml).join("");
 }
 
@@ -49,7 +57,7 @@ function setBusy(boton, busy, textoOcupado = "Enviando…") {
   if (busy) {
     boton.dataset.textoOriginal = boton.innerHTML;
     boton.disabled = true;
-    boton.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>${esc(textoOcupado)}`;
+    boton.innerHTML = `<span class="spinner" style="width:14px;height:14px;border-width:2px;margin:0;"></span>${esc(textoOcupado)}`;
   } else {
     boton.disabled = false;
     if (boton.dataset.textoOriginal) boton.innerHTML = boton.dataset.textoOriginal;
@@ -59,36 +67,37 @@ function setBusy(boton, busy, textoOcupado = "Enviando…") {
 // Muestra u oculta el mensaje de error de un formulario.
 function showFormError(el, msg) {
   if (!msg) {
-    el.classList.add("d-none");
+    el.hidden = true;
     el.textContent = "";
     return;
   }
-  el.className = "alert alert-danger";
+  el.hidden = false;
+  el.className = "alert-danger";
   el.textContent = msg; // textContent ya escapa, no hace falta esc()
 }
 
 // --- Etiquetas del dominio --------------------------------------------------
 
 // Los enums viajan en MAYÚSCULAS (ver docs/02-contrato-api.md §4); acá se
-// traducen a algo legible y a un color de badge de Bootstrap.
+// traducen a algo legible y a un tono de badge del design system (ok/warn/danger/neutral).
 const ETIQUETA_ESTADO = {
-  DISPONIBLE: { texto: "Disponible", color: "success" },
-  RESERVADO: { texto: "Reservado", color: "warning" },
-  PRESTADO: { texto: "Prestado", color: "secondary" },
+  DISPONIBLE: { texto: "Disponible", color: "ok" },
+  RESERVADO: { texto: "Reservado", color: "warn" },
+  PRESTADO: { texto: "Prestado", color: "neutral" },
   MANTENIMIENTO: { texto: "En mantenimiento", color: "danger" },
 };
 
 // Estados de una RESERVA (no confundir con ETIQUETA_ESTADO, que es del recurso).
 const ETIQUETA_RESERVA = {
-  PENDIENTE: { texto: "Pendiente", color: "warning" },
-  CONFIRMADA: { texto: "Confirmada", color: "success" },
-  CANCELADA: { texto: "Cancelada", color: "secondary" },
+  PENDIENTE: { texto: "Pendiente", color: "warn" },
+  CONFIRMADA: { texto: "Confirmada", color: "ok" },
+  CANCELADA: { texto: "Cancelada", color: "neutral" },
   VENCIDA: { texto: "Vencida", color: "danger" },
 };
 
 function badgeReserva(estado) {
-  const e = ETIQUETA_RESERVA[estado] || { texto: estado, color: "light" };
-  return `<span class="badge text-bg-${e.color}">${esc(e.texto)}</span>`;
+  const e = ETIQUETA_RESERVA[estado] || { texto: estado, color: "neutral" };
+  return `<span class="badge ${e.color}">${esc(e.texto)}</span>`;
 }
 
 const ETIQUETA_TIPO = {
@@ -108,17 +117,17 @@ const ETIQUETA_ROL = {
 
 // Estados de un PRÉSTAMO (no confundir con ETIQUETA_ESTADO, que es del recurso).
 const ETIQUETA_PRESTAMO = {
-  ACTIVO: { texto: "Activo", color: "info" },
-  DEVUELTO: { texto: "Devuelto", color: "secondary" },
+  ACTIVO: { texto: "Activo", color: "ok" },
+  DEVUELTO: { texto: "Devuelto", color: "neutral" },
   ATRASADO: { texto: "Atrasado", color: "danger" },
 };
 
 function badgePrestamo(estado) {
-  const e = ETIQUETA_PRESTAMO[estado] || { texto: estado, color: "light" };
-  return `<span class="badge text-bg-${e.color}">${esc(e.texto)}</span>`;
+  const e = ETIQUETA_PRESTAMO[estado] || { texto: estado, color: "neutral" };
+  return `<span class="badge ${e.color}">${esc(e.texto)}</span>`;
 }
 
 function badgeEstado(estado) {
-  const e = ETIQUETA_ESTADO[estado] || { texto: estado, color: "light" };
-  return `<span class="badge text-bg-${e.color}">${esc(e.texto)}</span>`;
+  const e = ETIQUETA_ESTADO[estado] || { texto: estado, color: "neutral" };
+  return `<span class="badge ${e.color}">${esc(e.texto)}</span>`;
 }

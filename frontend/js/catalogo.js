@@ -1,13 +1,13 @@
 if (!requireAuth()) throw new Error("sin sesión");
 
-if (hasRole("CUSTODIO_CE", "CUSTODIO_INFRA")) {
-    document.getElementById("link-panel-custodio").hidden = false;
-}
+renderSidebar("catalogo");
 
 const caja = document.getElementById("catalogo");
 const inputBuscador = document.getElementById("input-buscador");
+const filtrosTipo = document.getElementById("filtros-tipo");
 
 let recursos = [];
+let tipoActivo = "";
 
 async function cargarCatalogo() {
     showLoading(caja);
@@ -15,14 +15,23 @@ async function cargarCatalogo() {
         // Sin filtro de disponibilidad: hay que poder VER (y reservar) los
         // recursos ocupados, no solo los libres.
         recursos = await api.get("/recursos");
-        pintarCatalogo(recursos);
+        pintarCatalogo();
     } catch (e) {
         showError(caja, e.message);
     }
 }
 
-function pintarCatalogo(lista) {
-    renderList(caja, lista, tarjetaRecurso, "No se encontraron recursos.");
+function pintarCatalogo() {
+    const texto = inputBuscador.value.toLowerCase();
+    const filtrados = recursos.filter((r) => {
+        const coincideTipo = !tipoActivo || r.tipo_recurso === tipoActivo;
+        const coincideTexto =
+            r.nombre.toLowerCase().includes(texto) ||
+            (r.descripcion || "").toLowerCase().includes(texto) ||
+            r.tipo_recurso.toLowerCase().includes(texto);
+        return coincideTipo && coincideTexto;
+    });
+    renderList(caja, filtrados, tarjetaRecurso, "No se encontraron recursos.");
 }
 
 // Deportivo es préstamo directo del mismo día (docs/00-contexto-alcance-propuesta.md
@@ -32,70 +41,71 @@ function puedeReservar(r) {
     return r.tipo_recurso !== "DEPORTIVO" && !r.disponible && r.estado !== "MANTENIMIENTO";
 }
 
+// Ícono genérico de "espacio para foto" — placeholder hasta que la API
+// tenga un campo de imagen real (no hay fotos de los recursos todavía).
+const ICONO_IMAGEN_PENDIENTE =
+    '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
+
 function tarjetaRecurso(r) {
-    let accion = "";
+    let boton;
     if (puedeReservar(r)) {
-        accion = `<button type="button" class="btn btn-success btn-sm px-4 rounded-pill d-block mt-2 btn-reservar" data-id="${esc(r.id)}">Reservar</button>`;
+        boton = `<button type="button" class="btn btn-primary btn-sm tp-boton btn-reservar" data-id="${esc(r.id)}">Reservar</button>`;
     } else if (r.tipo_recurso === "DEPORTIVO" && r.disponible) {
-        accion = `<p class="small text-muted mb-0 mt-2">Préstamo directo · mismo día</p>`;
+        boton = `<button type="button" class="btn btn-sm tp-boton" disabled>Préstamo directo</button>`;
+    } else {
+        boton = `<button type="button" class="btn btn-sm tp-boton" disabled>${esc(ETIQUETA_ESTADO[r.estado]?.texto || r.estado)}</button>`;
     }
 
     return `
-    <div class="card shadow-sm border-0 bg-light mb-3">
-        <div class="card-body d-flex justify-content-between align-items-center">
-            <div>
-                <span class="badge bg-secondary mb-2">${esc(r.gestor)}</span>
-                <span class="badge bg-info text-dark mb-2">${esc(ETIQUETA_TIPO[r.tipo_recurso])}</span>
-                <h5 class="card-title mb-1">${esc(r.nombre)}</h5>
-                <p class="card-text text-muted small mb-0">${esc(r.descripcion)} · Código: ${esc(r.codigo)}</p>
-                ${detalleSegunTipo(r)}
+    <div class="tarjeta">
+        <div class="tp-col">
+            <div class="tp-main">
+                <div class="tp-media">
+                    ${ICONO_IMAGEN_PENDIENTE}
+                    <span class="tp-badge">${badgeEstado(r.estado)}</span>
+                </div>
+                <div class="tp-nombre">${esc(r.nombre)}</div>
+                <p class="tp-detalle">${esc(r.codigo)} · ${detalleSegunTipo(r)}</p>
+                ${boton}
             </div>
-            <div class="text-end">
-                ${badgeEstado(r.estado)}
-                ${accion}
+            <div class="form-reservar" data-id="${esc(r.id)}" hidden>
+                <form>
+                    <div class="fila">
+                        <label class="field">Fecha
+                            <input type="date" name="fecha" required>
+                        </label>
+                        <label class="field">Franja
+                            <input type="text" name="franja" placeholder="ej: 10:00-12:00" required>
+                        </label>
+                    </div>
+                    <div class="alert-danger form-error-msg" hidden></div>
+                    <div class="acciones">
+                        <button type="button" class="btn btn-ghost btn-sm btn-cancelar-reserva">Cancelar</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Confirmar reserva</button>
+                    </div>
+                </form>
             </div>
         </div>
-        <div class="form-reservar d-none border-top px-3 py-3" data-id="${esc(r.id)}">
-            <form class="row g-2 align-items-end">
-                <div class="col-6">
-                    <label class="form-label small fw-bold mb-1">Fecha</label>
-                    <input type="date" name="fecha" class="form-control form-control-sm" required>
-                </div>
-                <div class="col-6">
-                    <label class="form-label small fw-bold mb-1">Franja</label>
-                    <input type="text" name="franja" class="form-control form-control-sm" placeholder="ej: 10:00-12:00" required>
-                </div>
-                <div class="col-12 form-error-msg alert alert-danger d-none py-1 px-2 small mb-0"></div>
-                <div class="col-12 d-flex justify-content-end gap-2 mt-2">
-                    <button type="button" class="btn btn-outline-secondary btn-sm btn-cancelar-reserva">Cancelar</button>
-                    <button type="submit" class="btn btn-primary btn-sm">Confirmar reserva</button>
-                </div>
-            </form>
-        </div>
+        <div class="tp-etiqueta"><span>${esc(ETIQUETA_TIPO[r.tipo_recurso])}</span></div>
     </div>`;
 }
 
 // ⚠️ Las claves de un subtipo NO existen en los otros: un DEPORTIVO no trae la
 // clave `autor` ni siquiera en null. Hay que ramificar por tipo_recurso.
 function detalleSegunTipo(r) {
-    if (r.tipo_recurso === "LIBRO") {
-        return `<p class="small mb-0">${esc(r.autor)} · ISBN ${esc(r.isbn)}</p>`;
-    }
-    if (r.tipo_recurso === "DEPORTIVO") {
-        return `<p class="small mb-0">${esc(r.tipo_deportivo)}</p>`;
-    }
-    return `<p class="small mb-0">Patrimonio ${esc(r.codigo_patrimonial)}
-            ${r.requiere_aval ? "· requiere aval" : ""}</p>`;
+    if (r.tipo_recurso === "LIBRO") return esc(r.autor);
+    if (r.tipo_recurso === "DEPORTIVO") return esc(r.tipo_deportivo);
+    return `Patrimonio ${esc(r.codigo_patrimonial)}`;
 }
 
-inputBuscador.addEventListener("input", () => {
-    const texto = inputBuscador.value.toLowerCase();
-    const filtrados = recursos.filter((r) =>
-        r.nombre.toLowerCase().includes(texto) ||
-        (r.descripcion || "").toLowerCase().includes(texto) ||
-        r.tipo_recurso.toLowerCase().includes(texto)
-    );
-    pintarCatalogo(filtrados);
+inputBuscador.addEventListener("input", pintarCatalogo);
+
+filtrosTipo.addEventListener("click", (evento) => {
+    const chip = evento.target.closest(".filter");
+    if (!chip) return;
+    tipoActivo = chip.dataset.tipo;
+    filtrosTipo.querySelectorAll(".filter").forEach((f) => f.classList.toggle("on", f === chip));
+    pintarCatalogo();
 });
 
 // --- Reservar ---------------------------------------------------------------
@@ -103,16 +113,20 @@ inputBuscador.addEventListener("input", () => {
 caja.addEventListener("click", (evento) => {
     const btnReservar = evento.target.closest(".btn-reservar");
     if (btnReservar) {
-        btnReservar.closest(".card").querySelector(".form-reservar").classList.remove("d-none");
-        btnReservar.classList.add("d-none");
+        const tarjeta = btnReservar.closest(".tarjeta");
+        tarjeta.classList.add("reservando");
+        tarjeta.querySelector(".form-reservar").hidden = false;
+        btnReservar.hidden = true;
         return;
     }
 
     const btnCancelar = evento.target.closest(".btn-cancelar-reserva");
     if (btnCancelar) {
-        const card = btnCancelar.closest(".card");
-        card.querySelector(".form-reservar").classList.add("d-none");
-        card.querySelector(".btn-reservar")?.classList.remove("d-none");
+        const tarjeta = btnCancelar.closest(".tarjeta");
+        tarjeta.classList.remove("reservando");
+        tarjeta.querySelector(".form-reservar").hidden = true;
+        const boton = tarjeta.querySelector(".btn-reservar");
+        if (boton) boton.hidden = false;
     }
 });
 
@@ -135,13 +149,11 @@ caja.addEventListener("submit", async (evento) => {
             fecha: datos.fecha,
             franja: datos.franja,
         });
-        contenedor.innerHTML = `<p class="text-success small mb-0 py-1">Reserva creada — queda <b>PENDIENTE</b> hasta que un custodio la confirme.</p>`;
+        contenedor.innerHTML = `<p class="alert-success">Reserva creada — queda <b>PENDIENTE</b> hasta que un custodio la confirme.</p>`;
     } catch (e) {
         showFormError(errorDiv, e.message);
         setBusy(boton, false);
     }
 });
-
-document.getElementById("btn-cerrar-sesion").addEventListener("click", () => api.logout());
 
 cargarCatalogo();

@@ -612,6 +612,12 @@ body.pagina-login {
   flex: 1;
 }
 
+/* Mientras el form de reserva está abierto, la tarjeta ya no necesita
+   estirarse para alinear el botón con las de al lado del mismo renglón. */
+.tarjeta.reservando .tp-main {
+  flex: none;
+}
+
 /* Marcador de posición del espacio para la foto del recurso: todavía no
    hay imágenes reales (ni campo en la API), así que va un ícono genérico.
    Cuando exista `recurso.imagen_url`, esto cambia por un <img>. */

@@ -13,7 +13,7 @@ loginForm.addEventListener('submit', async (e) => {
 
     try {
         await api.login(email, password);
-        window.location.href = 'catalogo.html';
+        window.location.href = 'inicio.html';
     } catch (err) {
         showFormError(errorAlert, err.message);
     } finally {

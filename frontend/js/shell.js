@@ -2,6 +2,8 @@
 // Requiere api.js (hasRole, currentUser) y render.js (esc) ya cargados antes.
 
 const ICONOS = {
+  inicio:
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>',
   catalogo:
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>',
   reservas:
@@ -18,6 +20,7 @@ const ICONOS = {
 // solo si tiene el rol correspondiente (ver #33).
 function itemsNav() {
   const items = [
+    ["inicio.html", "inicio", "Inicio"],
     ["catalogo.html", "catalogo", "Catálogo"],
     ["mis-reservas.html", "reservas", "Mis Reservas"],
     ["mis-prestamos.html", "prestamos", "Mis Préstamos"],

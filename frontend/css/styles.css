@@ -369,6 +369,17 @@ body.pagina-login {
   margin: 4px 0 0;
 }
 
+.login-quick {
+  max-width: 300px;
+  padding-top: 8px;
+  border-top: 1px solid var(--linea);
+}
+
+.login-quick .chip-opt {
+  font-size: 11px;
+  padding: 5px 10px;
+}
+
 @media (max-width: 760px) {
   .login-split {
     grid-template-columns: 1fr;
@@ -565,84 +576,110 @@ body.pagina-login {
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 16px;
 }
 
-@media (max-width: 1100px) {
-  .cards {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 700px) {
+@media (max-width: 480px) {
   .cards {
     grid-template-columns: 1fr;
   }
 }
 
+/* Tarjeta de producto: imagen + nombre + botón a la izquierda, franja de
+   categoría vertical a la derecha (ocupa todo el alto de la tarjeta,
+   incluido el form de reserva cuando está abierto). */
 .tarjeta {
-  border: 1px solid var(--linea);
+  display: grid;
+  grid-template-columns: 1fr 26px;
   border-radius: var(--radius-md);
   background: var(--fondo);
+  box-shadow: var(--shadow);
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
 }
 
-.tarjeta .cuerpo {
-  padding: 15px 16px;
+.tp-col {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  min-width: 0;
+}
+
+.tp-main {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   flex: 1;
 }
 
-.tarjeta .etiquetas {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.tarjeta .chip-tipo {
-  font-size: 10.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  padding: 2px 8px;
+/* Marcador de posición del espacio para la foto del recurso: todavía no
+   hay imágenes reales (ni campo en la API), así que va un ícono genérico.
+   Cuando exista `recurso.imagen_url`, esto cambia por un <img>. */
+.tp-media {
+  position: relative;
+  height: 96px;
   border-radius: var(--radius-sm);
   background: var(--fondo-suave);
-  color: var(--tinta-suave);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--linea);
+  overflow: hidden;
 }
 
-.tarjeta .nombre {
+.tp-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tp-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+}
+
+.tp-nombre {
   font-weight: 700;
-  font-size: 14.5px;
+  font-size: 13.5px;
   line-height: 1.3;
 }
 
-.tarjeta .detalle {
-  font-size: 11.5px;
+.tp-detalle {
+  font-size: 11px;
   color: var(--tinta-suave);
   margin: 0;
+  min-height: 14px;
 }
 
-.tarjeta .fila-final {
+.tp-boton {
   margin-top: auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  padding-top: 6px;
+  width: 100%;
+  justify-content: center;
 }
 
-.nota-directa {
-  font-size: 10.5px;
+.tp-boton:disabled {
+  background: var(--fondo-suave);
   color: var(--tinta-suave);
-  font-style: italic;
-  text-align: right;
-  max-width: 108px;
-  line-height: 1.3;
+  border-color: var(--linea);
+}
+
+.tp-etiqueta {
+  background: var(--azul-profundo);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tp-etiqueta span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sobre-azul);
+  white-space: nowrap;
 }
 
 .form-reservar {

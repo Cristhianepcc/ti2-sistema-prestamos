@@ -1,4 +1,4 @@
-﻿"""Schemas Pydantic para préstamos y garantías (RF3, issue #29)."""
+"""Schemas Pydantic para préstamos y garantías (RF3, issue #29)."""
 
 from datetime import datetime
 from decimal import Decimal

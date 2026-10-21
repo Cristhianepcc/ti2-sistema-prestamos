@@ -412,7 +412,7 @@ Requiere autenticación con `Authorization: Bearer <access_token>` y rol `CUSTOD
 | `recurso_id` | int | Sí | ID del recurso |
 | `prestatario_id` | int | Sí | ID del usuario que recibe el préstamo |
 | `reserva_id` | int o `null` | No | Reserva asociada, si corresponde |
-| `fecha_limite` | string (ISO 8601) o `null` | No | Si no se manda, `prestamo_service` (#30) la calcula según `tipo_recurso`/`tipo_prestamo`. El form del custodio (#33) no la pide |
+| `fecha_limite` | string (ISO 8601) o `null` | No | Si no se manda, `prestamo_service` la calcula: DEPORTIVO vence al final del día de la entrega (préstamo del mismo día, §5 del alcance); LIBRO suma 7 días; ACADEMICO POR_CURSO suma 1 día y EXCEPCIONAL suma 3 días. Son plazos provisionales hasta que el equipo defina duraciones oficiales |
 | `tipo_prestamo` | enum `TipoPrestamo` | Sí | `SIMPLE`, `POR_CURSO` o `EXCEPCIONAL` |
 | `modalidad_uso` | enum `ModalidadUso` | Sí | `EN_SITIO` o `RETIRO_TEMPORAL` |
 | `condicion_entrega` | string o `null` | No | Condición del recurso al entregarlo |

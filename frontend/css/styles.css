@@ -291,27 +291,13 @@ a {
 /* ---- login ---- */
 
 body.pagina-login {
-  display: flex;
-  align-items: center;
   min-height: 100vh;
-  padding: 16px;
-}
-
-.login-frame {
-  max-width: 900px;
-  margin: 0 auto;
-  width: 100%;
-  border: 1px solid var(--linea);
-  border-radius: 16px;
-  overflow: hidden;
-  background: var(--fondo);
-  box-shadow: var(--shadow);
 }
 
 .login-split {
   display: grid;
   grid-template-columns: 1.05fr 1fr;
-  min-height: 480px;
+  min-height: 100vh;
 }
 
 .login-hero {

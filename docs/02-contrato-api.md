@@ -372,7 +372,7 @@ Requiere autenticación con `Authorization: Bearer <access_token>` y rol `CUSTOD
 | `recurso_id` | int | Sí | ID del recurso |
 | `prestatario_id` | int | Sí | ID del usuario que recibe el préstamo |
 | `reserva_id` | int o `null` | No | Reserva asociada, si corresponde |
-| `fecha_limite` | string (ISO 8601) o `null` | No | Si no se manda, `prestamo_service` (#30) la calcula según `tipo_recurso`/`tipo_prestamo`. El form del custodio (#33) no la pide |
+| `fecha_limite` | string (ISO 8601) | Sí | El custodio debe enviarla y el servicio respeta la fecha indicada. Requisito temporal hasta que se definan plazos predeterminados |
 | `tipo_prestamo` | enum `TipoPrestamo` | Sí | `SIMPLE`, `POR_CURSO` o `EXCEPCIONAL` |
 | `modalidad_uso` | enum `ModalidadUso` | Sí | `EN_SITIO` o `RETIRO_TEMPORAL` |
 | `condicion_entrega` | string o `null` | No | Condición del recurso al entregarlo |
@@ -380,7 +380,7 @@ Requiere autenticación con `Authorization: Bearer <access_token>` y rol `CUSTOD
 
 En `garantia`, `tipo` es obligatorio y admite hasta 60 caracteres. `valor` es decimal con hasta 10 dígitos y 2 decimales; si se omite, vale `0`.
 
-El backend asigna `registrado_por_id`, `fecha_entrega` y `estado`; y `fecha_limite` si no vino en el request. Al crear el préstamo, `estado` inicia en `ACTIVO`; `fecha_devolucion` y `condicion_devolucion` empiezan en `null`.
+El backend asigna `registrado_por_id`, `fecha_entrega` y `estado`; `fecha_limite` se toma del request. Al crear el préstamo, `estado` inicia en `ACTIVO`; `fecha_devolucion` y `condicion_devolucion` empiezan en `null`.
 
 ### Response `201`
 

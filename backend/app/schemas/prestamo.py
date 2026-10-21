@@ -1,4 +1,4 @@
-﻿"""Schemas Pydantic para préstamos y garantías (RF3, issue #29)."""
+"""Schemas Pydantic para préstamos y garantías (RF3, issue #29)."""
 
 from datetime import datetime
 from decimal import Decimal
@@ -34,9 +34,8 @@ class PrestamoCreate(BaseModel):
     recurso_id: int
     prestatario_id: int
     reserva_id: int | None = None
-    # Opcional: el form del custodio (#33) no la pide. Si no llega,
-    # prestamo_service (#30) la calcula según tipo_recurso/tipo_prestamo.
-    fecha_limite: datetime | None = None
+    # Requerida temporalmente: el equipo aún no definió plazos predeterminados.
+    fecha_limite: datetime
     tipo_prestamo: TipoPrestamo
     modalidad_uso: ModalidadUso
     condicion_entrega: str | None = None

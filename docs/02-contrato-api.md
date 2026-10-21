@@ -43,11 +43,14 @@ cuando el JSON enviado no cumple el esquema. Ahí `detail` es una lista:
 
 | Código | Cuándo |
 |---|---|
-| `200` | Todo bien |
+| `200` | Operación completada con respuesta |
+| `201` | Recurso creado |
+| `204` | Operación completada sin cuerpo de respuesta |
 | `401` | Sin token, token vencido/inválido, o credenciales incorrectas en el login |
-| `403` | Autenticado pero sin el rol necesario |
+| `403` | Autenticado, pero sin permiso para la acción solicitada. |
 | `404` | El recurso no existe |
-| `422` | El JSON enviado no cumple el esquema |
+| `409` | Conflicto con una regla de negocio o con el estado actual del registro |
+| `422` | El JSON enviado o un parámetro de consulta no cumple el esquema |
 
 ---
 
@@ -300,7 +303,9 @@ navegador aunque el endpoint funcione bien desde Swagger.
 
 ---
 
-## Anexo RF2 — `POST /api/reservas`
+## Anexo RF2 — Reservas
+
+### POST `/api/reservas` — Crear reserva
 
 Requiere autenticación mediante `Authorization: Bearer <access_token>`.
 
@@ -343,6 +348,41 @@ Devuelve un objeto `ReservaPublica`:
 `recurso` es el mismo objeto `RecursoPublico` que devuelve `GET /api/recursos` (docs/02-contrato-api.md Sección 3); se incluye anidado para que el frontend no tenga que pedir el catálogo completo solo para mostrar el nombre.
 
 `EstadoReserva`: `PENDIENTE`, `CONFIRMADA`, `CANCELADA` o `VENCIDA`.
+
+### Errores de `POST /api/reservas`
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `404` | El recurso indicado no existe |
+| `409` | El recurso está disponible y no requiere reserva |
+| `409` | El usuario tiene una sanción activa, según la regla del SDD |
+
+La comprobación de sanciones aún está pendiente de RF5: el servicio actual tiene ese punto como TODO y todavía no bloquea reservas por sanción activa.
+
+### GET `/api/reservas?mias=true` — Mis reservas
+
+Requiere autenticación. El parámetro `mias` es obligatorio y debe ser `true`. Devuelve un array de objetos `ReservaPublica`, con la misma estructura de reserva del `POST`; si no hay reservas, devuelve `[]`.
+
+| Código | Cuándo |
+|---|---|
+| `200` | Devuelve las reservas del usuario autenticado |
+| `401` | Falta el token o es inválido/expiró |
+| `403` | Se solicita `mias=false` |
+| `422` | Falta `mias` o su valor no es booleano |
+
+### DELETE `/api/reservas/{id}` — Cancelar una reserva
+
+Requiere autenticación. Solo el dueño puede cancelar su reserva. La reserva no se elimina de la base de datos: su estado cambia a `CANCELADA`. Solo se pueden cancelar reservas en estado `PENDIENTE`.
+
+Devuelve `204` sin cuerpo cuando la cancelación se completa.
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `403` | La reserva pertenece a otro usuario |
+| `404` | La reserva no existe |
+| `409` | La reserva no está en estado `PENDIENTE` |
 
 ---
 

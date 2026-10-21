@@ -598,24 +598,12 @@ body.pagina-login {
   overflow: hidden;
 }
 
-.tp-col {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
 .tp-main {
   padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex: 1;
-}
-
-/* Mientras el form de reserva está abierto, la tarjeta ya no necesita
-   estirarse para alinear el botón con las de al lado del mismo renglón. */
-.tarjeta.reservando .tp-main {
-  flex: none;
+  min-width: 0;
 }
 
 /* Marcador de posición del espacio para la foto del recurso: todavía no
@@ -688,26 +676,48 @@ body.pagina-login {
   white-space: nowrap;
 }
 
-.form-reservar {
-  border-top: 1px solid var(--linea);
-  padding: 14px 16px;
-  background: var(--fondo-suave);
-}
-
-.form-reservar .fila {
+.form-fila {
   display: flex;
   gap: 10px;
 }
 
-.form-reservar .fila .field {
+.form-fila .field {
   flex: 1;
 }
 
-.form-reservar .acciones {
+.acciones {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 10px;
+}
+
+/* ---- modal ---- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 33, 61, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 50;
+}
+
+.modal {
+  background: var(--fondo);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+  width: 100%;
+  max-width: 380px;
+  padding: 24px;
+}
+
+.modal .modal-sub {
+  font-size: 12.5px;
+  color: var(--tinta-suave);
+  margin: 0 0 16px;
 }
 
 /* ---- tabla (reservas / panel custodio) ---- */

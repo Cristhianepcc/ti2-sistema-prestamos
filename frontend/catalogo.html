@@ -14,6 +14,8 @@
         <div class="app-main">
             <h2 class="page-title">Catálogo de Recursos</h2>
 
+            <div class="alert-success" id="aviso-exito" hidden style="margin-bottom: 14px;"></div>
+
             <div class="toolbar">
                 <input type="text" id="input-buscador" class="search" placeholder="Buscar libros, implementos...">
                 <div class="filters" id="filtros-tipo">
@@ -25,6 +27,29 @@
             </div>
 
             <div id="catalogo" class="cards"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-reservar" hidden>
+        <div class="modal">
+            <h3 class="page-title" style="margin-bottom: 4px;">Reservar</h3>
+            <p class="modal-sub" id="modal-recurso-nombre"></p>
+
+            <form id="form-modal-reservar">
+                <div class="form-fila">
+                    <label class="field">Fecha
+                        <input type="date" name="fecha" required>
+                    </label>
+                    <label class="field">Franja
+                        <input type="text" name="franja" placeholder="ej: 10:00-12:00" required>
+                    </label>
+                </div>
+                <div class="alert-danger form-error-msg" hidden style="margin-top: 10px;"></div>
+                <div class="acciones">
+                    <button type="button" class="btn btn-ghost btn-sm" id="btn-cerrar-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary btn-sm">Confirmar reserva</button>
+                </div>
+            </form>
         </div>
     </div>
 

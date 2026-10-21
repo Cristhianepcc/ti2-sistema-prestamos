@@ -323,6 +323,7 @@ body.pagina-login {
   flex-direction: column;
   justify-content: center;
   gap: 14px;
+  clip-path: ellipse(85% 70% at 0% 50%);
   overflow: hidden;
 }
 
@@ -388,6 +389,7 @@ body.pagina-login {
   }
 
   .login-hero {
+    clip-path: none;
     min-height: 200px;
   }
 
@@ -401,10 +403,17 @@ body.pagina-login {
 .app {
   display: grid;
   grid-template-columns: 208px 1fr;
+  align-items: start;
   min-height: 100vh;
 }
 
+/* position: sticky (no fixed/stretch): así no se estira a la altura del
+   contenido principal cuando el catálogo es más largo que la pantalla
+   (CSS Grid por defecto hace align-items:stretch en sus columnas). */
 .app-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
   background: var(--azul-profundo);
   color: #fff;
   padding: 20px 14px;
@@ -488,6 +497,8 @@ body.pagina-login {
   }
 
   .app-sidebar {
+    position: static;
+    height: auto;
     flex-direction: row;
     align-items: center;
     overflow-x: auto;

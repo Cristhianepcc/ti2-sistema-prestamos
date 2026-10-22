@@ -12,21 +12,36 @@ const ICONOS = {
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
   custodio:
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/><path d="M9 13l2 2 4-4"/></svg>',
+  reportes:
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg>',
+  usuarios:
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.3"/><path d="M3 20c0-3.6 2.7-6 6-6s6 2.4 6 6"/><circle cx="18" cy="9" r="2.6"/><path d="M15.5 14.2c2.6.3 4.5 2.3 4.5 5.3"/></svg>',
   salir:
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>',
 };
 
-// Todo usuario ve Catálogo/Mis Reservas/Mis Préstamos; el Panel de Custodio
-// solo si tiene el rol correspondiente (ver #33).
+// La navegación depende del rol (ver artefacto "Wireframes Préstamos" ·
+// NAV): quien presta/reserva para sí mismo (Estudiante, Docente) ve
+// Mis Reservas/Mis Préstamos; un Custodio solo gestiona su Panel Custodio;
+// Dirección de Escuela ve Reportes (RF6) y Usuarios y Roles (RF7), igual
+// que Administrador del Sistema. Un usuario con varios roles ve la unión.
 function itemsNav() {
   const items = [
     ["inicio.html", "inicio", "Inicio"],
     ["catalogo.html", "catalogo", "Catálogo"],
-    ["mis-reservas.html", "reservas", "Mis Reservas"],
-    ["mis-prestamos.html", "prestamos", "Mis Préstamos"],
   ];
+  if (hasRole("ESTUDIANTE", "DOCENTE")) {
+    items.push(["mis-reservas.html", "reservas", "Mis Reservas"]);
+    items.push(["mis-prestamos.html", "prestamos", "Mis Préstamos"]);
+  }
   if (hasRole("CUSTODIO_CE", "CUSTODIO_INFRA")) {
     items.push(["registrar-prestamo.html", "custodio", "Panel Custodio"]);
+  }
+  if (hasRole("DIRECCION_ESCUELA")) {
+    items.push(["reportes.html", "reportes", "Reportes"]);
+  }
+  if (hasRole("DIRECCION_ESCUELA", "ADMINISTRADOR_SISTEMA")) {
+    items.push(["usuarios.html", "usuarios", "Usuarios y Roles"]);
   }
   return items;
 }

@@ -5,16 +5,47 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models.enums import EstadoReserva
+from ..models.enums import EstadoReserva, TipoPrestamo, TipoRecurso
+from ..models.recurso import Recurso
 from ..models.reserva import Reserva
 
 
-_PRIORIDAD_RESERVA_ACTUAL = 1
+class ErrorReserva(Exception):
+    """Error de negocio relacionado con una reserva."""
 
 
-def calcular_prioridad_reserva() -> int:
-    """Devuelve la prioridad actual: SIMPLE hasta que exista RF4."""
-    return _PRIORIDAD_RESERVA_ACTUAL
+class ConflictoReserva(ErrorReserva):
+    """La operación contradice una regla de negocio."""
+
+
+# Prioridad híbrida (docs/00-contexto-alcance-propuesta.md §4): por tipo
+# primero; dentro del mismo tipo, FIFO por `created_at` (ver
+# `listar_cola_reservas`, que ordena por `prioridad DESC, created_at ASC`).
+_PRIORIDAD_POR_TIPO = {
+    TipoPrestamo.EXCEPCIONAL: 3,
+    TipoPrestamo.POR_CURSO: 2,
+    TipoPrestamo.SIMPLE: 1,
+}
+
+
+def calcular_prioridad_reserva(tipo: TipoPrestamo) -> int:
+    """Prioridad de la reserva según el tipo que la originó."""
+    return _PRIORIDAD_POR_TIPO[tipo]
+
+
+def _validar_tipo_recurso(tipo: TipoPrestamo, recurso: Recurso) -> None:
+    """Mismo invariante tipo↔recurso que `prestamo_service.crear_prestamo`:
+    sin esto, cualquiera podría mandar `tipo=EXCEPCIONAL` en un libro solo
+    para saltarse la cola."""
+    if tipo == TipoPrestamo.SIMPLE:
+        if recurso.tipo_recurso not in (TipoRecurso.LIBRO, TipoRecurso.DEPORTIVO):
+            raise ConflictoReserva(
+                "El tipo SIMPLE solo se admite para libros e implementos deportivos"
+            )
+    elif recurso.tipo_recurso != TipoRecurso.ACADEMICO:
+        raise ConflictoReserva(
+            "Los tipos POR_CURSO y EXCEPCIONAL solo se admiten para implementos académicos"
+        )
 
 
 def _validar_sancion_activa(db: Session, usuario_id: int) -> None:
@@ -34,8 +65,13 @@ def crear_reserva(
     recurso_id: int,
     fecha: date,
     franja: str,
+    tipo: TipoPrestamo = TipoPrestamo.SIMPLE,
 ) -> Reserva:
-    """Crea una reserva pendiente con la prioridad vigente."""
+    """Crea una reserva pendiente con la prioridad que le corresponde a `tipo`."""
+    recurso = db.get(Recurso, recurso_id)
+    if recurso is not None:
+        _validar_tipo_recurso(tipo, recurso)
+
     _validar_sancion_activa(db, usuario_id)
 
     reserva = Reserva(
@@ -43,7 +79,7 @@ def crear_reserva(
         recurso_id=recurso_id,
         fecha=fecha,
         franja=franja,
-        prioridad=calcular_prioridad_reserva(),
+        prioridad=calcular_prioridad_reserva(tipo),
     )
     db.add(reserva)
 

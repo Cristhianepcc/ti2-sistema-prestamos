@@ -58,6 +58,7 @@ function tarjetaRecurso(r) {
 
     return `
     <div class="tarjeta">
+        <div class="tp-etiqueta"><span>${esc(ETIQUETA_TIPO[r.tipo_recurso])}</span></div>
         <div class="tp-col">
             <div class="tp-main">
                 <div class="tp-media">
@@ -86,7 +87,6 @@ function tarjetaRecurso(r) {
                 </form>
             </div>
         </div>
-        <div class="tp-etiqueta"><span>${esc(ETIQUETA_TIPO[r.tipo_recurso])}</span></div>
     </div>`;
 }
 

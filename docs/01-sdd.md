@@ -106,12 +106,13 @@ Modelo relacional derivado del diccionario de datos del doc oficial (§4). La he
 | `tipo_recurso` | LIBRO · DEPORTIVO · ACADEMICO |
 | `estado_recurso` | DISPONIBLE · RESERVADO · PRESTADO · MANTENIMIENTO |
 | `estado_reserva` | PENDIENTE · CONFIRMADA · CANCELADA · VENCIDA |
-| `tipo_solicitud` | POR_CURSO · EXCEPCIONAL |
-| `estado_solicitud` | SOLICITADA · AVALADA · AUTORIZADA · RECHAZADA |
+| `tipo_solicitud` | SIMPLE · POR_CURSO · EXCEPCIONAL |
+| `estado_solicitud` | SOLICITADA · AVALADA · AUTORIZADA · ACEPTADA · RECHAZADA |
 | `tipo_prestamo` | SIMPLE · POR_CURSO · EXCEPCIONAL |
 | `estado_prestamo` | ACTIVO · DEVUELTO · ATRASADO |
 | `modalidad_uso` | EN_SITIO · RETIRO_TEMPORAL |
 | `motivo_sancion` | RETRASO · DANIO · PERDIDA |
+| `tipo_notificacion` | SOLICITUD_ACEPTADA · SOLICITUD_RECHAZADA |
 
 ### 3.2 Modelo relacional (diagrama)
 ```mermaid
@@ -120,13 +121,15 @@ erDiagram
   USUARIO ||--o{ RESERVA : realiza
   USUARIO ||--o{ PRESTAMO : "prestatario"
   USUARIO ||--o{ PRESTAMO : "registra"
-  USUARIO ||--o{ SOLICITUD_ACADEMICA : solicita
+  USUARIO ||--o{ SOLICITUD : solicita
   USUARIO ||--o{ SANCION : afecta
+  USUARIO ||--o{ NOTIFICACION : recibe
   RECURSO ||--o{ RESERVA : sobre
   RECURSO ||--o{ PRESTAMO : entrega
-  RECURSO ||--o{ SOLICITUD_ACADEMICA : requiere
+  RECURSO ||--o{ SOLICITUD : requiere
   RESERVA |o--|| PRESTAMO : "deriva en"
-  SOLICITUD_ACADEMICA |o--|| PRESTAMO : habilita
+  SOLICITUD |o--|| PRESTAMO : habilita
+  SOLICITUD ||--o{ NOTIFICACION : genera
   PRESTAMO ||--o| GARANTIA : respalda
   PRESTAMO ||--o| SANCION : "puede generar"
 ```
@@ -188,17 +191,31 @@ CREATE TABLE reserva (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Solicitudes académicas (solo POR_CURSO / EXCEPCIONAL sobre recursos ACADEMICO)
-CREATE TABLE solicitud_academica (
+-- Solicitudes (punto de entrada único para pedir cualquier préstamo; antes "solicitud_academica",
+-- limitada a POR_CURSO/EXCEPCIONAL — ver 00-contexto-alcance-propuesta.md §8, hallazgo #13)
+CREATE TABLE solicitud (
   id               SERIAL PRIMARY KEY,
   solicitante_id   INTEGER NOT NULL REFERENCES usuario(id),
   recurso_id       INTEGER NOT NULL REFERENCES recurso(id),
-  motivo           TEXT NOT NULL,
+  motivo           TEXT,                              -- NULL para SIMPLE; obligatorio en POR_CURSO/EXCEPCIONAL (se valida en el service)
   fecha            DATE NOT NULL DEFAULT CURRENT_DATE,
   tipo             tipo_solicitud NOT NULL,
   estado           estado_solicitud NOT NULL DEFAULT 'SOLICITADA',
-  avalado_por_id     INTEGER REFERENCES usuario(id),   -- docente
-  autorizado_por_id  INTEGER REFERENCES usuario(id)    -- dirección
+  avalado_por_id     INTEGER REFERENCES usuario(id),   -- docente (POR_CURSO/EXCEPCIONAL)
+  autorizado_por_id  INTEGER REFERENCES usuario(id),   -- dirección (solo EXCEPCIONAL)
+  aceptado_por_id    INTEGER REFERENCES usuario(id),   -- custodio (CE o Infra, según gestor del recurso)
+  motivo_rechazo     TEXT
+);
+
+-- Notificaciones (avisos dentro de la plataforma al aceptar/rechazar una solicitud)
+CREATE TABLE notificacion (
+  id            SERIAL PRIMARY KEY,
+  usuario_id    INTEGER NOT NULL REFERENCES usuario(id),  -- el solicitante
+  solicitud_id  INTEGER NOT NULL REFERENCES solicitud(id),
+  tipo          tipo_notificacion NOT NULL,
+  mensaje       TEXT NOT NULL,
+  leida         BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Préstamos (núcleo)
@@ -208,7 +225,7 @@ CREATE TABLE prestamo (
   prestatario_id      INTEGER NOT NULL REFERENCES usuario(id),
   registrado_por_id   INTEGER NOT NULL REFERENCES usuario(id),
   reserva_id          INTEGER REFERENCES reserva(id),
-  solicitud_id        INTEGER REFERENCES solicitud_academica(id),
+  solicitud_id        INTEGER REFERENCES solicitud(id),
   fecha_entrega       TIMESTAMPTZ NOT NULL DEFAULT now(),
   fecha_limite        TIMESTAMPTZ NOT NULL,
   fecha_devolucion    TIMESTAMPTZ,
@@ -256,8 +273,11 @@ Además de los `CHECK` de BD, la **capa de servicio** garantiza:
 - **Tipo ↔ recurso (estricto):** `SIMPLE` solo si `recurso.tipo_recurso ∈ {LIBRO, DEPORTIVO}`;
   `POR_CURSO`/`EXCEPCIONAL` solo si `= ACADEMICO`. *(Cruza tablas → se valida en el service; se
   puede reforzar con un trigger opcional.)*
-- **Aprobar ≠ registrar:** un `SIMPLE` se aprueba automáticamente (sin sanción + recurso
-  DISPONIBLE); la entrega la registra un custodio (crea la fila `prestamo`).
+- **Solicitar ≠ aceptar ≠ registrar:** todo préstamo nace de una `solicitud` (tabla `solicitud`,
+  ver abajo); el `CUSTODIO_CE`/`CUSTODIO_INFRA` que corresponda **acepta o rechaza
+  manualmente** (ya no hay aprobación automática de `SIMPLE`); al aceptar, la misma acción
+  crea la fila `prestamo`. Al aceptar o rechazar se crea una fila `notificacion` para el
+  solicitante.
 - **Bloqueo por sanción:** no se permite crear reserva/solicitud/préstamo si el usuario tiene
   alguna `sancion.activa = TRUE`.
 - **Prioridad de reserva:** `prioridad` = 3 si EXCEPCIONAL, 2 si POR_CURSO, 1 si SIMPLE. El
@@ -321,20 +341,21 @@ Además de los `CHECK` de BD, la **capa de servicio** garantiza:
 
 ```jsonc
 // POST /api/reservas  -> 201
-{ "recurso_id": 10, "fecha": "2026-09-25", "franja": "10:00-12:00" }
+{ "recurso_id": 10, "fecha": "2026-09-25", "franja": "10:00-12:00", "tipo": "SIMPLE" }
+// "tipo" es opcional (default SIMPLE); fija la prioridad de la cola (§3.4)
 // 409 -> { "detail": "Tienes una sanción activa" }
 ```
 
 ### 4.4 Préstamos / Devoluciones (RF3) — issues #13, #14
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
-| POST | `/api/prestamos` | CUSTODIO_CE / CUSTODIO_INFRA | Registrar entrega (aplica invariantes) |
+| POST | `/api/prestamos` | CUSTODIO_CE / CUSTODIO_INFRA | Crea el préstamo (uso interno: lo invoca `POST /solicitudes/{id}/aceptar`, no el frontend directo — ver §4.5) |
 | POST | `/api/prestamos/{id}/devolucion` | CUSTODIO_CE / CUSTODIO_INFRA | Registrar devolución |
 | GET | `/api/prestamos?mios=true` | autenticado | Mis préstamos (ver plazo) |
 | GET | `/api/prestamos?estado=ATRASADO` | custodios | Préstamos vencidos |
 
 ```jsonc
-// POST /api/prestamos  (custodio registra)  -> 201
+// POST /api/prestamos  (custodio registra, vía aceptar solicitud)  -> 201
 { "recurso_id": 10, "prestatario_id": 1, "tipo_prestamo": "SIMPLE",
   "modalidad_uso": "RETIRO_TEMPORAL", "condicion_entrega": "Buen estado",
   "garantia": { "tipo": "CARNET", "valor": 0 } }
@@ -342,23 +363,35 @@ Además de los `CHECK` de BD, la **capa de servicio** garantiza:
 // 409 -> { "detail": "Un libro solo admite préstamo SIMPLE" }
 ```
 
-### 4.5 Solicitudes académicas (RF4)
+### 4.5 Solicitudes (RF3 para SIMPLE, RF4 para POR_CURSO/EXCEPCIONAL)
+
+> Generalizado desde "Solicitudes académicas" — ver `00-contexto-alcance-propuesta.md` §8,
+> hallazgo #13. Contrato detallado campo por campo en `02-contrato-api.md`, Anexo RF3/RF4.
+
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
-| POST | `/api/solicitudes` | autenticado (sin sanción) | Crear solicitud (POR_CURSO/EXCEPCIONAL) |
-| POST | `/api/solicitudes/{id}/aval` | DOCENTE | Avalar |
-| POST | `/api/solicitudes/{id}/autorizacion` | DIRECCION_ESCUELA | Autorizar |
-| POST | `/api/solicitudes/{id}/rechazo` | DOCENTE / DIRECCION_ESCUELA / CUSTODIO_INFRA | Rechazar |
-| GET | `/api/solicitudes?pendientes=aval\|autorizacion` | DOCENTE / DIRECCION | Bandeja |
+| POST | `/api/solicitudes` | autenticado (sin sanción) | Crear solicitud (SIMPLE, POR_CURSO o EXCEPCIONAL) |
+| GET | `/api/solicitudes?mias=true` | autenticado | Mis solicitudes |
+| GET | `/api/solicitudes?pendientes=true` | DOCENTE / DIRECCION_ESCUELA / custodios | Bandeja de lo que el rol puede resolver ahora |
+| POST | `/api/solicitudes/{id}/avalar` | DOCENTE | Avalar (solo POR_CURSO/EXCEPCIONAL) |
+| POST | `/api/solicitudes/{id}/autorizar` | DIRECCION_ESCUELA | Autorizar (solo EXCEPCIONAL) |
+| POST | `/api/solicitudes/{id}/aceptar` | CUSTODIO_CE / CUSTODIO_INFRA (según `gestor` del recurso) | Acepta y crea el préstamo (llama internamente a `POST /api/prestamos`) |
+| POST | `/api/solicitudes/{id}/rechazar` | quien tenga el paso pendiente (docente, dirección o custodio) | Rechaza |
 
-### 4.6 Sanciones (RF5)
+### 4.6 Notificaciones (RF3/RF4)
+| Método | Ruta | Rol | Descripción |
+|---|---|---|---|
+| GET | `/api/notificaciones` | autenticado | Mis notificaciones (`?leidas=false` para solo no leídas) |
+| PATCH | `/api/notificaciones/{id}` | dueño de la notificación | Marcar como leída |
+
+### 4.7 Sanciones (RF5)
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
 | POST | `/api/sanciones` | CUSTODIO_CE / CUSTODIO_INFRA | Registrar sanción (daño/pérdida/retraso) |
 | GET | `/api/sanciones?mias=true` | autenticado | Mis sanciones |
 | PATCH | `/api/sanciones/{id}/levantar` | custodios | Marcar `activa=false` |
 
-### 4.7 Historial y reportes (RF6)
+### 4.8 Historial y reportes (RF6)
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
 | GET | `/api/historial?usuario_id=` | autenticado (propio) / dirección | Historial de préstamos |
@@ -374,8 +407,8 @@ Además de los `CHECK` de BD, la **capa de servicio** garantiza:
 |---|---|
 | `models/` | Entidades ORM (una clase por tabla de §3). |
 | `schemas/` | Modelos Pydantic de request/response (validación y serialización). |
-| `routers/` | Un archivo por feature: `auth.py`, `recursos.py`, `reservas.py`, `prestamos.py`, `solicitudes.py`, `sanciones.py`, `reportes.py`, `usuarios.py`. Solo enrutan y llaman a services. |
-| `services/` | Reglas de negocio: `prestamo_service` (invariantes, aprobación SIMPLE, vencidos), `reserva_service` (prioridad), `sancion_service` (bloqueo). **Aquí vive lo difícil (Cristhian).** |
+| `routers/` | Un archivo por feature: `auth.py`, `recursos.py`, `reservas.py`, `prestamos.py`, `solicitudes.py`, `notificaciones.py`, `sanciones.py`, `reportes.py`, `usuarios.py`. Solo enrutan y llaman a services. |
+| `services/` | Reglas de negocio: `prestamo_service` (invariantes, vencidos), `solicitud_service` (aval/autorización/aceptación, dispara notificaciones), `reserva_service` (prioridad), `sancion_service` (bloqueo). **Aquí vive lo difícil (Cristhian).** |
 | `security.py` | Hash de contraseñas, emisión/validación JWT, dependencias `require_role(...)`. |
 | `database.py` | Engine + `SessionLocal` + `get_db()`. |
 | `seeds.py` | Carga de datos de ejemplo. |
@@ -402,10 +435,12 @@ Además de los `CHECK` de BD, la **capa de servicio** garantiza:
 | Catálogo / disponibilidad | ✅ | ✅ | ✅ | ✅ | ✅ | — |
 | Alta/edición de recurso | — | ✅ | ✅ | — | — | — |
 | Reservar / mis reservas | ✅ | — | — | ✅ | — | — |
-| Registrar préstamo/devolución | — | ✅ | ✅ | — | — | — |
+| Solicitar préstamo (SIMPLE/POR_CURSO/EXCEPCIONAL) | ✅ | — | — | ✅ | — | — |
+| Bandeja de solicitudes a aceptar/rechazar | — | ✅ | ✅ | — | — | — |
+| Bandeja aval / autorización | — | — | — | ✅ | ✅ | — |
+| Registrar devolución | — | ✅ | ✅ | — | — | — |
 | Mis préstamos (plazo) | ✅ | ✅ | ✅ | ✅ | — | — |
-| Solicitud académica | ✅ | — | — | ✅ | — | — |
-| Bandeja aval / autorización | — | — | ✅ | ✅ | ✅ | — |
+| Notificaciones | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Mis sanciones | ✅ | ✅ | ✅ | ✅ | — | — |
 | Registrar sanción | — | ✅ | ✅ | — | — | — |
 | Historial | ✅ | — | — | ✅ | ✅ | — |
@@ -442,27 +477,38 @@ sequenceDiagram
   FE->>FE: guardar token, redirigir a catálogo
 ```
 
-### 7.2 Préstamo SIMPLE (RF3)
+### 7.2 Préstamo SIMPLE — solicitud → aceptación manual → notificación (RF3)
 ```mermaid
 sequenceDiagram
+  actor E as Estudiante/Docente
   actor C as Custodio CE
   participant FE as Frontend
   participant API as FastAPI
-  participant S as prestamo_service
+  participant SS as solicitud_service
+  participant PS as prestamo_service
   participant DB as PostgreSQL
-  C->>FE: registrar entrega (recurso, prestatario, garantía)
-  FE->>API: POST /api/prestamos
-  API->>S: crear_prestamo(...)
-  S->>S: validar registrador≠prestatario
-  S->>S: validar tipo↔recurso (LIBRO/DEPORTIVO ⇒ SIMPLE)
-  S->>DB: prestatario sin sanción activa?
-  S->>DB: recurso DISPONIBLE?
-  alt todo OK
-    S->>DB: INSERT prestamo (ACTIVO) + garantia
-    S->>DB: UPDATE recurso.estado = PRESTADO
-    API-->>FE: 201 préstamo creado
-  else falla una regla
-    API-->>FE: 409 { detail }
+  E->>FE: solicitar recurso (SIMPLE)
+  FE->>API: POST /api/solicitudes
+  API->>SS: crear_solicitud(...)
+  SS->>DB: solicitante sin sanción activa?
+  SS->>DB: INSERT solicitud (SOLICITADA)
+  API-->>FE: 201 solicitud creada
+  Note over C,API: la solicitud aparece en la bandeja del custodio
+  C->>FE: ver bandeja, aceptar o rechazar
+  FE->>API: POST /api/solicitudes/{id}/aceptar
+  API->>SS: aceptar_solicitud(...)
+  alt aceptar
+    SS->>PS: crear_prestamo(...)
+    PS->>PS: validar registrador≠prestatario, tipo↔recurso, recurso DISPONIBLE
+    PS->>DB: INSERT prestamo (ACTIVO) + garantia
+    PS->>DB: UPDATE recurso.estado = PRESTADO
+    SS->>DB: UPDATE solicitud.estado = ACEPTADA
+    SS->>DB: INSERT notificacion (SOLICITUD_ACEPTADA)
+    API-->>FE: 201 solicitud aceptada + préstamo
+  else rechazar
+    SS->>DB: UPDATE solicitud.estado = RECHAZADA
+    SS->>DB: INSERT notificacion (SOLICITUD_RECHAZADA)
+    API-->>FE: 200 solicitud rechazada
   end
 ```
 
@@ -490,17 +536,25 @@ sequenceDiagram
   actor E as Estudiante
   actor D as Docente
   actor DIR as Dirección
+  actor C as Custodio Infra
   participant API as FastAPI
   participant DB as PostgreSQL
-  E->>API: POST /api/solicitudes (recurso académico, tipo)
+  E->>API: POST /api/solicitudes (recurso académico, tipo, motivo)
   API->>DB: INSERT solicitud (SOLICITADA)
-  D->>API: POST /solicitudes/{id}/aval
+  D->>API: POST /solicitudes/{id}/avalar
   API->>DB: estado=AVALADA
   alt tipo = EXCEPCIONAL
-    DIR->>API: POST /solicitudes/{id}/autorizacion
+    DIR->>API: POST /solicitudes/{id}/autorizar
     API->>DB: estado=AUTORIZADA
   end
-  Note over API,DB: aprobada ⇒ CUSTODIO_INFRA registra préstamo<br/>(habilita si disponible, o genera reserva)
+  C->>API: POST /solicitudes/{id}/aceptar
+  alt recurso DISPONIBLE
+    API->>DB: INSERT prestamo (ACTIVO) + estado=ACEPTADA
+  else no disponible
+    API->>DB: INSERT reserva (PENDIENTE) + estado=ACEPTADA
+  end
+  API->>DB: INSERT notificacion (SOLICITUD_ACEPTADA)
+  Note over D,DIR: en cualquier paso previo a ACEPTADA, quien tiene el<br/>turno puede POST /solicitudes/{id}/rechazar → notifica RECHAZADA
 ```
 
 ### 7.5 Devolución con posible sanción (RF3 + RF5)
@@ -550,8 +604,8 @@ sequenceDiagram
 |---|---|---|---|---|
 | **RF1** Catálogo | `recurso` | `/api/recursos*` | `routers/recursos`, models | #7, #8, #9, #10, #11 |
 | **RF2** Reservas | `reserva` | `/api/reservas*` | `reserva_service` (prioridad) | #10, #11 |
-| **RF3** Préstamos | `prestamo`, `garantia` | `/api/prestamos*` | `prestamo_service` (invariantes, vencidos) | #13, #14 |
-| **RF4** Autorización acad. | `solicitud_academica` | `/api/solicitudes*` | `routers/solicitudes` | (60%) |
+| **RF3** Préstamos | `prestamo`, `garantia`, `solicitud` (SIMPLE), `notificacion` | `/api/prestamos*`, `/api/solicitudes*`, `/api/notificaciones*` | `prestamo_service`, `solicitud_service` (invariantes, vencidos, aceptación) | #13, #14 |
+| **RF4** Autorización acad. | `solicitud` (POR_CURSO/EXCEPCIONAL) | `/api/solicitudes*` | `routers/solicitudes`, `solicitud_service` | (60%) |
 | **RF5** Sanciones | `sancion` | `/api/sanciones*` | `sancion_service` (bloqueo) | (60/100%) |
 | **RF6** Historial/Reportes | `reporte` (+ lectura) | `/api/historial`, `/api/reportes*` | `routers/reportes` | (100%) |
 | **RF7** Usuarios/Roles | `usuario`, `usuario_rol` | `/api/auth*`, `/api/usuarios*` | `security.py`, `routers/auth` | #4, #6, #12, #13, #14 |

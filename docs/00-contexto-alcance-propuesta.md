@@ -70,9 +70,12 @@ centralizando el inventario y reduciendo el tiempo de atención y la pérdida de
 `ESTUDIANTE` · `DOCENTE` · `CUSTODIO_CE` · `CUSTODIO_INFRA` ·
 `DIRECCION_ESCUELA` · `ADMINISTRADOR_SISTEMA`
 
-- **Quién puede SOLICITAR:** cualquier rol; único requisito **no tener sanción activa**.
+- **Quién puede SOLICITAR:** cualquier rol; único requisito **no tener sanción activa**. Toda
+  solicitud se pide **desde la plataforma**, sin importar el tipo de préstamo — ya no hay
+  registro directo en persona sin solicitud previa (hallazgo #13 en §8).
 - **Quién APRUEBA/GESTIONA:**
-  - `CUSTODIO_CE` → **registra** préstamos SIMPLE de libros/deportivos (la aprobación es automática; ver §4).
+  - `CUSTODIO_CE` → **acepta o rechaza manualmente** las solicitudes SIMPLE de libros/deportivos
+    y registra la entrega al aceptar (ver §4).
   - `CUSTODIO_INFRA` → aprueba **POR_CURSO** y **EXCEPCIONAL** (custodio de Infraestructura, incluye a los laboratoristas).
   - `DOCENTE` → **avala** solicitudes POR_CURSO.
   - `DIRECCION_ESCUELA` → **autoriza** solicitudes EXCEPCIONAL.
@@ -116,7 +119,8 @@ Organización por subdominios (DDD):
 | Identidad y Roles | Genérico | Usuarios y roles del sistema. |
 | Catálogo de Recursos | Soporte | Inventario y estado (DISPONIBLE/RESERVADO/PRESTADO/MANTENIMIENTO). |
 | Reservas | Soporte | *"¿CUÁNDO lo puedo tener?"* — reserva con antelación (booking) para una fecha/franja; incluye reservar para cuando el recurso se libere. |
-| Solicitudes Académicas | Soporte | *"¿TENGO PERMISO?"* — solo POR_CURSO y EXCEPCIONAL. |
+| Solicitudes | Soporte | *"¿TENGO PERMISO?"* — punto de entrada único para pedir **cualquier** préstamo (SIMPLE, POR_CURSO o EXCEPCIONAL); quién acepta/avala/autoriza depende del tipo. |
+| Notificaciones | Genérico | Avisa **dentro de la plataforma** cuando cambia el estado de una Solicitud (aceptada/rechazada), con el periodo para presentarse a recoger el recurso. |
 | Sanciones | Soporte | Sanciones por RETRASO / DAÑO / PÉRDIDA. |
 | Historial y Reportes | Genérico | Vista de solo lectura sobre eventos del sistema (no transaccional). |
 
@@ -131,7 +135,12 @@ Organización por subdominios (DDD):
   **custodio confirma la entrega** y la reserva *deriva en* préstamo (respetando
   `registradoPorId ≠ prestatarioId`). **Aplica a libros y académicos** (los deportivos son
   préstamo directo del mismo día, ver §5).
-- **SolicitudAcademica** — solo para préstamos POR_CURSO y EXCEPCIONAL (implementos académicos).
+- **Solicitud** (antes `SolicitudAcademica`) — punto de entrada único para pedir **cualquier**
+  préstamo, ya no solo académicos: el usuario solicita y, según `tipo`, pasa por aval/autorización
+  o va directo a aceptación del custodio (ver "Tipos de préstamo" más abajo). Si el recurso está
+  disponible, habilita el `Prestamo` directamente al aceptarse; si no, genera una `Reserva` para
+  cuando se libere. Al aceptarse o rechazarse, dispara una `Notificacion` para el solicitante.
+- **Notificacion** — aviso dentro de la plataforma cuando cambia el `estado` de una `Solicitud`.
 - **Prestamo** — núcleo; con `tipoPrestamo`, `modalidadUso`, `condicionEntrega/Devolucion`.
 - **Garantia**, **Sancion** (`RETRASO`/`DANIO`/`PERDIDA`), **Reporte**.
 
@@ -140,19 +149,25 @@ dato independiente del tipo (un libro SIMPLE es RETIRO; un deportivo SIMPLE es E
 
 ### Tipos de préstamo
 
-| Tipo | Aprobación | Registro / condición |
+| Tipo | Flujo de aceptación (a partir de la Solicitud) | Registro / condición |
 |---|---|---|
-| **SIMPLE** | **Automática** (sin sanción + recurso disponible) | Lo **registra** un `CUSTODIO_CE`. Solo libros/deportivos. |
-| **POR_CURSO** | `CUSTODIO_INFRA` aprueba + `DOCENTE` avala | Uso académico para un curso (normalmente EN_SITIO). |
-| **EXCEPCIONAL** | `CUSTODIO_INFRA` aprueba + `DIRECCION_ESCUELA` autoriza | RETIRO_TEMPORAL fuera de la Escuela. |
+| **SIMPLE** | El usuario **solicita** → `CUSTODIO_CE` **acepta o rechaza manualmente** (sin sanción + recurso disponible) | Al aceptar, el propio custodio **registra** la entrega. Solo libros/deportivos. |
+| **POR_CURSO** | El usuario **solicita** → `DOCENTE` avala → `CUSTODIO_INFRA` acepta y registra | Uso académico para un curso (normalmente EN_SITIO). |
+| **EXCEPCIONAL** | El usuario **solicita** → `DOCENTE` avala → `DIRECCION_ESCUELA` autoriza → `CUSTODIO_INFRA` acepta y registra | RETIRO_TEMPORAL fuera de la Escuela. |
+
+> **Cambio vs. versión previa:** SIMPLE ya **no** se aprueba automáticamente — ahora pasa por
+> la misma `Solicitud` que los demás tipos, con aceptación manual de `CUSTODIO_CE` (hallazgo #13).
 
 **Prioridad en reservas (híbrida):** primero por tipo `EXCEPCIONAL > POR_CURSO > SIMPLE`
 y, dentro del mismo tipo, **FIFO** (orden de solicitud).
 
 ### Invariantes / reglas
 
-- **Aprobar ≠ registrar:** la *aprobación* de un SIMPLE es automática (decisión del
-  sistema); la *entrega* la **registra** un custodio. Son dos actos distintos.
+- **Solicitar ≠ aceptar ≠ registrar:** el usuario **solicita** cualquier préstamo desde la
+  plataforma; quien corresponda (custodio, con o sin aval/autorización previa según el tipo)
+  **acepta o rechaza** la solicitud; al aceptar, el custodio **registra** la entrega. En
+  SIMPLE las últimas dos las hace la misma persona (`CUSTODIO_CE`), pero siguen siendo
+  actos distintos.
 - **Tipo ↔ recurso (estricto):** libros/deportivos ⇒ **SIMPLE** siempre; POR_CURSO y
   EXCEPCIONAL ⇒ **solo** implementos académicos.
 - `registradoPorId ≠ prestatarioId` — un custodio **no** puede autoregistrarse un préstamo
@@ -172,11 +187,12 @@ y, dentro del mismo tipo, **FIFO** (orden de solicitud).
 | ↳ **ImplementoDeportivo** | `tipo:String` |
 | ↳ **ImplementoAcademico** | `codigoPatrimonial:String`, `requiereAval:boolean` |
 | **Reserva** | `fecha:Date`, `franja:String`, `estado:EstadoReserva`, `prioridad:int` |
-| **SolicitudAcademica** | `motivo:String`, `fecha:Date`, `tipo:TipoSolicitud`, `estado:EstadoSolicitud` |
+| **Solicitud** | `motivo:String`, `fecha:Date`, `tipo:TipoSolicitud`, `estado:EstadoSolicitud` |
 | **Prestamo** | `fechaEntrega:Date`, `fechaLimite:Date`, `fechaDevolucion:Date`, `estado:EstadoPrestamo`, `tipoPrestamo:TipoPrestamo`, `modalidadUso:ModalidadUso`, `condicionEntrega:String`, `condicionDevolucion:String`, `registradoPorId`, `prestatarioId` |
 | **Garantia** | `tipo:String`, `valor:BigDecimal`, `devuelta:boolean` |
 | **Sancion** | `motivo:MotivoSancion`, `inicio:Date`, `fin:Date`, `monto:BigDecimal`, `activa:boolean` |
 | **Reporte** | `tipo:String`, `generadoEn:Date` |
+| **Notificacion** | `mensaje:String`, `tipo:TipoNotificacion`, `leida:boolean`, `creadaEn:Date` |
 
 > Nota: se eliminó `Prestamo.categoriaPrestatario` (se deriva del rol) y el enum
 > `CategoriaPrestatario`. Ver §8 (auditoría, #6).
@@ -189,12 +205,18 @@ y, dentro del mismo tipo, **FIFO** (orden de solicitud).
 | **Gestor** | CENTRO_ESTUDIANTES · INFRAESTRUCTURA |
 | **EstadoRecurso** | DISPONIBLE · RESERVADO · PRESTADO · MANTENIMIENTO |
 | **EstadoReserva** | PENDIENTE · CONFIRMADA · CANCELADA · VENCIDA |
-| **TipoSolicitud** | POR_CURSO · EXCEPCIONAL |
-| **EstadoSolicitud** | SOLICITADA · AVALADA · AUTORIZADA · RECHAZADA |
+| **TipoSolicitud** | SIMPLE · POR_CURSO · EXCEPCIONAL |
+| **EstadoSolicitud** | SOLICITADA · AVALADA · AUTORIZADA · ACEPTADA · RECHAZADA |
 | **EstadoPrestamo** | ACTIVO · DEVUELTO · ATRASADO |
 | **TipoPrestamo** | SIMPLE · POR_CURSO · EXCEPCIONAL |
 | **ModalidadUso** | EN_SITIO · RETIRO_TEMPORAL |
 | **MotivoSancion** | RETRASO · DANIO · PERDIDA |
+| **TipoNotificacion** | SOLICITUD_ACEPTADA · SOLICITUD_RECHAZADA |
+
+> `EstadoSolicitud` por tipo: **SIMPLE** va `SOLICITADA → ACEPTADA` directo (o `RECHAZADA`),
+> sin pasar por `AVALADA`/`AUTORIZADA`. **POR_CURSO** va `SOLICITADA → AVALADA → ACEPTADA`.
+> **EXCEPCIONAL** va `SOLICITADA → AVALADA → AUTORIZADA → ACEPTADA`. `RECHAZADA` es posible
+> desde cualquier paso previo a `ACEPTADA`.
 
 ### Relaciones del dominio
 
@@ -209,12 +231,15 @@ y, dentro del mismo tipo, **FIFO** (orden de solicitud).
 | Prestamo | 0..* — 1 | Recurso | entrega |
 | Prestamo | 1 — 0..1 | Garantia | respalda *(composición)* |
 | Prestamo | 1 — 0..1 | Sancion | puede generar |
-| Usuario | 1 — 0..* | SolicitudAcademica | solicita (cualquier rol sin sanción; típ. estudiante/docente) |
-| Usuario | 1 — 0..* | SolicitudAcademica | avala (docente) |
-| Usuario | 1 — 0..* | SolicitudAcademica | autoriza (dirección) |
-| SolicitudAcademica | 0..* — 1 | ImplementoAcademico | requiere |
-| SolicitudAcademica | 1 — 0..1 | Prestamo | habilita (si disponible) |
-| SolicitudAcademica | 1 — 0..1 | Reserva | genera (si no disponible ahora) |
+| Usuario | 1 — 0..* | Solicitud | solicita (cualquier rol sin sanción) |
+| Usuario | 1 — 0..* | Solicitud | avala (docente; solo POR_CURSO/EXCEPCIONAL) |
+| Usuario | 1 — 0..* | Solicitud | autoriza (dirección; solo EXCEPCIONAL) |
+| Usuario | 1 — 0..* | Solicitud | acepta/rechaza (custodio CE o Infra, según gestor del recurso) |
+| Solicitud | 0..* — 1 | Recurso | requiere |
+| Solicitud | 1 — 0..1 | Prestamo | habilita (al aceptarse, si disponible) |
+| Solicitud | 1 — 0..1 | Reserva | genera (si no disponible ahora) |
+| Solicitud | 1 — 0..* | Notificacion | genera (al aceptarse/rechazarse) |
+| Notificacion | 0..* — 1 | Usuario | notifica a (el solicitante) |
 | Sancion | 0..* — 1 | Usuario | afecta |
 | Usuario | 1 — 0..* | Reporte | genera (dirección) |
 
@@ -240,6 +265,8 @@ y, dentro del mismo tipo, **FIFO** (orden de solicitud).
 - **Deportivos**: préstamo **directo del mismo día** (se pide y se devuelve el mismo día,
   sin reserva anticipada; el plazo vence al final del día).
 - **Préstamos y devoluciones** con garantía, estado del ítem y plazos.
+- **Notificaciones dentro de la plataforma** cuando una solicitud se acepta o rechaza, con el
+  periodo para presentarse a recoger el recurso.
 - **Sanciones** (multa / bloqueo temporal / reposición) por retraso, daño o pérdida.
 - **Historial y reportes** de inventario y préstamos.
 - **Autenticación** (login propio, ver Supuestos) y control de acceso por rol.
@@ -253,6 +280,8 @@ y, dentro del mismo tipo, **FIFO** (orden de solicitud).
 - **Lista de espera (waitlist) como concepto separado**: queda absorbida por el booking
   (reservar para cuando el recurso se libere).
 - **SSO institucional real de UNSA**: el prototipo usa login propio (ver supuestos).
+- **Notificaciones por correo o push**: solo se notifica **dentro de la plataforma**; el envío
+  de email/push queda fuera del alcance de este prototipo.
 
 ### Supuestos
 
@@ -272,8 +301,8 @@ y, dentro del mismo tipo, **FIFO** (orden de solicitud).
 |---|---|
 | **RF1** | Catálogo / Inventario (alta/baja/estado, consulta de disponibilidad) |
 | **RF2** | Reservas (crear, cancelar/modificar, resolución de prioridad) |
-| **RF3** | Préstamos / Devoluciones (garantía, estado, plazos, marcado de vencidos) |
-| **RF4** | Autorización de académicos (solicitud → aval docente → autorización Infra/Dirección) |
+| **RF3** | Préstamos / Devoluciones — incluye la `Solicitud` y su aceptación manual para SIMPLE (ya no hay registro directo sin solicitud previa), garantía, estado, plazos, marcado de vencidos, y la notificación dentro de la plataforma al aceptar/rechazar |
+| **RF4** | Autorización de académicos — extiende la misma `Solicitud` de RF3 con aval docente y, si es EXCEPCIONAL, autorización de Dirección, antes de la aceptación del custodio |
 | **RF5** | Sanciones (bloqueo temporal, multa/reposición, consulta de sanciones activas) |
 | **RF6** | Historial y Reportes (historial por usuario, reportes de inventario/préstamos) |
 | **RF7** | Usuarios / Roles (login institucional, gestión de roles y permisos) |
@@ -331,6 +360,9 @@ Prioridad (MoSCoW): ALTA/DEBE · MEDIA/DEBERÍA · BAJA/PODRÍA. Puntos (Plannin
 | HF.3.2.1 | Custodio CE | registrar la devolución y verificar el estado | RF3 | ALTA | 3 |
 | HF.3.3.1 | Estudiante | ver el plazo de devolución de mi préstamo | RF3 | ALTA | 2 |
 | HF.3.4.1 | Sistema | marcar como vencido el préstamo que pasó su plazo | RF3 | ALTA | 3 |
+| HF.3.5.1 | Estudiante/Docente | solicitar un préstamo SIMPLE (libro/deportivo) desde la plataforma, en vez de pedirlo en persona | RF3 | ALTA | 3 |
+| HF.3.6.1 | Custodio CE | ver una bandeja de solicitudes SIMPLE pendientes y aceptarlas o rechazarlas | RF3 | ALTA | 3 |
+| HF.3.7.1 | Usuario | recibir una notificación dentro de la plataforma cuando mi solicitud se acepta o rechaza, con el periodo para presentarme | RF3 | ALTA | 3 |
 | HF.4.1.1 | Estudiante | solicitar un implemento académico (curso/tesis + equipo) | RF4 | ALTA | 5 |
 | HF.4.2.1 | Docente | avalar la solicitud de mis alumnos | RF4 | ALTA | 3 |
 | HF.4.3.1 | Infraestructura | autorizar o rechazar solicitudes de equipos | RF4 | ALTA | 5 |
@@ -374,8 +406,9 @@ ambas alimentan la implementación (Fase C).
    tipo ↔ recurso e invariante `registradoPor ≠ prestatario`).
 2. **Diagramas de secuencia** de los flujos críticos:
    - Reserva (booking) → derivar en préstamo al llegar la franja; desempate por prioridad.
-   - Préstamo SIMPLE (auto-aprobación + registro por custodio, recurso disponible, sin sanción).
-   - Solicitud académica POR_CURSO / EXCEPCIONAL con aval docente / autorización dirección.
+   - Préstamo SIMPLE (solicitud → aceptación manual de `CUSTODIO_CE` → registro + notificación).
+   - Solicitud académica POR_CURSO / EXCEPCIONAL con aval docente / autorización dirección →
+     aceptación de `CUSTODIO_INFRA` → registro + notificación.
 3. **Contrato de API** (endpoints REST por feature, alineados a los RF).
 
 ### Fase B — Diseño de producto (UX/UI · front mockups)
@@ -428,6 +461,7 @@ del análisis. Cada hallazgo quedó resuelto así:
 | 10 | "Reposición" no se modela limpio en `Sancion`. | Pendiente menor: se refinará en Fase A (BD) al detallar `Sancion`. |
 | 11 | RNF1 pide login institucional real, inviable para prototipo. | **Login propio (mock institucional)**; SSO UNSA = trabajo futuro. |
 | 12 | Invariante `registradoPor ≠ prestatario` chocaba con autoservicio. | Aclarado: la **solicitud** es autoservicio; el **préstamo** siempre lo registra otra persona. |
+| 13 | El catálogo solo dejaba reservar; pedir un préstamo SIMPLE no tenía solicitud digital — el custodio lo registraba en persona sin ningún paso previo en la plataforma. | **Se generaliza `SolicitudAcademica` → `Solicitud`:** todo préstamo (SIMPLE incluido) se pide desde la plataforma. Para SIMPLE, `CUSTODIO_CE` acepta/rechaza manualmente (ya no automático) y registra al aceptar; POR_CURSO/EXCEPCIONAL conservan el aval docente / autorización de Dirección ya definidos. Se agrega `Notificacion` dentro de la plataforma al aceptar/rechazar. La parte SIMPLE se adelanta a **R1** (extiende RF3); el resto de académicos sigue en RF4/R2. |
 
 > **Sincronización pendiente:** el diagrama PDF (`modelo-dominio-grupo8.pdf`) y el `README.md`
 > aún reflejan el modelo previo (7 roles, `categoriaPrestatario`, `CUSTODIO_ADMINISTRATIVO`).

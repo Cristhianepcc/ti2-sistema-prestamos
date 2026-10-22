@@ -315,7 +315,8 @@ Requiere autenticación mediante `Authorization: Bearer <access_token>`.
 {
   "recurso_id": 10,
   "fecha": "2026-09-25",
-  "franja": "10:00-12:00"
+  "franja": "10:00-12:00",
+  "tipo": "SIMPLE"
 }
 ```
 
@@ -324,8 +325,10 @@ Requiere autenticación mediante `Authorization: Bearer <access_token>`.
 | `recurso_id` | int | Sí | ID del recurso que se quiere reservar |
 | `fecha` | string (`YYYY-MM-DD`) | Sí | Fecha de la reserva |
 | `franja` | string | Sí | Máximo 30 caracteres; por ejemplo, `10:00-12:00` |
+| `tipo` | enum `TipoPrestamo` | No (default `SIMPLE`) | `SIMPLE`, `POR_CURSO` o `EXCEPCIONAL`. Determina la `prioridad` de la cola (`EXCEPCIONAL`=3, `POR_CURSO`=2, `SIMPLE`=1) y se valida contra el mismo invariante tipo↔recurso de `POST /api/prestamos` (Anexo RF3): `SIMPLE` solo en `LIBRO`/`DEPORTIVO`; `POR_CURSO`/`EXCEPCIONAL` solo en `ACADEMICO` |
 
 El backend asigna `usuario_id`, `estado`, `prioridad` y `created_at`; no se envían en el request.
+`tipo` no se persiste en la fila de la reserva (la tabla `reserva` no tiene esa columna, ver `01-sdd.md` §3.3) — solo se usa para calcular `prioridad` en el momento de crearla.
 
 ### Response `201`
 
@@ -356,7 +359,9 @@ Devuelve un objeto `ReservaPublica`:
 | `401` | Falta el token o es inválido/expiró |
 | `404` | El recurso indicado no existe |
 | `409` | El recurso está disponible y no requiere reserva |
+| `409` | `tipo=SIMPLE` sobre un recurso `ACADEMICO`, o `POR_CURSO`/`EXCEPCIONAL` sobre uno que no lo es |
 | `409` | El usuario tiene una sanción activa, según la regla del SDD |
+| `422` | `tipo` con un valor fuera del enum |
 
 La comprobación de sanciones aún está pendiente de RF5: el servicio actual tiene ese punto como TODO y todavía no bloquea reservas por sanción activa.
 
@@ -383,6 +388,236 @@ Devuelve `204` sin cuerpo cuando la cancelación se completa.
 | `403` | La reserva pertenece a otro usuario |
 | `404` | La reserva no existe |
 | `409` | La reserva no está en estado `PENDIENTE` |
+
+---
+
+## Anexo RF3/RF4 — Solicitudes
+
+> **Decisión (ver `00-contexto-alcance-propuesta.md` §8, hallazgo #13):** ya no hay registro
+> directo de un préstamo sin solicitud previa. Todo préstamo —incluido SIMPLE— nace de una
+> `Solicitud`. El flujo normal del custodio deja de ser llamar a `POST /api/prestamos`
+> directamente: llama a `POST /api/solicitudes/{id}/aceptar`, que crea el préstamo
+> internamente (mismas reglas y errores que el Anexo RF3 de abajo) y lo devuelve. El endpoint
+> `POST /api/prestamos` se documenta igual por si el backend lo necesita como función interna,
+> pero el frontend no debe llamarlo directo para un préstamo que empezó como solicitud.
+
+### POST `/api/solicitudes` — Crear solicitud
+
+Requiere autenticación. Cualquier rol, sin sanción activa.
+
+#### Request
+
+```json
+{
+  "recurso_id": 10,
+  "tipo_solicitud": "SIMPLE",
+  "motivo": null
+}
+```
+
+| Campo | Tipo | Obligatorio | Notas |
+|---|---|---|---|
+| `recurso_id` | int | Sí | Recurso que se quiere pedir |
+| `tipo_solicitud` | enum `TipoSolicitud` | Sí | `SIMPLE`, `POR_CURSO` o `EXCEPCIONAL` |
+| `motivo` | string o `null` | Solo si `tipo_solicitud != SIMPLE` | Curso/tesis/proyecto que justifica el uso académico |
+
+El backend asigna `solicitante_id`, `estado` (inicia en `SOLICITADA`) y `created_at`.
+
+#### Response `201`
+
+Devuelve un objeto `SolicitudPublica`:
+
+```json
+{
+  "id": 1,
+  "solicitante_id": 1,
+  "recurso_id": 10,
+  "recurso": { "id": 10, "codigo": "LIB-001", "nombre": "Clean Code", "...": "resto de RecursoPublico" },
+  "tipo_solicitud": "SIMPLE",
+  "motivo": null,
+  "estado": "SOLICITADA",
+  "avalado_por_id": null,
+  "autorizado_por_id": null,
+  "aceptado_por_id": null,
+  "prestamo_id": null,
+  "created_at": "2026-10-22T09:00:00-05:00"
+}
+```
+
+`EstadoSolicitud`: `SOLICITADA` · `AVALADA` · `AUTORIZADA` · `ACEPTADA` · `RECHAZADA`. El
+camino depende de `tipo_solicitud` (ver `00-contexto-alcance-propuesta.md` §4):
+`SIMPLE` va `SOLICITADA → ACEPTADA`; `POR_CURSO` va `SOLICITADA → AVALADA → ACEPTADA`;
+`EXCEPCIONAL` va `SOLICITADA → AVALADA → AUTORIZADA → ACEPTADA`. `RECHAZADA` es posible
+desde cualquier paso previo a `ACEPTADA`.
+
+#### Errores
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `404` | `recurso_id` no existe |
+| `409` | El solicitante tiene una sanción activa |
+| `409` | `tipo_solicitud=SIMPLE` sobre un recurso `ACADEMICO`, o `POR_CURSO`/`EXCEPCIONAL` sobre uno que no lo es (mismo invariante tipo↔recurso del Anexo RF3) |
+| `422` | Falta `motivo` con `tipo_solicitud` distinto de `SIMPLE` |
+
+---
+
+### GET `/api/solicitudes` — Listar solicitudes
+
+Requiere autenticación. Dos modos, combinables con `estado`:
+
+| Param | Tipo | Efecto |
+|---|---|---|
+| `mias` | boolean | `true`: solo las solicitudes del usuario autenticado (como solicitante) |
+| `pendientes` | boolean | `true`: la bandeja de lo que el usuario autenticado puede resolver ahora — `DOCENTE` ve `SOLICITADA` de `POR_CURSO`/`EXCEPCIONAL`; `DIRECCION_ESCUELA` ve `AVALADA` de `EXCEPCIONAL`; `CUSTODIO_CE`/`CUSTODIO_INFRA` ven lo que ya pueden aceptar, filtrado por el `gestor` de su recurso |
+| `estado` | enum `EstadoSolicitud` | Filtra por estado exacto |
+
+Sin `mias=true` ni `pendientes=true`, un usuario sin rol de aprobación recibe `403`.
+
+#### Response `200`
+
+Un array de `SolicitudPublica` (`[]` si no hay coincidencias).
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `403` | Pide la bandeja de pendientes sin tener ningún rol de aprobación |
+| `422` | `estado` no es un valor válido del enum |
+
+---
+
+### POST `/api/solicitudes/{id}/avalar` — Aval del docente
+
+Requiere rol `DOCENTE`. Solo aplica a `tipo_solicitud` `POR_CURSO` o `EXCEPCIONAL` en estado `SOLICITADA`. Pasa a `AVALADA` y guarda `avalado_por_id`.
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `403` | El usuario no es `DOCENTE` |
+| `404` | La solicitud no existe |
+| `409` | La solicitud no está en `SOLICITADA`, o `tipo_solicitud=SIMPLE` (no requiere aval) |
+
+### POST `/api/solicitudes/{id}/autorizar` — Autorización de Dirección
+
+Requiere rol `DIRECCION_ESCUELA`. Solo aplica a `tipo_solicitud=EXCEPCIONAL` en estado `AVALADA`. Pasa a `AUTORIZADA` y guarda `autorizado_por_id`.
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `403` | El usuario no es `DIRECCION_ESCUELA` |
+| `404` | La solicitud no existe |
+| `409` | La solicitud no está en `AVALADA`, o `tipo_solicitud != EXCEPCIONAL` |
+
+### POST `/api/solicitudes/{id}/aceptar` — Aceptación del custodio
+
+Requiere rol `CUSTODIO_CE` (si el recurso es `LIBRO`/`DEPORTIVO`) o `CUSTODIO_INFRA` (si es `ACADEMICO`). La solicitud debe estar en el último estado antes de `ACEPTADA` según su tipo (`SOLICITADA` para SIMPLE, `AVALADA` para POR_CURSO, `AUTORIZADA` para EXCEPCIONAL).
+
+#### Request
+
+```json
+{
+  "modalidad_uso": "RETIRO_TEMPORAL",
+  "condicion_entrega": "Buen estado",
+  "garantia": { "tipo": "CARNET", "valor": 0 }
+}
+```
+
+Mismos campos que el `POST /api/prestamos` del Anexo RF3 (sin `recurso_id`, `prestatario_id` ni `tipo_prestamo`: se toman de la solicitud). Al aceptar: pasa a `ACEPTADA`, guarda `aceptado_por_id`, **crea el `Prestamo`** (con las mismas reglas/errores del Anexo RF3) y **genera una `Notificacion`** de tipo `SOLICITUD_ACEPTADA` para el solicitante (ver Anexo de Notificaciones).
+
+#### Response `201`
+
+El objeto `SolicitudPublica` con `estado: "ACEPTADA"` y `prestamo_id` apuntando al `PrestamoPublico` recién creado.
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `403` | El usuario no tiene el rol de custodio que corresponde al `gestor` del recurso |
+| `404` | La solicitud no existe |
+| `409` | La solicitud no está en el estado previo esperado para su tipo |
+| `409` | El recurso ya no está `DISPONIBLE` |
+| `409` | (los mismos 409 de validación de `POST /api/prestamos`, Anexo RF3) |
+
+### POST `/api/solicitudes/{id}/rechazar` — Rechazo
+
+Requiere el rol que corresponde al paso **pendiente** de la solicitud (docente si está en `SOLICITADA` de un académico, dirección si está en `AVALADA` de un `EXCEPCIONAL`, o el custodio correspondiente en cualquier paso). Pasa a `RECHAZADA` y genera una `Notificacion` de tipo `SOLICITUD_RECHAZADA` para el solicitante.
+
+#### Request
+
+```json
+{ "motivo_rechazo": "El equipo ya está comprometido para otro curso" }
+```
+
+| Campo | Tipo | Obligatorio |
+|---|---|---|
+| `motivo_rechazo` | string o `null` | No |
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `403` | El usuario no tiene el rol que corresponde al paso pendiente |
+| `404` | La solicitud no existe |
+| `409` | La solicitud ya está en `ACEPTADA` o `RECHAZADA` |
+
+---
+
+## Anexo — Notificaciones
+
+Avisos **dentro de la plataforma** (no hay email ni push) generados automáticamente al
+aceptar o rechazar una `Solicitud`.
+
+### GET `/api/notificaciones` — Listar mis notificaciones
+
+Requiere autenticación. Devuelve solo las notificaciones del usuario autenticado (no existe
+un modo "de todos").
+
+| Param | Tipo | Efecto |
+|---|---|---|
+| `leidas` | boolean | `?leidas=false` muestra solo las no leídas. Sin el parámetro, muestra todas |
+
+#### Response `200`
+
+```json
+[
+  {
+    "id": 1,
+    "usuario_id": 1,
+    "solicitud_id": 7,
+    "tipo": "SOLICITUD_ACEPTADA",
+    "mensaje": "Tu solicitud de \"Clean Code\" fue aceptada. Preséntate en el Centro de Estudiantes antes de las 18:00 de hoy para recogerlo.",
+    "leida": false,
+    "created_at": "2026-10-22T09:15:00-05:00"
+  }
+]
+```
+
+`TipoNotificacion`: `SOLICITUD_ACEPTADA` · `SOLICITUD_RECHAZADA`. El `mensaje` lo compone el
+backend; si la solicitud generó una `Reserva` en vez de un préstamo inmediato, incluye la
+`fecha`/`franja` reservada en vez de "antes de las 18:00 de hoy".
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `422` | `leidas` no es un booleano válido |
+
+### PATCH `/api/notificaciones/{id}` — Marcar como leída
+
+Requiere autenticación. Solo el dueño de la notificación puede marcarla.
+
+#### Request
+
+```json
+{ "leida": true }
+```
+
+#### Response `200`
+
+El mismo objeto, con `leida: true`.
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `403` | La notificación pertenece a otro usuario |
+| `404` | La notificación no existe |
 
 ---
 

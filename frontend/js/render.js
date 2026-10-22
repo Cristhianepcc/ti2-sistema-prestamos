@@ -131,3 +131,23 @@ function badgeEstado(estado) {
   const e = ETIQUETA_ESTADO[estado] || { texto: estado, color: "neutral" };
   return `<span class="badge ${e.color}">${esc(e.texto)}</span>`;
 }
+
+// Estados de una SOLICITUD (prototipo de frontend, ver js/mock-solicitudes.js).
+const ETIQUETA_SOLICITUD = {
+  SOLICITADA: { texto: "Solicitada", color: "warn" },
+  AVALADA: { texto: "Avalada", color: "warn" },
+  AUTORIZADA: { texto: "Autorizada", color: "warn" },
+  ACEPTADA: { texto: "Aceptada", color: "ok" },
+  RECHAZADA: { texto: "Rechazada", color: "neutral" },
+};
+
+function badgeSolicitud(estado) {
+  const e = ETIQUETA_SOLICITUD[estado] || { texto: estado, color: "neutral" };
+  return `<span class="badge ${e.color}">${esc(e.texto)}</span>`;
+}
+
+const ETIQUETA_TIPO_SOLICITUD = {
+  SIMPLE: "Simple",
+  POR_CURSO: "Por curso",
+  EXCEPCIONAL: "Excepcional",
+};

@@ -84,6 +84,16 @@ a {
   background: var(--verde);
 }
 
+/* Título con una acción a la derecha (ej. Inventario + "Nuevo recurso").
+   El margen inferior lo sigue poniendo .page-title. */
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
 /* ---- botones / inputs ---- */
 
 .btn {
@@ -169,6 +179,18 @@ a {
 .field textarea {
   resize: vertical;
   min-height: 56px;
+}
+
+/* Campo con casilla: la etiqueta va al lado del checkbox, no encima. */
+.field-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.field-check input {
+  width: auto;
+  margin: 0;
 }
 
 .field .hint {
@@ -708,12 +730,6 @@ body.pagina-login {
   flex: 1;
 }
 
-/* Mientras el form de reserva está abierto, la tarjeta ya no necesita
-   estirarse para alinear el botón con las de al lado del mismo renglón. */
-.tarjeta.reservando .tp-main {
-  flex: none;
-}
-
 /* Marcador de posición del espacio para la foto del recurso: todavía no
    hay imágenes reales (ni campo en la API), así que va un ícono genérico.
    Cuando exista `recurso.imagen_url`, esto cambia por un <img>. */
@@ -786,28 +802,6 @@ body.pagina-login {
   text-transform: uppercase;
   color: var(--sobre-azul);
   white-space: nowrap;
-}
-
-.form-reservar {
-  border-top: 1px solid var(--linea);
-  padding: 14px 16px;
-  background: var(--fondo-suave);
-}
-
-.form-reservar .fila {
-  display: flex;
-  gap: 10px;
-}
-
-.form-reservar .fila .field {
-  flex: 1;
-}
-
-.form-reservar .acciones {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 10px;
 }
 
 /* ---- tabla (reservas / panel custodio) ---- */

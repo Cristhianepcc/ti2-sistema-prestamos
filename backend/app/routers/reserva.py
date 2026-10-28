@@ -11,7 +11,7 @@ from ..models import Recurso, Reserva
 from ..models.enums import EstadoReserva
 from ..schemas.reserva import ReservaCreate, ReservaPublica
 from ..security import UsuarioActual
-from ..services.reserva_service import crear_reserva
+from ..services.reserva_service import ConflictoReserva, crear_reserva
 
 router = APIRouter(prefix="/reservas", tags=["reservas"])
 
@@ -40,13 +40,19 @@ def crear_reserva_endpoint(
             detail="El recurso está disponible y no requiere una reserva",
         )
 
-    return crear_reserva(
-        db,
-        usuario_id=usuario.id,
-        recurso_id=datos.recurso_id,
-        fecha=datos.fecha,
-        franja=datos.franja,
-    )
+    try:
+        return crear_reserva(
+            db,
+            usuario_id=usuario.id,
+            recurso_id=datos.recurso_id,
+            fecha=datos.fecha,
+            franja=datos.franja,
+            tipo=datos.tipo,
+        )
+    except ConflictoReserva as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(error)
+        ) from error
 
 
 @router.get("", response_model=list[ReservaPublica])

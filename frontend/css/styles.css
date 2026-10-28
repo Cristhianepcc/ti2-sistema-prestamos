@@ -482,6 +482,103 @@ body.pagina-login {
   color: rgba(255, 255, 255, 0.55);
 }
 
+.acciones-tabla {
+  display: flex;
+  gap: 6px;
+}
+
+/* ---- modal ---- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 33, 61, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 100;
+}
+
+.modal {
+  background: var(--fondo);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--linea);
+  position: sticky;
+  top: 0;
+  background: var(--fondo);
+}
+
+.modal-head h3 {
+  font-family: var(--f-titulos);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--azul);
+}
+
+.modal-cerrar {
+  background: none;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--tinta-suave);
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.modal-cerrar:hover {
+  background: var(--fondo-suave);
+}
+
+.modal-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modal-body .fila {
+  display: flex;
+  gap: 10px;
+}
+
+.modal-body .fila .field {
+  flex: 1;
+}
+
+.modal-body .acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.nav-badge {
+  margin-left: auto;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  flex: none;
+}
+
 .app-main {
   padding: 30px 34px;
   background: var(--fondo-suave);
@@ -586,12 +683,11 @@ body.pagina-login {
   }
 }
 
-/* Tarjeta de producto: imagen + nombre + botón a la izquierda, franja de
-   categoría vertical a la derecha (ocupa todo el alto de la tarjeta,
-   incluido el form de reserva cuando está abierto). */
+/* Tarjeta de producto: franja de categoría horizontal arriba, luego
+   imagen + nombre + botón (incluido el form de reserva cuando está abierto). */
 .tarjeta {
-  display: grid;
-  grid-template-columns: 1fr 26px;
+  display: flex;
+  flex-direction: column;
   border-radius: var(--radius-md);
   background: var(--fondo);
   box-shadow: var(--shadow);
@@ -649,6 +745,7 @@ body.pagina-login {
   font-weight: 700;
   font-size: 13.5px;
   line-height: 1.3;
+  text-align: center;
 }
 
 .tp-detalle {
@@ -656,6 +753,13 @@ body.pagina-login {
   color: var(--tinta-suave);
   margin: 0;
   min-height: 14px;
+}
+
+.tp-gestor {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--azul);
+  margin: 0;
 }
 
 .tp-boton {
@@ -672,14 +776,10 @@ body.pagina-login {
 
 .tp-etiqueta {
   background: var(--azul-profundo);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 6px 14px;
 }
 
 .tp-etiqueta span {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -891,8 +991,36 @@ td .sub {
   border: 1px solid var(--linea);
   border-radius: var(--radius-md);
   background: var(--fondo);
-  padding: 18px 20px;
+  overflow: hidden;
   margin-top: 24px;
+}
+
+.role-panel-head {
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--linea);
+  background: var(--fondo-suave);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.role-panel-head b {
+  font-family: var(--f-titulos);
+  font-weight: 800;
+  font-size: 13.5px;
+  color: var(--azul);
+}
+
+.role-panel-head span {
+  font-size: 11.5px;
+  color: var(--tinta-suave);
+  line-height: 1.4;
+}
+
+.bloque-rol .bloque-rol-cuerpo {
+  padding: 20px;
 }
 
 .action-list {
@@ -1020,6 +1148,24 @@ td .sub {
   color: var(--tinta-suave);
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+/* ---- perfil ---- */
+
+.perfil-card {
+  max-width: 420px;
+}
+
+.perfil-avatar {
+  width: 48px;
+  height: 48px;
+  font-size: 16px;
+}
+
+.perfil-nombre {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--tinta);
 }
 
 .fila-doble {

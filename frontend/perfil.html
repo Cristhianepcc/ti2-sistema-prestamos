@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Perfil</title>
+    <link href="css/styles.css" rel="stylesheet">
+</head>
+<body>
+
+    <div class="app">
+        <aside class="app-sidebar" id="app-sidebar"></aside>
+
+        <div class="app-main">
+            <h2 class="page-title">Mi Perfil</h2>
+
+            <div class="form-card perfil-card">
+                <div class="who-cell">
+                    <span class="avatar perfil-avatar" id="perfil-avatar"></span>
+                    <div>
+                        <div class="perfil-nombre" id="perfil-nombre"></div>
+                        <div id="perfil-roles"></div>
+                    </div>
+                </div>
+                <hr>
+                <div class="ticket">
+                    <div class="fila"><span>Código</span><b id="perfil-codigo"></b></div>
+                    <div class="fila"><span>Correo institucional</span><b id="perfil-email"></b></div>
+                </div>
+                <p class="nota-futura">
+                    Editar estos datos o cambiar la contraseña llega en una próxima entrega.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/render.js"></script>
+    <script src="js/shell.js"></script>
+    <script src="js/mock-solicitudes.js"></script>
+    <script src="js/perfil.js"></script>
+</body>
+</html>

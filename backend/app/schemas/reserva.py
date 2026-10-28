@@ -4,7 +4,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..models.enums import EstadoReserva
+from ..models.enums import EstadoReserva, TipoPrestamo
 from .recurso import RecursoPublico
 
 
@@ -14,6 +14,10 @@ class ReservaCreate(BaseModel):
     recurso_id: int
     fecha: date
     franja: str = Field(min_length=1, max_length=30)
+    # Determina la prioridad en la cola (EXCEPCIONAL > POR_CURSO > SIMPLE,
+    # docs/00-contexto-alcance-propuesta.md §4). Default SIMPLE para no
+    # romper clientes que todavía no lo envían.
+    tipo: TipoPrestamo = TipoPrestamo.SIMPLE
 
 
 class ReservaPublica(BaseModel):

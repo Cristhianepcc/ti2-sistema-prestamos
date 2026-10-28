@@ -54,38 +54,6 @@ function puedeSolicitar(r) {
 const ICONO_IMAGEN_PENDIENTE =
     '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
 
-// La prioridad de la reserva depende del tipo (EXCEPCIONAL>POR_CURSO>SIMPLE,
-// backend/app/services/reserva_service.py). Libro/Deportivo son siempre
-// SIMPLE (sin chip); solo Académico elige POR_CURSO/EXCEPCIONAL.
-function formReservarTipoHTML(r) {
-    if (r.tipo_recurso !== "ACADEMICO") return "";
-    return `
-        <label class="field">Tipo de solicitud
-            <span class="chip-toggle" data-chip-grupo="tipo">
-                <span class="chip-opt on" data-valor="POR_CURSO">Por curso</span>
-                <span class="chip-opt" data-valor="EXCEPCIONAL">Excepcional (retiro)</span>
-            </span>
-            <input type="hidden" name="tipo" value="POR_CURSO">
-        </label>`;
-}
-
-function formSolicitarHTML(r) {
-    if (r.tipo_recurso !== "ACADEMICO") {
-        return `<p class="nota-futura">Se enviará como solicitud SIMPLE; el custodio la acepta o rechaza manualmente.</p>`;
-    }
-    return `
-        <label class="field">Motivo (curso, tesis o proyecto)
-            <textarea name="motivo" required placeholder="Ej: Curso de Redes, prof. Fernández"></textarea>
-        </label>
-        <label class="field">Tipo de solicitud
-            <span class="chip-toggle" data-chip-grupo="tipo_solicitud">
-                <span class="chip-opt on" data-valor="POR_CURSO">Por curso</span>
-                <span class="chip-opt" data-valor="EXCEPCIONAL">Excepcional (retiro)</span>
-            </span>
-            <input type="hidden" name="tipo_solicitud" value="POR_CURSO">
-        </label>`;
-}
-
 function tarjetaRecurso(r) {
     const usuario = currentUser();
     const yaSolicitado = puedeSolicitar(r) && MockSolicitudes.tieneSolicitudActiva(r.id, usuario.email);
@@ -112,35 +80,8 @@ function tarjetaRecurso(r) {
                 </div>
                 <div class="tp-nombre">${esc(r.nombre)}</div>
                 <p class="tp-detalle">${esc(r.codigo)} · ${detalleSegunTipo(r)}</p>
+                <p class="tp-gestor">A cargo de ${esc(ETIQUETA_GESTOR[r.gestor] || r.gestor)}</p>
                 ${boton}
-            </div>
-            <div class="form-reservar" data-id="${esc(r.id)}" hidden>
-                <form>
-                    <div class="fila">
-                        <label class="field">Fecha
-                            <input type="date" name="fecha" required>
-                        </label>
-                        <label class="field">Franja
-                            <input type="text" name="franja" placeholder="ej: 10:00-12:00" required>
-                        </label>
-                    </div>
-                    ${formReservarTipoHTML(r)}
-                    <div class="alert-danger form-error-msg" hidden></div>
-                    <div class="acciones">
-                        <button type="button" class="btn btn-ghost btn-sm btn-cancelar-reserva">Cancelar</button>
-                        <button type="submit" class="btn btn-primary btn-sm">Confirmar reserva</button>
-                    </div>
-                </form>
-            </div>
-            <div class="form-reservar form-solicitar" data-id="${esc(r.id)}" data-tipo="${esc(r.tipo_recurso)}" hidden>
-                <form>
-                    ${formSolicitarHTML(r)}
-                    <div class="alert-danger form-error-msg" hidden></div>
-                    <div class="acciones">
-                        <button type="button" class="btn btn-ghost btn-sm btn-cancelar-solicitud">Cancelar</button>
-                        <button type="submit" class="btn btn-primary btn-sm">Confirmar solicitud</button>
-                    </div>
-                </form>
             </div>
         </div>
     </div>`;
@@ -164,48 +105,95 @@ filtrosTipo.addEventListener("click", (evento) => {
     pintarCatalogo();
 });
 
-// --- Reservar ---------------------------------------------------------------
+// --- Abrir el modal correspondiente al hacer click en la tarjeta ------------
+
+// La prioridad de la reserva depende del tipo (EXCEPCIONAL>POR_CURSO>SIMPLE,
+// backend/app/services/reserva_service.py). Libro/Deportivo son siempre
+// SIMPLE (sin chip); solo Académico elige POR_CURSO/EXCEPCIONAL.
+function formReservarTipoHTML(r) {
+    if (r.tipo_recurso !== "ACADEMICO") return "";
+    return `
+        <label class="field">Tipo de solicitud
+            <span class="chip-toggle" data-chip-grupo="tipo">
+                <span class="chip-opt on" data-valor="POR_CURSO">Por curso</span>
+                <span class="chip-opt" data-valor="EXCEPCIONAL">Excepcional (retiro)</span>
+            </span>
+            <input type="hidden" name="tipo" value="POR_CURSO">
+        </label>`;
+}
+
+function formSolicitarTipoHTML(r) {
+    if (r.tipo_recurso !== "ACADEMICO") {
+        return `<p class="nota-futura">Se enviará como solicitud SIMPLE; el custodio la acepta o rechaza manualmente.</p>`;
+    }
+    return `
+        <label class="field">Motivo (curso, tesis o proyecto)
+            <textarea name="motivo" required placeholder="Ej: Curso de Redes, prof. Fernández"></textarea>
+        </label>
+        <label class="field">Tipo de solicitud
+            <span class="chip-toggle" data-chip-grupo="tipo_solicitud">
+                <span class="chip-opt on" data-valor="POR_CURSO">Por curso</span>
+                <span class="chip-opt" data-valor="EXCEPCIONAL">Excepcional (retiro)</span>
+            </span>
+            <input type="hidden" name="tipo_solicitud" value="POR_CURSO">
+        </label>`;
+}
+
+function abrirModalReservar(r) {
+    openModal(
+        `Reservar · ${r.nombre}`,
+        `<form data-accion="reservar" data-id="${esc(r.id)}">
+            <div class="fila">
+                <label class="field">Fecha
+                    <input type="date" name="fecha" required>
+                </label>
+                <label class="field">Franja
+                    <input type="text" name="franja" placeholder="ej: 10:00-12:00" required>
+                </label>
+            </div>
+            ${formReservarTipoHTML(r)}
+            <div class="alert-danger form-error-msg" hidden></div>
+            <div class="acciones">
+                <button type="button" class="btn btn-ghost btn-sm" data-cerrar-modal>Cancelar</button>
+                <button type="submit" class="btn btn-primary btn-sm">Confirmar reserva</button>
+            </div>
+        </form>`
+    );
+}
+
+function abrirModalSolicitar(r) {
+    openModal(
+        `Solicitar · ${r.nombre}`,
+        `<form data-accion="solicitar" data-id="${esc(r.id)}" data-tipo="${esc(r.tipo_recurso)}">
+            ${formSolicitarTipoHTML(r)}
+            <div class="alert-danger form-error-msg" hidden></div>
+            <div class="acciones">
+                <button type="button" class="btn btn-ghost btn-sm" data-cerrar-modal>Cancelar</button>
+                <button type="submit" class="btn btn-primary btn-sm">Confirmar solicitud</button>
+            </div>
+        </form>`
+    );
+}
 
 caja.addEventListener("click", (evento) => {
     const btnReservar = evento.target.closest(".btn-reservar");
     if (btnReservar) {
-        const tarjeta = btnReservar.closest(".tarjeta");
-        tarjeta.classList.add("reservando");
-        tarjeta.querySelector(".form-reservar:not(.form-solicitar)").hidden = false;
-        btnReservar.hidden = true;
-        return;
-    }
-
-    const btnCancelar = evento.target.closest(".btn-cancelar-reserva");
-    if (btnCancelar) {
-        const tarjeta = btnCancelar.closest(".tarjeta");
-        tarjeta.classList.remove("reservando");
-        tarjeta.querySelector(".form-reservar:not(.form-solicitar)").hidden = true;
-        const boton = tarjeta.querySelector(".btn-reservar");
-        if (boton) boton.hidden = false;
+        abrirModalReservar(recursos.find((r) => r.id === Number(btnReservar.dataset.id)));
         return;
     }
 
     const btnSolicitar = evento.target.closest(".btn-solicitar");
     if (btnSolicitar) {
-        const tarjeta = btnSolicitar.closest(".tarjeta");
-        tarjeta.classList.add("reservando");
-        tarjeta.querySelector(".form-solicitar").hidden = false;
-        btnSolicitar.hidden = true;
-        return;
+        abrirModalSolicitar(recursos.find((r) => r.id === Number(btnSolicitar.dataset.id)));
     }
+});
 
-    const btnCancelarSolicitud = evento.target.closest(".btn-cancelar-solicitud");
-    if (btnCancelarSolicitud) {
-        const tarjeta = btnCancelarSolicitud.closest(".tarjeta");
-        tarjeta.classList.remove("reservando");
-        tarjeta.querySelector(".form-solicitar").hidden = true;
-        const boton = tarjeta.querySelector(".btn-solicitar");
-        if (boton) boton.hidden = false;
-        return;
-    }
+// --- Interacción dentro del modal (cerrar, chips, enviar) ------------------
 
-    const chip = evento.target.closest(".form-reservar .chip-opt");
+document.addEventListener("click", (evento) => {
+    if (evento.target.closest("[data-cerrar-modal]")) closeModal();
+
+    const chip = evento.target.closest(".modal-body .chip-opt");
     if (chip) {
         const grupo = chip.closest("[data-chip-grupo]");
         grupo.querySelectorAll(".chip-opt").forEach((c) => c.classList.toggle("on", c === chip));
@@ -213,15 +201,18 @@ caja.addEventListener("click", (evento) => {
     }
 });
 
-caja.addEventListener("submit", async (evento) => {
-    const contenedorSolicitud = evento.target.closest(".form-solicitar");
-    if (contenedorSolicitud) return enviarSolicitud(evento, contenedorSolicitud);
-
-    const contenedor = evento.target.closest(".form-reservar");
-    if (!contenedor) return;
+document.addEventListener("submit", async (evento) => {
+    const form = evento.target.closest(".modal-body form");
+    if (!form) return;
     evento.preventDefault();
 
-    const form = evento.target;
+    if (form.dataset.accion === "reservar") return enviarReserva(form);
+    if (form.dataset.accion === "solicitar") return enviarSolicitud(form);
+});
+
+// --- Reservar ----------------------------------------------------------------
+
+async function enviarReserva(form) {
     const datos = formValues(form);
     const boton = form.querySelector('button[type="submit"]');
     const errorDiv = form.querySelector(".form-error-msg");
@@ -231,44 +222,46 @@ caja.addEventListener("submit", async (evento) => {
 
     try {
         await api.post("/reservas", {
-            recurso_id: Number(contenedor.dataset.id),
+            recurso_id: Number(form.dataset.id),
             fecha: datos.fecha,
             franja: datos.franja,
             tipo: datos.tipo || "SIMPLE",
         });
-        contenedor.innerHTML = `<p class="alert-success">Reserva creada — queda <b>PENDIENTE</b> hasta que un custodio la confirme.</p>`;
+        modalBody().innerHTML = `
+            <p class="alert-success">Reserva creada — queda <b>PENDIENTE</b> hasta que un custodio la confirme.</p>
+            <div class="acciones"><button type="button" class="btn btn-primary btn-sm" data-cerrar-modal>Cerrar</button></div>`;
     } catch (e) {
         showFormError(errorDiv, e.message);
         setBusy(boton, false);
     }
-});
+}
 
 // --- Solicitar (prototipo sin backend, ver js/mock-solicitudes.js) ---------
 
-function enviarSolicitud(evento, contenedor) {
-    evento.preventDefault();
-
-    const form = evento.target;
+function enviarSolicitud(form) {
     const datos = formValues(form);
     const boton = form.querySelector('button[type="submit"]');
     const errorDiv = form.querySelector(".form-error-msg");
-    const recurso = recursos.find((r) => r.id === Number(contenedor.dataset.id));
+    const recurso = recursos.find((r) => r.id === Number(form.dataset.id));
 
-    if (contenedor.dataset.tipo === "ACADEMICO" && !datos.motivo) {
+    if (form.dataset.tipo === "ACADEMICO" && !datos.motivo) {
         return showFormError(errorDiv, "Contanos el motivo (curso, tesis o proyecto).");
     }
 
     setBusy(boton, true, "Enviando…");
     showFormError(errorDiv, "");
 
-    const tipoSolicitud = contenedor.dataset.tipo === "ACADEMICO" ? datos.tipo_solicitud : "SIMPLE";
+    const tipoSolicitud = form.dataset.tipo === "ACADEMICO" ? datos.tipo_solicitud : "SIMPLE";
     const siguientePaso =
         tipoSolicitud === "SIMPLE"
             ? `pendiente de aceptación de <b>${recurso.gestor === "CENTRO_ESTUDIANTES" ? "Custodio CE" : "Custodio Infra"}</b>`
             : "pendiente de aval del docente (próxima entrega: todavía no hay pantalla para avalar)";
 
     MockSolicitudes.crear({ recurso, tipoSolicitud, motivo: datos.motivo || null });
-    contenedor.innerHTML = `<p class="alert-success">Solicitud enviada — queda ${siguientePaso}.</p>`;
+    pintarCatalogo();
+    modalBody().innerHTML = `
+        <p class="alert-success">Solicitud enviada — queda ${siguientePaso}.</p>
+        <div class="acciones"><button type="button" class="btn btn-primary btn-sm" data-cerrar-modal>Cerrar</button></div>`;
 }
 
 cargarCatalogo();

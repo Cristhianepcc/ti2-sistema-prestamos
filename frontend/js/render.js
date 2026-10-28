@@ -106,6 +106,13 @@ const ETIQUETA_TIPO = {
   ACADEMICO: "Implemento académico",
 };
 
+// Quién administra el recurso (campo `gestor`): Centro de Estudiantes para
+// libros/deportivos, Infraestructura para académicos.
+const ETIQUETA_GESTOR = {
+  CENTRO_ESTUDIANTES: "Centro de Estudiantes",
+  INFRAESTRUCTURA: "Infraestructura",
+};
+
 const ETIQUETA_ROL = {
   ESTUDIANTE: "Estudiante",
   DOCENTE: "Docente",

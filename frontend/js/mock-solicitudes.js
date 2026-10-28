@@ -25,7 +25,11 @@ function mockSiguienteId(lista) {
   return lista.reduce((max, x) => Math.max(max, x.id), 0) + 1;
 }
 
-const GESTOR_POR_ROL_CUSTODIO = {
+// Prefijo MOCK_ a propósito: inicio.js ya declara una constante con este
+// mismo propósito (GESTOR_POR_ROL_CUSTODIO) y, al cargarse los dos scripts
+// juntos en inicio.html (mismo scope global, sin módulos), un nombre
+// repetido con `const` rompe el parseo de todo el archivo.
+const MOCK_GESTOR_POR_ROL_CUSTODIO = {
   CUSTODIO_CE: "CENTRO_ESTUDIANTES",
   CUSTODIO_INFRA: "INFRAESTRUCTURA",
 };
@@ -78,7 +82,7 @@ const MockSolicitudes = {
   // SIMPLE llega directo; POR_CURSO/EXCEPCIONAL requieren aval/autorización
   // previos (RF4), que este prototipo no simula — por eso quedan esperando.
   pendientesParaCustodio(rol) {
-    const gestor = GESTOR_POR_ROL_CUSTODIO[rol];
+    const gestor = MOCK_GESTOR_POR_ROL_CUSTODIO[rol];
     return this.listar().filter((s) => {
       if (s.gestor !== gestor) return false;
       if (s.tipo_solicitud === "SIMPLE") return s.estado === "SOLICITADA";

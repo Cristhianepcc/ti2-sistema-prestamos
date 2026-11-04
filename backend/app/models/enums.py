@@ -72,3 +72,26 @@ class ModalidadUso(str, enum.Enum):
 
     EN_SITIO = "EN_SITIO"
     RETIRO_TEMPORAL = "RETIRO_TEMPORAL"
+
+class TipoSolicitud(str, enum.Enum):
+    """Tipo de solicitud. Mismos valores que TipoPrestamo: el tipo de la
+    solicitud es el tipo del préstamo que habilita."""
+ 
+    SIMPLE = "SIMPLE"
+    POR_CURSO = "POR_CURSO"
+    EXCEPCIONAL = "EXCEPCIONAL"
+
+class EstadoSolicitud(str, enum.Enum):
+    """Ciclo de vida de una solicitud (flujo solicitud → aceptación)."""
+ 
+    SOLICITADA = "SOLICITADA"
+    AVALADA = "AVALADA"
+    AUTORIZADA = "AUTORIZADA"
+    ACEPTADA = "ACEPTADA"
+    RECHAZADA = "RECHAZADA"
+
+class TipoNotificacion(str, enum.Enum):
+    """Qué evento originó la notificación al solicitante."""
+ 
+    SOLICITUD_ACEPTADA = "SOLICITUD_ACEPTADA"
+    SOLICITUD_RECHAZADA = "SOLICITUD_RECHAZADA"

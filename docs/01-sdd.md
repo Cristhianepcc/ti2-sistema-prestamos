@@ -306,6 +306,9 @@ Además de los `CHECK` de BD, la **capa de servicio** garantiza:
 | POST | `/api/usuarios` | ADMINISTRADOR_SISTEMA | Crear usuario |
 | PUT | `/api/usuarios/{id}/roles` | ADMINISTRADOR_SISTEMA | Asignar/quitar roles |
 
+El alta crea la cuenta activa y exige al menos un rol. La actualización reemplaza
+la lista completa de roles y no permite quitar el rol del último administrador activo.
+
 ```jsonc
 // POST /api/auth/login  (request)
 { "email": "diego@unsa.edu.pe", "password": "••••••" }
@@ -608,7 +611,7 @@ sequenceDiagram
 | **RF4** Autorización acad. | `solicitud` (POR_CURSO/EXCEPCIONAL) | `/api/solicitudes*` | `routers/solicitudes`, `solicitud_service` | (60%) |
 | **RF5** Sanciones | `sancion` | `/api/sanciones*` | `sancion_service` (bloqueo) | (60/100%) |
 | **RF6** Historial/Reportes | `reporte` (+ lectura) | `/api/historial`, `/api/reportes*` | `routers/reportes` | (100%) |
-| **RF7** Usuarios/Roles | `usuario`, `usuario_rol` | `/api/auth*`, `/api/usuarios*` | `security.py`, `routers/auth` | #4, #6, #12, #13, #14 |
+| **RF7** Usuarios/Roles | `usuario`, `usuario_rol` | `/api/auth*`, `/api/usuarios*` | `security.py`, `routers/auth`, `routers/usuarios` | #4, #6, #12, #13, #14, #60 |
 | **RNF1** Seguridad | — | (todos) | `security.py` | #4 |
 | **RNF2** Usabilidad | — | — | frontend Bootstrap responsive | #9–#14 |
 | **RNF3** Rendimiento | índices en `recurso`, `reserva` | `GET /api/recursos` | consultas eficientes | (60%) |

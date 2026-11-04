@@ -2,7 +2,7 @@
 // endpoints que ya existen (/prestamos, /reservas, /recursos). La
 // estructura de cada panel de rol (encabezado + 3 stats + dos columnas)
 // sigue el artefacto "Wireframes Préstamos"; donde ese artefacto marcaba
-// una sección como "RF4/RF6/RF7 · futuro" (sin backend todavía), se deja
+// una sección como "RF4/RF6 · futuro" (sin backend todavía), se deja
 // una nota explícita en vez de inventar números.
 
 if (!requireAuth()) throw new Error("sin sesión");
@@ -244,25 +244,41 @@ function panelDocente() {
 }
 
 async function panelAdministrador() {
-  let apiOk = false;
-  try {
-    apiOk = (await api.get("/health")).status === "ok";
-  } catch {
-    apiOk = false;
-  }
+  const [salud, respuestaUsuarios] = await Promise.all([
+    api.get("/health").catch(() => null),
+    api.get("/usuarios").catch(() => null),
+  ]);
+  const apiOk = salud && salud.status === "ok";
+  const usuarios = Array.isArray(respuestaUsuarios) ? respuestaUsuarios : null;
+  const roles = new Set((usuarios || []).flatMap((u) => u.roles));
+  const administradores = (usuarios || []).filter((u) =>
+    u.roles.includes("ADMINISTRADOR_SISTEMA")
+  ).length;
+  const recientes = usuarios
+    ? [...usuarios]
+        .sort((a, b) => b.id - a.id)
+        .slice(0, 5)
+        .map((u) => ({ t: u.nombres, s: `${u.codigo} · ${u.email}` }))
+    : [];
 
   return panelRol({
     titulo: "Inicio — Administrador del Sistema",
     descripcion: "Gestiona cuentas y permisos (RF7). Rol técnico: no aprueba préstamos.",
     stats: [
-      { n: "—", l: "Usuarios activos (RF7)" },
-      { n: "—", l: "Roles distintos (RF7)" },
-      { n: "—", l: "Cuentas inactivas (RF7)" },
+      { n: usuarios ? usuarios.length : "—", l: "Usuarios registrados" },
+      { n: usuarios ? roles.size : "—", l: "Tipos de rol en uso" },
+      { n: usuarios ? administradores : "—", l: "Cuentas con rol administrador" },
     ],
     colA: {
       titulo: "Usuarios recientes",
-      sub: "RF7 · futuro",
-      nota: "La gestión de usuarios y roles llega en una próxima entrega.",
+      sub: "Últimos registros",
+      rows: recientes,
+      nota:
+        usuarios === null
+          ? "No se pudo cargar la lista de usuarios."
+          : usuarios.length === 0
+            ? "Aún no hay usuarios registrados."
+            : null,
     },
     colB: {
       titulo: "Estado del sistema",

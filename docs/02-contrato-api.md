@@ -1,14 +1,15 @@
-# Contrato de API — login y catálogo (entrega del 30%)
+# Contrato de API — login, usuarios y catálogo
 
-> **Para qué sirve:** es el acuerdo entre backend y frontend para los dos endpoints
-> de la entrega del 30%. Quien hace el frontend puede maquetar y programar el `fetch`
+> **Para qué sirve:** es el acuerdo entre backend y frontend para estos endpoints.
+> Quien hace el frontend puede maquetar y programar el `fetch`
 > **sin esperar** a que el backend esté listo: basta con respetar estas formas.
 >
-> Alcance: `POST /api/auth/login` (RF7) y `GET /api/recursos` (RF1). El resto de
-> endpoints está esbozado en [`01-sdd.md`](01-sdd.md) §4 y se detallará en su issue.
+> Alcance: autenticación (RF7), gestión administrativa de usuarios y roles (RF7),
+> y catálogo de recursos (RF1). El resto de endpoints está esbozado en
+> [`01-sdd.md`](01-sdd.md) §4 y se detallará en su issue.
 >
-> Issues que dependen de este documento: #7 y #8 (backend), #10 y #11 (catálogo),
-> #13 y #14 (login).
+> Issues relacionados: #7 y #8 (backend), #10 y #11 (catálogo), #13 y #14 (login),
+> y #60 (gestión administrativa de usuarios y roles).
 
 ---
 
@@ -69,7 +70,7 @@ Público (no lleva token). Devuelve el JWT con el que se firman las demás llama
 
 | Campo | Tipo | Obligatorio | Notas |
 |---|---|---|---|
-| `email` | string | sí | Se usa el email, **no** el código, como identificador de login |
+| `email` | string | sí | Se usa el email, **no** el código, como identificador de login; se recortan espacios y no se distinguen mayúsculas |
 | `password` | string | sí | En texto plano sobre HTTPS; el backend compara contra el hash bcrypt |
 
 ### Response `200`
@@ -127,6 +128,79 @@ exactamente el mismo objeto que `user` del login (sin envolver):
 > Los roles se leen de la base de datos en cada request, no del token: si un administrador
 > le quita un rol a alguien, el cambio aplica en la siguiente llamada sin esperar a que
 > venza el JWT. Lo mismo con la desactivación de la cuenta.
+
+### Anexo RF7 — Gestión administrativa de usuarios y roles
+
+Los tres endpoints requieren un token válido y el rol `ADMINISTRADOR_SISTEMA`.
+No existe registro público de cuentas. Una cuenta creada queda activa y recibe la
+contraseña inicial indicada por el administrador; la base de datos almacena su hash
+bcrypt. La contraseña original nunca aparece en una respuesta.
+
+#### GET `/api/usuarios` — Listar usuarios
+
+Devuelve un array ordenado por nombres y luego por ID. Cada elemento contiene
+`id`, `codigo`, `nombres`, `email` y `roles`. No expone `password_hash` ni `activo`.
+Si no hay usuarios, responde `[]`.
+
+```json
+[
+  {
+    "id": 1,
+    "codigo": "20260001",
+    "nombres": "Ana Pérez",
+    "email": "ana.perez@unsa.edu.pe",
+    "roles": ["ESTUDIANTE"]
+  }
+]
+```
+
+#### POST `/api/usuarios` — Crear cuenta
+
+Request:
+
+```json
+{
+  "codigo": "20260001",
+  "nombres": "Ana Pérez",
+  "email": "ana.perez@unsa.edu.pe",
+  "password": "contraseña-inicial",
+  "roles": ["ESTUDIANTE"]
+}
+```
+
+`codigo` admite 1–20 caracteres y `nombres` 1–120; ambos se recortan en los
+extremos. `email` debe ser válido, admite hasta 120 caracteres y se guarda en
+minúsculas. `password` es obligatorio y no puede superar 72 bytes UTF-8
+(límite de bcrypt). `roles` debe contener al menos un valor de `Rol` y no puede
+repetir valores.
+
+Responde `201` con el objeto público de usuario. Si el código o el correo ya
+existen, responde `409`.
+
+El cuerpo de respuesta es el mismo objeto mostrado por `GET /api/usuarios`.
+
+#### PUT `/api/usuarios/{id}/roles` — Reemplazar roles
+
+Request:
+
+```json
+{ "roles": ["DOCENTE", "CUSTODIO_CE"] }
+```
+
+La lista sustituye todos los roles actuales; debe incluir al menos un rol válido
+y no repetir valores. Responde `200` con el objeto público actualizado. No permite
+quitar el rol de administrador del último administrador activo (responde `409`),
+para evitar dejar el sistema sin una cuenta que pueda gestionar usuarios.
+
+#### Errores de usuarios y roles
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `403` | El usuario autenticado no tiene rol `ADMINISTRADOR_SISTEMA` |
+| `404` | El ID de usuario que se quiere modificar no existe |
+| `409` | Código/correo duplicado o se intenta quitar el último administrador activo |
+| `422` | Código, nombre, correo, contraseña o roles no cumplen el esquema |
 
 ---
 
@@ -298,7 +372,7 @@ navegador aunque el endpoint funcione bien desde Swagger.
 
 - Paginación de `GET /api/recursos`. Para el 30% el catálogo es chico y se devuelve
   completo; cuando crezca habrá que decidir entre `?page/?size` o `?limit/?offset`.
-- Orden por defecto del listado (hoy: sin orden garantizado; conviene fijar `codigo ASC`).
+- Orden por defecto de `GET /api/recursos` (hoy: sin orden garantizado; conviene fijar `codigo ASC`).
 - `POST /api/recursos` (alta, issue #8) — se documenta acá cuando se implemente.
 
 ---

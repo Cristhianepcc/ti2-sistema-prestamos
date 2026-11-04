@@ -314,7 +314,7 @@ Requiere autenticación mediante `Authorization: Bearer <access_token>`.
 ```json
 {
   "recurso_id": 10,
-  "fecha": "2026-09-25",
+  "fecha": "2099-09-25",
   "franja": "10:00-12:00",
   "tipo": "SIMPLE"
 }
@@ -323,12 +323,11 @@ Requiere autenticación mediante `Authorization: Bearer <access_token>`.
 | Campo | Tipo | Obligatorio | Notas |
 |---|---|---|---|
 | `recurso_id` | int | Sí | ID del recurso que se quiere reservar |
-| `fecha` | string (`YYYY-MM-DD`) | Sí | Fecha de la reserva |
-| `franja` | string | Sí | Máximo 30 caracteres; por ejemplo, `10:00-12:00` |
-| `tipo` | enum `TipoPrestamo` | No (default `SIMPLE`) | `SIMPLE`, `POR_CURSO` o `EXCEPCIONAL`. Determina la `prioridad` de la cola (`EXCEPCIONAL`=3, `POR_CURSO`=2, `SIMPLE`=1) y se valida contra el mismo invariante tipo↔recurso de `POST /api/prestamos` (Anexo RF3): `SIMPLE` solo en `LIBRO`/`DEPORTIVO`; `POR_CURSO`/`EXCEPCIONAL` solo en `ACADEMICO` |
+| `fecha` | string (`YYYY-MM-DD`) | Sí | Debe ser hoy o una fecha futura. Si es hoy, la hora inicial debe ser posterior a la hora local actual (America/Lima). |
+| `franja` | string | Sí | Intervalo de 24 horas con formato exacto `HH:MM-HH:MM`; la hora final debe ser posterior a la inicial. |
+| `tipo` | enum `TipoPrestamo` | No (default `SIMPLE`) | `SIMPLE`, `POR_CURSO` o `EXCEPCIONAL`. Se valida contra el mismo invariante tipo↔recurso de `POST /api/prestamos` (Anexo RF3): `SIMPLE` solo en `LIBRO`/`DEPORTIVO`; `POR_CURSO`/`EXCEPCIONAL` solo en `ACADEMICO`. |
 
-El backend asigna `usuario_id`, `estado`, `prioridad` y `created_at`; no se envían en el request.
-`tipo` no se persiste en la fila de la reserva (la tabla `reserva` no tiene esa columna, ver `01-sdd.md` §3.3) — solo se usa para calcular `prioridad` en el momento de crearla.
+El backend asigna `usuario_id`, `estado`, `prioridad` y `created_at`; no se envían en el request. La cola se atiende por FIFO (`created_at` ascendente; el ID desempata registros con la misma marca de tiempo). `prioridad` se conserva por compatibilidad con el esquema previo y vale `0`; no cambia el orden. `tipo` no se persiste en la fila de la reserva (la tabla `reserva` no tiene esa columna, ver `01-sdd.md` §3.3).
 
 ### Response `201`
 
@@ -340,11 +339,11 @@ Devuelve un objeto `ReservaPublica`:
   "usuario_id": 1,
   "recurso_id": 10,
   "recurso": { "id": 10, "codigo": "LIB-001", "nombre": "Clean Code", "...": "resto de RecursoPublico" },
-  "fecha": "2026-09-25",
+  "fecha": "2099-09-25",
   "franja": "10:00-12:00",
   "estado": "PENDIENTE",
-  "prioridad": 1,
-  "created_at": "2026-09-24T15:30:00-05:00"
+  "prioridad": 0,
+  "created_at": "2099-09-24T15:30:00-05:00"
 }
 ```
 
@@ -359,9 +358,9 @@ Devuelve un objeto `ReservaPublica`:
 | `401` | Falta el token o es inválido/expiró |
 | `404` | El recurso indicado no existe |
 | `409` | El recurso está disponible y no requiere reserva |
-| `409` | `tipo=SIMPLE` sobre un recurso `ACADEMICO`, o `POR_CURSO`/`EXCEPCIONAL` sobre uno que no lo es |
+| `409` | La fecha o la hora de inicio ya pasó, la hora final no supera la inicial o `tipo` no corresponde al recurso |
 | `409` | El usuario tiene una sanción activa, según la regla del SDD |
-| `422` | `tipo` con un valor fuera del enum |
+| `422` | `fecha`, `franja` o `tipo` no cumplen el formato esperado |
 
 La comprobación de sanciones aún está pendiente de RF5: el servicio actual tiene ese punto como TODO y todavía no bloquea reservas por sanción activa.
 

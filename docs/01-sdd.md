@@ -68,7 +68,7 @@ ti2-sistema-prestamos/
 │   │   ├── models/       # entidades ORM
 │   │   ├── schemas/      # Pydantic (request/response)
 │   │   ├── routers/      # endpoints por feature (auth, recursos, ...)
-│   │   ├── services/     # reglas de negocio (prioridad, invariantes, aprobación)
+│   │   ├── services/     # reglas de negocio (FIFO, invariantes, aprobación)
 │   │   ├── security.py   # JWT, hashing, dependencias de rol
 │   │   └── seeds.py      # datos de ejemplo
 │   ├── requirements.txt
@@ -187,7 +187,7 @@ CREATE TABLE reserva (
   fecha       DATE NOT NULL,
   franja      VARCHAR(30) NOT NULL,           -- p.ej. "10:00-12:00"
   estado      estado_reserva NOT NULL DEFAULT 'PENDIENTE',
-  prioridad   INTEGER NOT NULL DEFAULT 0,     -- deriva del tipo (ver §3.4)
+  prioridad   INTEGER NOT NULL DEFAULT 0,     -- legado; el orden FIFO usa created_at e id
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -280,8 +280,8 @@ Además de los `CHECK` de BD, la **capa de servicio** garantiza:
   solicitante.
 - **Bloqueo por sanción:** no se permite crear reserva/solicitud/préstamo si el usuario tiene
   alguna `sancion.activa = TRUE`.
-- **Prioridad de reserva:** `prioridad` = 3 si EXCEPCIONAL, 2 si POR_CURSO, 1 si SIMPLE. El
-  desempate entre reservas del mismo recurso es por `prioridad DESC, created_at ASC` (FIFO).
+- **Cola de reservas:** las solicitudes pendientes de un recurso se atienden por FIFO:
+  `created_at ASC, id ASC`. El campo `prioridad` queda en 0 por compatibilidad y no ordena la cola.
 - **Marcar vencidos:** un proceso/consulta cambia a `ATRASADO` los préstamos `ACTIVO` cuyo
   `fecha_limite < now()`.
 
@@ -335,14 +335,14 @@ Además de los `CHECK` de BD, la **capa de servicio** garantiza:
 ### 4.3 Reservas (RF2) — issues #10, #11
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
-| POST | `/api/reservas` | autenticado (sin sanción) | Reservar (calcula prioridad) |
+| POST | `/api/reservas` | autenticado (sin sanción) | Crear reserva con validación temporal y cola FIFO |
 | GET | `/api/reservas?mias=true` | autenticado | Mis reservas |
 | DELETE | `/api/reservas/{id}` | dueño de la reserva | Cancelar |
 
 ```jsonc
 // POST /api/reservas  -> 201
-{ "recurso_id": 10, "fecha": "2026-09-25", "franja": "10:00-12:00", "tipo": "SIMPLE" }
-// "tipo" es opcional (default SIMPLE); fija la prioridad de la cola (§3.4)
+{ "recurso_id": 10, "fecha": "2099-09-25", "franja": "10:00-12:00", "tipo": "SIMPLE" }
+// "tipo" es opcional (default SIMPLE); valida tipo↔recurso y no altera el orden FIFO
 // 409 -> { "detail": "Tienes una sanción activa" }
 ```
 
@@ -408,7 +408,7 @@ Además de los `CHECK` de BD, la **capa de servicio** garantiza:
 | `models/` | Entidades ORM (una clase por tabla de §3). |
 | `schemas/` | Modelos Pydantic de request/response (validación y serialización). |
 | `routers/` | Un archivo por feature: `auth.py`, `recursos.py`, `reservas.py`, `prestamos.py`, `solicitudes.py`, `notificaciones.py`, `sanciones.py`, `reportes.py`, `usuarios.py`. Solo enrutan y llaman a services. |
-| `services/` | Reglas de negocio: `prestamo_service` (invariantes, vencidos), `solicitud_service` (aval/autorización/aceptación, dispara notificaciones), `reserva_service` (prioridad), `sancion_service` (bloqueo). **Aquí vive lo difícil (Cristhian).** |
+| `services/` | Reglas de negocio: `prestamo_service` (invariantes, vencidos), `solicitud_service` (aval/autorización/aceptación, dispara notificaciones), `reserva_service` (FIFO), `sancion_service` (bloqueo). **Aquí vive lo difícil (Cristhian).** |
 | `security.py` | Hash de contraseñas, emisión/validación JWT, dependencias `require_role(...)`. |
 | `database.py` | Engine + `SessionLocal` + `get_db()`. |
 | `seeds.py` | Carga de datos de ejemplo. |
@@ -522,7 +522,7 @@ sequenceDiagram
   E->>API: POST /api/reservas (recurso, fecha, franja)
   API->>R: crear_reserva(...)
   R->>DB: usuario sin sanción activa?
-  R->>R: prioridad = f(tipo)
+  R->>R: validar fecha/franja y conservar el orden FIFO
   R->>DB: INSERT reserva (PENDIENTE)
   Note over R,DB: al llegar la franja, un custodio confirma
   API-->>E: 201 reserva creada
@@ -603,7 +603,7 @@ sequenceDiagram
 | Requisito | Tablas | Endpoints | Componentes | Issues |
 |---|---|---|---|---|
 | **RF1** Catálogo | `recurso` | `/api/recursos*` | `routers/recursos`, models | #7, #8, #9, #10, #11 |
-| **RF2** Reservas | `reserva` | `/api/reservas*` | `reserva_service` (prioridad) | #10, #11 |
+| **RF2** Reservas | `reserva` | `/api/reservas*` | `reserva_service` (FIFO) | #10, #11 |
 | **RF3** Préstamos | `prestamo`, `garantia`, `solicitud` (SIMPLE), `notificacion` | `/api/prestamos*`, `/api/solicitudes*`, `/api/notificaciones*` | `prestamo_service`, `solicitud_service` (invariantes, vencidos, aceptación) | #13, #14 |
 | **RF4** Autorización acad. | `solicitud` (POR_CURSO/EXCEPCIONAL) | `/api/solicitudes*` | `routers/solicitudes`, `solicitud_service` | (60%) |
 | **RF5** Sanciones | `sancion` | `/api/sanciones*` | `sancion_service` (bloqueo) | (60/100%) |

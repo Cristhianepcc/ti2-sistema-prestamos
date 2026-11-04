@@ -34,11 +34,9 @@ function pintarCatalogo() {
     renderList(caja, filtrados, tarjetaRecurso, "No se encontraron recursos.");
 }
 
-// Reservar es para cuando el recurso está OCUPADO (booking para cuando se
-// libere, RF2). Deportivo nunca admite esto: es préstamo directo del mismo
-// día (docs/00-contexto-alcance-propuesta.md §5), nunca booking anticipado.
+// Los tres tipos de recurso admiten reserva anticipada cuando están ocupados.
 function puedeReservar(r) {
-    return r.tipo_recurso !== "DEPORTIVO" && !r.disponible && r.estado !== "MANTENIMIENTO";
+    return !r.disponible && r.estado !== "MANTENIMIENTO";
 }
 
 // Solicitar es para cuando el recurso está LIBRE ahora: ya no hay registro
@@ -107,9 +105,8 @@ filtrosTipo.addEventListener("click", (evento) => {
 
 // --- Abrir el modal correspondiente al hacer click en la tarjeta ------------
 
-// La prioridad de la reserva depende del tipo (EXCEPCIONAL>POR_CURSO>SIMPLE,
-// backend/app/services/reserva_service.py). Libro/Deportivo son siempre
-// SIMPLE (sin chip); solo Académico elige POR_CURSO/EXCEPCIONAL.
+// El tipo del préstamo valida la compatibilidad con el recurso; la cola se
+// atiende por FIFO, sin prioridad por tipo.
 function formReservarTipoHTML(r) {
     if (r.tipo_recurso !== "ACADEMICO") return "";
     return `
@@ -139,16 +136,22 @@ function formSolicitarTipoHTML(r) {
         </label>`;
 }
 
+function fechaLocalHoy() {
+    const ahora = new Date();
+    ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset());
+    return ahora.toISOString().slice(0, 10);
+}
+
 function abrirModalReservar(r) {
     openModal(
         `Reservar · ${r.nombre}`,
         `<form data-accion="reservar" data-id="${esc(r.id)}">
             <div class="fila">
                 <label class="field">Fecha
-                    <input type="date" name="fecha" required>
+                    <input type="date" name="fecha" min="${fechaLocalHoy()}" required>
                 </label>
                 <label class="field">Franja
-                    <input type="text" name="franja" placeholder="ej: 10:00-12:00" required>
+                    <input type="text" name="franja" placeholder="10:00-12:00" maxlength="11" pattern="(?:[01][0-9]|2[0-3]):[0-5][0-9]-(?:[01][0-9]|2[0-3]):[0-5][0-9]" title="Usa el formato HH:MM-HH:MM" required>
                 </label>
             </div>
             ${formReservarTipoHTML(r)}

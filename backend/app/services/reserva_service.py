@@ -1,6 +1,7 @@
 ﻿"""Reglas de negocio de reservas (RF2, issue #25)."""
 
-from datetime import date
+import re
+from datetime import date, datetime, time, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -18,25 +19,39 @@ class ConflictoReserva(ErrorReserva):
     """La operación contradice una regla de negocio."""
 
 
-# Prioridad híbrida (docs/00-contexto-alcance-propuesta.md §4): por tipo
-# primero; dentro del mismo tipo, FIFO por `created_at` (ver
-# `listar_cola_reservas`, que ordena por `prioridad DESC, created_at ASC`).
-_PRIORIDAD_POR_TIPO = {
-    TipoPrestamo.EXCEPCIONAL: 3,
-    TipoPrestamo.POR_CURSO: 2,
-    TipoPrestamo.SIMPLE: 1,
-}
+_ZONA_LIMA = timezone(timedelta(hours=-5))
+_FORMATO_FRANJA = re.compile(
+    r"(?P<inicio>(?:[01][0-9]|2[0-3]):[0-5][0-9])-"
+    r"(?P<fin>(?:[01][0-9]|2[0-3]):[0-5][0-9])"
+)
 
 
-def calcular_prioridad_reserva(tipo: TipoPrestamo) -> int:
-    """Prioridad de la reserva según el tipo que la originó."""
-    return _PRIORIDAD_POR_TIPO[tipo]
+def validar_fecha_franja(
+    fecha: date, franja: str, *, ahora: datetime | None = None
+) -> str:
+    """Valida una reserva futura y devuelve la franja normalizada."""
+    ahora = ahora or datetime.now(_ZONA_LIMA)
+    franja = franja.strip()
+    coincidencia = _FORMATO_FRANJA.fullmatch(franja)
+    if coincidencia is None:
+        raise ConflictoReserva(
+            "La franja debe tener el formato HH:MM-HH:MM en horario de 24 horas"
+        )
+
+    inicio = time.fromisoformat(coincidencia.group("inicio"))
+    fin = time.fromisoformat(coincidencia.group("fin"))
+    if fin <= inicio:
+        raise ConflictoReserva("La hora final debe ser posterior a la hora inicial")
+    if fecha < ahora.date():
+        raise ConflictoReserva("No se puede reservar en una fecha pasada")
+    if fecha == ahora.date() and inicio <= ahora.time().replace(tzinfo=None):
+        raise ConflictoReserva("No se puede reservar una franja que ya comenzó")
+    return franja
 
 
 def _validar_tipo_recurso(tipo: TipoPrestamo, recurso: Recurso) -> None:
     """Mismo invariante tipo↔recurso que `prestamo_service.crear_prestamo`:
-    sin esto, cualquiera podría mandar `tipo=EXCEPCIONAL` en un libro solo
-    para saltarse la cola."""
+    esto evita asignar a un recurso un tipo de préstamo que no le corresponde."""
     if tipo == TipoPrestamo.SIMPLE:
         if recurso.tipo_recurso not in (TipoRecurso.LIBRO, TipoRecurso.DEPORTIVO):
             raise ConflictoReserva(
@@ -67,7 +82,8 @@ def crear_reserva(
     franja: str,
     tipo: TipoPrestamo = TipoPrestamo.SIMPLE,
 ) -> Reserva:
-    """Crea una reserva pendiente con la prioridad que le corresponde a `tipo`."""
+    """Crea una reserva pendiente tras validar fecha, hora y tipo de recurso."""
+    franja = validar_fecha_franja(fecha, franja)
     recurso = db.get(Recurso, recurso_id)
     if recurso is not None:
         _validar_tipo_recurso(tipo, recurso)
@@ -79,7 +95,7 @@ def crear_reserva(
         recurso_id=recurso_id,
         fecha=fecha,
         franja=franja,
-        prioridad=calcular_prioridad_reserva(tipo),
+        prioridad=0,  # campo legado; la cola se resuelve solo por FIFO.
     )
     db.add(reserva)
 
@@ -94,13 +110,13 @@ def crear_reserva(
 
 
 def listar_cola_reservas(db: Session, recurso_id: int) -> list[Reserva]:
-    """Lista las reservas pendientes por prioridad y orden FIFO."""
+    """Lista reservas pendientes en orden FIFO de creación."""
     consulta = (
         select(Reserva)
         .where(
             Reserva.recurso_id == recurso_id,
             Reserva.estado == EstadoReserva.PENDIENTE,
         )
-        .order_by(Reserva.prioridad.desc(), Reserva.created_at.asc())
+        .order_by(Reserva.created_at.asc(), Reserva.id.asc())
     )
     return list(db.scalars(consulta))

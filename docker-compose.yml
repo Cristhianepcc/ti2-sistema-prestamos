@@ -32,5 +32,14 @@ services:
     volumes:
       - ./backend/app:/app/app   # hot-reload en desarrollo
 
+  tests:
+    profiles: ["test"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.test
+    environment:
+      DATABASE_URL: "sqlite+pysqlite:///:memory:"
+    command: ["pytest", "-q"]
+
 volumes:
   pgdata:

@@ -16,6 +16,7 @@ from ..models.enums import (
 from ..models.prestamo import Garantia, Prestamo
 from ..models.recurso import Recurso
 from ..models.usuario import Usuario
+from .invariantes import TipoRecursoIncompatible, validar_tipo_recurso
 
 
 class ErrorPrestamo(Exception):
@@ -97,20 +98,11 @@ def crear_prestamo(
     if not recurso.disponible:
         raise ConflictoPrestamo("El recurso no está disponible")
 
-    if tipo_prestamo == TipoPrestamo.SIMPLE:
-        if recurso.tipo_recurso not in (
-            TipoRecurso.LIBRO,
-            TipoRecurso.DEPORTIVO,
-        ):
-            raise ConflictoPrestamo(
-                "El préstamo SIMPLE solo se admite para libros e implementos deportivos"
-            )
-    elif tipo_prestamo in (TipoPrestamo.POR_CURSO, TipoPrestamo.EXCEPCIONAL):
-        if recurso.tipo_recurso != TipoRecurso.ACADEMICO:
-            raise ConflictoPrestamo(
-                "Los préstamos POR_CURSO y EXCEPCIONAL solo se admiten "
-                "para implementos académicos"
-            )
+    # Invariante tipo ↔ recurso compartido con solicitud_service.
+    try:
+        validar_tipo_recurso(tipo_prestamo, recurso)
+    except TipoRecursoIncompatible as e:
+        raise ConflictoPrestamo(str(e)) from e
 
     if (
         tipo_prestamo == TipoPrestamo.EXCEPCIONAL

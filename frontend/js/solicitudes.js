@@ -1,54 +1,112 @@
-// Bandeja de Solicitudes del custodio (prototipo de frontend, ver
-// js/mock-solicitudes.js). Reemplaza el registro directo de un préstamo
-// SIMPLE: el custodio ya no registra en persona sin solicitud previa
-// (docs/00-contexto-alcance-propuesta.md §8, hallazgo #13).
+// Bandeja persistida en el backend. La tabla conserva el diseño existente.
 
 if (!requireAuth()) throw new Error("sin sesión");
 
 renderSidebar("solicitudes");
 
-const rolCustodio = hasRole("CUSTODIO_CE") ? "CUSTODIO_CE" : "CUSTODIO_INFRA";
 const tabla = document.getElementById("solicitudes");
+let solicitudes = [];
+
+function accionDisponible(s) {
+  if (
+    s.estado === "SOLICITADA" &&
+    s.tipo_solicitud !== "SIMPLE" &&
+    hasRole("DOCENTE")
+  ) {
+    return ["avalar", "Avalar"];
+  }
+  if (
+    s.estado === "AVALADA" &&
+    s.tipo_solicitud === "EXCEPCIONAL" &&
+    hasRole("DIRECCION_ESCUELA")
+  ) {
+    return ["autorizar", "Autorizar"];
+  }
+  const rolCustodio =
+    s.recurso?.gestor === "CENTRO_ESTUDIANTES"
+      ? "CUSTODIO_CE"
+      : "CUSTODIO_INFRA";
+  const listaParaCustodio =
+    (s.tipo_solicitud === "SIMPLE" && s.estado === "SOLICITADA") ||
+    (s.tipo_solicitud === "POR_CURSO" && s.estado === "AVALADA") ||
+    (s.tipo_solicitud === "EXCEPCIONAL" && s.estado === "AUTORIZADA");
+  return listaParaCustodio && hasRole(rolCustodio)
+    ? ["aceptar", "Aceptar"]
+    : null;
+}
 
 function filaSolicitud(s) {
-  const detalleTipo =
-    ETIQUETA_TIPO_SOLICITUD[s.tipo_solicitud] || s.tipo_solicitud;
+  const recurso = s.recurso || {};
+  const solicitante = s.solicitante || {};
+  const detalleTipo = ETIQUETA_TIPO_SOLICITUD[s.tipo_solicitud] || s.tipo_solicitud;
   const motivo = s.motivo ? `<div class="sub">${esc(s.motivo)}</div>` : "";
+  const accion = accionDisponible(s);
+  const botonAccion = accion
+    ? `<button type="button" class="btn btn-primary btn-sm btn-resolver" data-id="${esc(s.id)}" data-accion="${accion[0]}">${accion[1]}</button>`
+    : "";
+
   return `<tr>
-    <td><b>${esc(s.recurso_nombre)}</b><div class="sub">${esc(s.recurso_codigo)} · ${esc(ETIQUETA_TIPO[s.tipo_recurso])}</div></td>
-    <td>${esc(s.solicitante_nombre)}</td>
+    <td><b>${esc(recurso.nombre)}</b><div class="sub">${esc(recurso.codigo)} · ${esc(ETIQUETA_TIPO[recurso.tipo_recurso])}</div></td>
+    <td>${esc(solicitante.nombres || `Usuario #${s.solicitante_id}`)}</td>
     <td>${esc(detalleTipo)}${motivo}</td>
     <td>${badgeSolicitud(s.estado)}</td>
-    <td>
-      <div class="acciones-tabla">
-        <button type="button" class="btn btn-primary btn-sm btn-aceptar" data-id="${s.id}">Aceptar</button>
-        <button type="button" class="btn btn-danger-ghost btn-sm btn-rechazar" data-id="${s.id}">Rechazar</button>
-      </div>
-    </td>
+    <td><div class="acciones-tabla">
+      ${botonAccion}
+      <button type="button" class="btn btn-danger-ghost btn-sm btn-rechazar" data-id="${esc(s.id)}">Rechazar</button>
+    </div></td>
   </tr>`;
 }
 
-function pintar() {
-  const pendientes = MockSolicitudes.pendientesParaCustodio(rolCustodio);
-  renderList(tabla, pendientes, filaSolicitud, "No hay solicitudes pendientes.", 5);
+async function pintar() {
+  showLoading(tabla, 5);
+  try {
+    solicitudes = await api.get("/solicitudes?pendientes=true");
+    renderList(tabla, solicitudes, filaSolicitud, "No hay solicitudes pendientes.", 5);
+  } catch (e) {
+    showError(tabla, e.message, 5);
+  }
 }
 
-tabla.addEventListener("click", (evento) => {
-  const btnAceptar = evento.target.closest(".btn-aceptar");
-  if (btnAceptar) {
-    const id = Number(btnAceptar.dataset.id);
-    if (!confirm("¿Aceptar esta solicitud y registrar la entrega?")) return;
-    MockSolicitudes.aceptar(id);
-    pintar();
-    return;
+async function resolver(solicitud, accion) {
+  const ruta = `/solicitudes/${solicitud.id}/${accion}`;
+  if (accion === "aceptar") {
+    const modalidad =
+      solicitud.tipo_solicitud === "EXCEPCIONAL" ||
+      solicitud.recurso.tipo_recurso === "LIBRO"
+        ? "RETIRO_TEMPORAL"
+        : "EN_SITIO";
+    return api.post(ruta, { modalidad_uso: modalidad });
   }
+  if (accion === "rechazar") {
+    return api.post(ruta, { motivo_rechazo: null });
+  }
+  return api.post(ruta, {});
+}
 
-  const btnRechazar = evento.target.closest(".btn-rechazar");
-  if (btnRechazar) {
-    const id = Number(btnRechazar.dataset.id);
-    if (!confirm("¿Rechazar esta solicitud?")) return;
-    MockSolicitudes.rechazar(id);
-    pintar();
+tabla.addEventListener("click", async (evento) => {
+  const boton = evento.target.closest(".btn-resolver, .btn-rechazar");
+  if (!boton) return;
+
+  const solicitud = solicitudes.find((s) => s.id === Number(boton.dataset.id));
+  if (!solicitud) return;
+  const accion = boton.classList.contains("btn-rechazar")
+    ? "rechazar"
+    : boton.dataset.accion;
+  const confirmacion =
+    accion === "aceptar"
+      ? "¿Aceptar esta solicitud y registrar el préstamo?"
+      : accion === "rechazar"
+        ? "¿Rechazar esta solicitud?"
+        : `¿${accion === "avalar" ? "Avalar" : "Autorizar"} esta solicitud?`;
+  if (!confirm(confirmacion)) return;
+
+  boton.disabled = true;
+  try {
+    await resolver(solicitud, accion);
+    await pintar();
+  } catch (e) {
+    alert(e.message);
+    boton.disabled = false;
   }
 });
 

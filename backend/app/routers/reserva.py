@@ -11,7 +11,11 @@ from ..models import Recurso, Reserva
 from ..models.enums import EstadoReserva
 from ..schemas.reserva import ReservaCreate, ReservaPublica
 from ..security import UsuarioActual
-from ..services.reserva_service import ConflictoReserva, crear_reserva
+from ..services.reserva_service import (
+    ConflictoReserva,
+    ReservaNoEncontrada,
+    crear_reserva,
+)
 
 router = APIRouter(prefix="/reservas", tags=["reservas"])
 
@@ -49,6 +53,10 @@ def crear_reserva_endpoint(
             franja=datos.franja,
             tipo=datos.tipo,
         )
+    except ReservaNoEncontrada as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(error)
+        ) from error
     except ConflictoReserva as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail=str(error)

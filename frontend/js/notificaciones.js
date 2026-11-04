@@ -1,12 +1,9 @@
-// Notificaciones (prototipo de frontend, ver js/mock-solicitudes.js): avisos
-// dentro de la plataforma cuando una Solicitud se acepta o rechaza
-// (docs/00-contexto-alcance-propuesta.md §8, hallazgo #13).
+// Notificaciones de la cuenta autenticada, cargadas desde la API.
 
 if (!requireAuth()) throw new Error("sin sesión");
 
 renderSidebar("notificaciones");
 
-const usuario = currentUser();
 const lista = document.getElementById("notificaciones");
 
 function formatearFechaHora(iso) {
@@ -21,23 +18,34 @@ function formatearFechaHora(iso) {
 function filaNotificacion(n) {
   const accion = n.leida
     ? `<span class="badge neutral">Leída</span>`
-    : `<button type="button" class="btn btn-ghost btn-sm btn-marcar-leida" data-id="${n.id}">Marcar como leída</button>`;
+    : `<button type="button" class="btn btn-ghost btn-sm btn-marcar-leida" data-id="${esc(n.id)}">Marcar como leída</button>`;
   return `<div class="loan${n.leida ? "" : " alert"}">
     <div><div class="t">${esc(n.mensaje)}</div><div class="s">${esc(formatearFechaHora(n.created_at))}</div></div>
     ${accion}
   </div>`;
 }
 
-function pintar() {
-  const notificaciones = MockNotificaciones.listar(usuario.email);
-  renderList(lista, notificaciones, filaNotificacion, "No tienes notificaciones todavía.");
+async function pintar() {
+  showLoading(lista);
+  try {
+    const notificaciones = await api.get("/notificaciones");
+    renderList(lista, notificaciones, filaNotificacion, "No tienes notificaciones todavía.");
+  } catch (e) {
+    showError(lista, e.message);
+  }
 }
 
-lista.addEventListener("click", (evento) => {
-  const btn = evento.target.closest(".btn-marcar-leida");
-  if (!btn) return;
-  MockNotificaciones.marcarLeida(Number(btn.dataset.id));
-  pintar();
+lista.addEventListener("click", async (evento) => {
+  const boton = evento.target.closest(".btn-marcar-leida");
+  if (!boton) return;
+  boton.disabled = true;
+  try {
+    await api.patch(`/notificaciones/${Number(boton.dataset.id)}`, { leida: true });
+    await pintar();
+  } catch (e) {
+    alert(e.message);
+    boton.disabled = false;
+  }
 });
 
 pintar();

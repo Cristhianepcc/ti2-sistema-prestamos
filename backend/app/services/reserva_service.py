@@ -6,7 +6,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models.enums import EstadoReserva, TipoPrestamo, TipoRecurso
+from ..models.enums import EstadoRecurso, EstadoReserva, TipoPrestamo, TipoRecurso
 from ..models.recurso import Recurso
 from ..models.reserva import Reserva
 
@@ -17,6 +17,10 @@ class ErrorReserva(Exception):
 
 class ConflictoReserva(ErrorReserva):
     """La operación contradice una regla de negocio."""
+
+
+class ReservaNoEncontrada(ErrorReserva):
+    """No se encontró el recurso indicado para la reserva."""
 
 
 _ZONA_LIMA = timezone(timedelta(hours=-5))
@@ -85,8 +89,27 @@ def crear_reserva(
     """Crea una reserva pendiente tras validar fecha, hora y tipo de recurso."""
     franja = validar_fecha_franja(fecha, franja)
     recurso = db.get(Recurso, recurso_id)
-    if recurso is not None:
-        _validar_tipo_recurso(tipo, recurso)
+    if recurso is None:
+        raise ReservaNoEncontrada("Recurso no encontrado")
+    if recurso.estado == EstadoRecurso.MANTENIMIENTO:
+        raise ConflictoReserva("Un recurso en mantenimiento no se puede reservar")
+    _validar_tipo_recurso(tipo, recurso)
+
+    duplicada = db.scalar(
+        select(Reserva.id)
+        .where(
+            Reserva.usuario_id == usuario_id,
+            Reserva.recurso_id == recurso_id,
+            Reserva.fecha == fecha,
+            Reserva.franja == franja,
+            Reserva.estado.in_((EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA)),
+        )
+        .limit(1)
+    )
+    if duplicada is not None:
+        raise ConflictoReserva(
+            "Ya tienes una reserva activa para este recurso, fecha y franja"
+        )
 
     _validar_sancion_activa(db, usuario_id)
 

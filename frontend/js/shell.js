@@ -20,6 +20,8 @@ const ICONOS = {
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.3"/><path d="M3 20c0-3.6 2.7-6 6-6s6 2.4 6 6"/><circle cx="18" cy="9" r="2.6"/><path d="M15.5 14.2c2.6.3 4.5 2.3 4.5 5.3"/></svg>',
   solicitudes:
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13l2 2 4-4"/></svg>',
+  misSolicitudes:
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>',
   notificaciones:
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
   perfil:
@@ -37,15 +39,19 @@ function itemsNav() {
   const items = [
     ["inicio.html", "inicio", "Inicio"],
     ["catalogo.html", "catalogo", "Catálogo"],
+    ["mis-solicitudes.html", "misSolicitudes", "Mis Solicitudes"],
   ];
+  if (
+    hasRole("CUSTODIO_CE", "CUSTODIO_INFRA", "DOCENTE", "DIRECCION_ESCUELA")
+  ) {
+    items.push(["solicitudes.html", "solicitudes", "Bandeja de Solicitudes"]);
+  }
   if (hasRole("ESTUDIANTE", "DOCENTE")) {
     items.push(["mis-reservas.html", "reservas", "Mis Reservas"]);
     items.push(["mis-prestamos.html", "prestamos", "Mis Préstamos"]);
   }
   if (hasRole("CUSTODIO_CE", "CUSTODIO_INFRA")) {
-    // Bandeja de Solicitudes es el flujo normal (hallazgo #13); Panel Custodio
-    // queda como registro directo para casos que no nacieron de una solicitud.
-    items.push(["solicitudes.html", "solicitudes", "Bandeja de Solicitudes"]);
+    // Los custodios gestionan inventario, entregas y devoluciones.
     items.push(["registrar-prestamo.html", "custodio", "Panel Custodio"]);
     // Alta y consulta del catálogo que administra cada custodio (RF1).
     items.push(["inventario.html", "inventario", "Inventario"]);
@@ -73,16 +79,10 @@ function renderSidebar(activa) {
     ? usuario.roles.map((r) => ETIQUETA_ROL[r] || r).join(" · ")
     : "";
 
-  // El contador de notificaciones no leídas es del prototipo de frontend
-  // (ver js/mock-solicitudes.js); solo se muestra si esa librería está cargada.
-  const noLeidas =
-    usuario && typeof MockNotificaciones !== "undefined" ? MockNotificaciones.noLeidas(usuario.email) : 0;
-
   const items = itemsNav()
     .map(([href, clave, texto]) => {
       const activo = clave === activa ? " active" : "";
-      const badge =
-        clave === "notificaciones" && noLeidas > 0 ? `<span class="nav-badge">${noLeidas}</span>` : "";
+      const badge = "";
       return `<a class="nav-item${activo}" href="${href}">${ICONOS[clave]}<span>${esc(texto)}</span>${badge}</a>`;
     })
     .join("");
@@ -96,4 +96,17 @@ function renderSidebar(activa) {
   document
     .getElementById("btn-cerrar-sesion")
     .addEventListener("click", () => api.logout());
+
+  if (usuario) {
+    api.get("/notificaciones?leidas=false").then((noLeidas) => {
+      if (!Array.isArray(noLeidas) || noLeidas.length === 0) return;
+      const enlace = el.querySelector('a[href="notificaciones.html"]');
+      if (enlace) {
+        enlace.insertAdjacentHTML(
+          "beforeend",
+          `<span class="nav-badge">${noLeidas.length}</span>`
+        );
+      }
+    }).catch(() => {});
+  }
 }

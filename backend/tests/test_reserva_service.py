@@ -2,13 +2,14 @@ from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
-from app.models import TipoPrestamo, TipoRecurso
+from app.models import EstadoRecurso, TipoPrestamo, TipoRecurso
 from app.services.reserva_service import (
     ConflictoReserva,
     crear_reserva,
     listar_cola_reservas,
     validar_fecha_franja,
 )
+from app.models import EstadoReserva
 from .helpers import crear_recurso, crear_usuario
 
 
@@ -101,3 +102,97 @@ def test_schema_reserva_acepta_y_rechaza_el_formato_de_franja():
 
     with pytest.raises(ValidationError):
         ReservaCreate(recurso_id=1, fecha=fecha, franja="25:00-26:00")
+
+
+def test_rechaza_reserva_activa_duplicada_del_mismo_usuario_y_slot(db_session):
+    usuario = crear_usuario(db_session, "DUPLICADA")
+    recurso = crear_recurso(db_session, TipoRecurso.LIBRO, "DUPLICADA")
+    fecha = fecha_futura_lima()
+    crear_reserva(
+        db_session,
+        usuario_id=usuario.id,
+        recurso_id=recurso.id,
+        fecha=fecha,
+        franja="10:00-12:00",
+    )
+
+    with pytest.raises(ConflictoReserva, match="Ya tienes una reserva activa"):
+        crear_reserva(
+            db_session,
+            usuario_id=usuario.id,
+            recurso_id=recurso.id,
+            fecha=fecha,
+            franja="10:00-12:00",
+        )
+
+
+def test_permite_que_otra_persona_entre_a_la_cola_del_mismo_slot(db_session):
+    recurso = crear_recurso(db_session, TipoRecurso.LIBRO, "COLA")
+    primero = crear_usuario(db_session, "COLA1")
+    segundo = crear_usuario(db_session, "COLA2")
+    fecha = fecha_futura_lima()
+
+    crear_reserva(
+        db_session,
+        usuario_id=primero.id,
+        recurso_id=recurso.id,
+        fecha=fecha,
+        franja="10:00-12:00",
+    )
+    segunda = crear_reserva(
+        db_session,
+        usuario_id=segundo.id,
+        recurso_id=recurso.id,
+        fecha=fecha,
+        franja="10:00-12:00",
+    )
+
+    assert segunda.usuario_id == segundo.id
+    assert [reserva.usuario_id for reserva in listar_cola_reservas(db_session, recurso.id)] == [
+        primero.id,
+        segundo.id,
+    ]
+
+
+def test_permite_recrear_reserva_cancelada(db_session):
+    usuario = crear_usuario(db_session, "RECREADA")
+    recurso = crear_recurso(db_session, TipoRecurso.LIBRO, "RECREADA")
+    fecha = fecha_futura_lima()
+    primera = crear_reserva(
+        db_session,
+        usuario_id=usuario.id,
+        recurso_id=recurso.id,
+        fecha=fecha,
+        franja="10:00-12:00",
+    )
+    primera.estado = EstadoReserva.CANCELADA
+    db_session.commit()
+
+    segunda = crear_reserva(
+        db_session,
+        usuario_id=usuario.id,
+        recurso_id=recurso.id,
+        fecha=fecha,
+        franja="10:00-12:00",
+    )
+
+    assert segunda.id != primera.id
+
+
+def test_rechaza_reservar_recurso_en_mantenimiento(db_session):
+    usuario = crear_usuario(db_session, "MANTENIMIENTO")
+    recurso = crear_recurso(
+        db_session,
+        TipoRecurso.LIBRO,
+        "MANTENIMIENTO",
+        estado=EstadoRecurso.MANTENIMIENTO,
+    )
+
+    with pytest.raises(ConflictoReserva, match="mantenimiento"):
+        crear_reserva(
+            db_session,
+            usuario_id=usuario.id,
+            recurso_id=recurso.id,
+            fecha=fecha_futura_lima(),
+            franja="10:00-12:00",
+        )

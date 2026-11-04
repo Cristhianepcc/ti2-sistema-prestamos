@@ -139,7 +139,7 @@ function badgeEstado(estado) {
   return `<span class="badge ${e.color}">${esc(e.texto)}</span>`;
 }
 
-// Estados de una SOLICITUD (prototipo de frontend, ver js/mock-solicitudes.js).
+// Estados de una solicitud.
 const ETIQUETA_SOLICITUD = {
   SOLICITADA: { texto: "Solicitada", color: "warn" },
   AVALADA: { texto: "Avalada", color: "warn" },

@@ -39,10 +39,7 @@ function puedeReservar(r) {
     return !r.disponible && r.estado !== "MANTENIMIENTO";
 }
 
-// Solicitar es para cuando el recurso está LIBRE ahora: ya no hay registro
-// directo en persona (hallazgo #13, docs/00-contexto-alcance-propuesta.md
-// §8) — toda entrega (SIMPLE incluido) nace de una Solicitud que acepta un
-// custodio. Prototipo de frontend sin backend: ver js/mock-solicitudes.js.
+// Toda entrega, SIMPLE incluido, nace de una Solicitud que acepta un custodio.
 function puedeSolicitar(r) {
     return r.disponible;
 }
@@ -53,13 +50,8 @@ const ICONO_IMAGEN_PENDIENTE =
     '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
 
 function tarjetaRecurso(r) {
-    const usuario = currentUser();
-    const yaSolicitado = puedeSolicitar(r) && MockSolicitudes.tieneSolicitudActiva(r.id, usuario.email);
-
     let boton;
-    if (yaSolicitado) {
-        boton = `<button type="button" class="btn btn-sm tp-boton" disabled>Solicitud enviada</button>`;
-    } else if (puedeSolicitar(r)) {
+    if (puedeSolicitar(r)) {
         boton = `<button type="button" class="btn btn-primary btn-sm tp-boton btn-solicitar" data-id="${esc(r.id)}">Solicitar</button>`;
     } else if (puedeReservar(r)) {
         boton = `<button type="button" class="btn btn-primary btn-sm tp-boton btn-reservar" data-id="${esc(r.id)}">Reservar</button>`;
@@ -239,14 +231,12 @@ async function enviarReserva(form) {
     }
 }
 
-// --- Solicitar (prototipo sin backend, ver js/mock-solicitudes.js) ---------
+// --- Solicitud persistida en la API ----------------------------------------
 
-function enviarSolicitud(form) {
+async function enviarSolicitud(form) {
     const datos = formValues(form);
     const boton = form.querySelector('button[type="submit"]');
     const errorDiv = form.querySelector(".form-error-msg");
-    const recurso = recursos.find((r) => r.id === Number(form.dataset.id));
-
     if (form.dataset.tipo === "ACADEMICO" && !datos.motivo) {
         return showFormError(errorDiv, "Contanos el motivo (curso, tesis o proyecto).");
     }
@@ -257,14 +247,22 @@ function enviarSolicitud(form) {
     const tipoSolicitud = form.dataset.tipo === "ACADEMICO" ? datos.tipo_solicitud : "SIMPLE";
     const siguientePaso =
         tipoSolicitud === "SIMPLE"
-            ? `pendiente de aceptación de <b>${recurso.gestor === "CENTRO_ESTUDIANTES" ? "Custodio CE" : "Custodio Infra"}</b>`
-            : "pendiente de aval del docente (próxima entrega: todavía no hay pantalla para avalar)";
+            ? "pendiente de aceptación del custodio"
+            : "pendiente de revisión según el tipo de solicitud";
 
-    MockSolicitudes.crear({ recurso, tipoSolicitud, motivo: datos.motivo || null });
-    pintarCatalogo();
-    modalBody().innerHTML = `
-        <p class="alert-success">Solicitud enviada — queda ${siguientePaso}.</p>
-        <div class="acciones"><button type="button" class="btn btn-primary btn-sm" data-cerrar-modal>Cerrar</button></div>`;
+    try {
+        await api.post("/solicitudes", {
+            recurso_id: Number(form.dataset.id),
+            tipo_solicitud: tipoSolicitud,
+            motivo: datos.motivo || null,
+        });
+        modalBody().innerHTML = `
+            <p class="alert-success">Solicitud enviada — queda ${siguientePaso}.</p>
+            <div class="acciones"><button type="button" class="btn btn-primary btn-sm" data-cerrar-modal>Cerrar</button></div>`;
+    } catch (e) {
+        showFormError(errorDiv, e.message);
+        setBusy(boton, false);
+    }
 }
 
 cargarCatalogo();

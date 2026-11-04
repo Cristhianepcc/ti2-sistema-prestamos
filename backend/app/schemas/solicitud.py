@@ -13,6 +13,16 @@ from .prestamo import GarantiaCreate
 from .recurso import RecursoPublico
 
 
+class SolicitantePublico(BaseModel):
+    """Datos mínimos de la persona que envió la solicitud."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    codigo: str
+    nombres: str
+
+
 class SolicitudCreate(BaseModel):
     """Datos que envía el cliente para solicitar un recurso (POST /api/solicitudes)."""
 
@@ -44,6 +54,7 @@ class SolicitudPublica(BaseModel):
 
     id: int
     solicitante_id: int
+    solicitante: SolicitantePublico
     recurso_id: int
     recurso: RecursoPublico
     tipo_solicitud: TipoSolicitud

@@ -1,14 +1,17 @@
 ﻿"""Entidades ORM (SQLAlchemy). Ver docs/01-sdd.md §3."""
 
 from .enums import (
+    EstadoSolicitud,
     EstadoPrestamo,
     EstadoReserva,
     EstadoRecurso,
     Gestor,
     ModalidadUso,
     Rol,
+    TipoNotificacion,
     TipoPrestamo,
     TipoRecurso,
+    TipoSolicitud,
 )
 from .recurso import ImplementoAcademico, ImplementoDeportivo, Libro, Recurso
 from .reserva import Reserva

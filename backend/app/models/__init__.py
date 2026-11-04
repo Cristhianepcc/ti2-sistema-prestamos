@@ -14,17 +14,22 @@ from .recurso import ImplementoAcademico, ImplementoDeportivo, Libro, Recurso
 from .reserva import Reserva
 from .usuario import Usuario, UsuarioRol
 from .prestamo import Garantia, Prestamo
+from .solicitud import Solicitud
+from .notificacion import Notificacion
 
 __all__ = [
     # Enums
     "EstadoPrestamo",
     "EstadoReserva",
     "EstadoRecurso",
+    "EstadoSolicitud",
     "Gestor",
     "ModalidadUso",
     "Rol",
+    "TipoNotificacion",
     "TipoPrestamo",
     "TipoRecurso",
+    "TipoSolicitud",
     # Identidad y roles
     "Usuario",
     "UsuarioRol",
@@ -38,4 +43,7 @@ __all__ = [
     # Préstamos
     "Prestamo",
     "Garantia",
+    # Solicitudes y notificaciones
+    "Solicitud",
+    "Notificacion",
 ]

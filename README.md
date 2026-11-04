@@ -41,8 +41,8 @@ El dominio se organiza en subdominios:
 - **Usuario** (`codigo`, `nombres`, `email`, `activo`) con uno o varios **Rol**.
 - **Recurso** (abstracto) → `Libro`, `ImplementoDeportivo`, `ImplementoAcademico`.
   Atributo `gestor`: `CENTRO_ESTUDIANTES` (libros/deportivos) o `INFRAESTRUCTURA` (académicos).
-- **Reserva** — se crea cuando el recurso no está disponible; `prioridad` ordena la cola
-  (`EXCEPCIONAL > POR_CURSO > SIMPLE`).
+- **Reserva** — booking anticipado para libros, deportivos y académicos; la cola se
+  atiende por FIFO. El campo prioridad se conserva por compatibilidad y no altera el orden.
 - **SolicitudAcademica** — solo para préstamos `POR_CURSO` y `EXCEPCIONAL`.
 - **Prestamo** — entidad núcleo, con `tipoPrestamo` y `modalidadUso`
   (la categoría del prestatario se deriva del rol; ver auditoría §8 del doc base).
@@ -125,6 +125,10 @@ pip install -r requirements.txt
 cp .env.example .env        # ajustar DATABASE_URL a tu Postgres local
 uvicorn app.main:app --reload
 ```
+
+### Ejecutar pruebas automatizadas
+
+Las pruebas de backend usan una base SQLite temporal y no modifican la base de desarrollo. Comando: docker compose --profile test run --build --rm tests
 
 ### Datos de ejemplo (seeds)
 

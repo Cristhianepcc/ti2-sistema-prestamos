@@ -58,7 +58,7 @@ centralizando el inventario y reduciendo el tiempo de atención y la pérdida de
 
 | Stakeholder | Tipo | Rol en el sistema |
 |---|---|---|
-| Estudiante | Directo | Solicita/reserva libros y deportivos; solicita y usa académicos. |
+| Estudiante | Directo | Solicita/reserva libros, deportivos y académicos; solicita préstamos según el tipo de recurso. |
 | Custodio del CE (estudiante) | Directo | Administra libros e implementos deportivos: entrega/recibe, garantía, registro. |
 | Personal de Infraestructura | Directo | Administra implementos académicos; autoriza y controla su uso. |
 | Docente | Directo | Avala/solicita el uso de académicos para cursos, tesis o investigación. |
@@ -131,10 +131,10 @@ Organización por subdominios (DDD):
   `gestor`: `CENTRO_ESTUDIANTES` (libros/deportivos) o `INFRAESTRUCTURA` (académicos).
 - **Reserva** — **reserva con antelación (booking)**: reservar un recurso para una
   `fecha`/`franja` futura. Cubre también el caso "no disponible ahora" (se reserva para
-  cuando se libere). `prioridad` resuelve choques de franja. Al llegar la franja, un
+  cuando se libere). El orden FIFO resuelve choques de franja. Al llegar la franja, un
   **custodio confirma la entrega** y la reserva *deriva en* préstamo (respetando
-  `registradoPorId ≠ prestatarioId`). **Aplica a libros y académicos** (los deportivos son
-  préstamo directo del mismo día, ver §5).
+  `registradoPorId ≠ prestatarioId`). **Aplica a libros, deportivos y académicos**; los
+  préstamos directos de deportivos siguen siendo del mismo día, ver §5.
 - **Solicitud** (antes `SolicitudAcademica`) — punto de entrada único para pedir **cualquier**
   préstamo, ya no solo académicos: el usuario solicita y, según `tipo`, pasa por aval/autorización
   o va directo a aceptación del custodio (ver "Tipos de préstamo" más abajo). Si el recurso está
@@ -158,8 +158,8 @@ dato independiente del tipo (un libro SIMPLE es RETIRO; un deportivo SIMPLE es E
 > **Cambio vs. versión previa:** SIMPLE ya **no** se aprueba automáticamente — ahora pasa por
 > la misma `Solicitud` que los demás tipos, con aceptación manual de `CUSTODIO_CE` (hallazgo #13).
 
-**Prioridad en reservas (híbrida):** primero por tipo `EXCEPCIONAL > POR_CURSO > SIMPLE`
-y, dentro del mismo tipo, **FIFO** (orden de solicitud).
+**Cola de reservas:** las solicitudes pendientes para un recurso se atienden por **FIFO** (orden de creación), independientemente del tipo de préstamo.
+
 
 ### Invariantes / reglas
 
@@ -261,9 +261,8 @@ y, dentro del mismo tipo, **FIFO** (orden de solicitud).
 - Los **tres tipos de recurso** (libros, implementos deportivos, implementos académicos).
 - Los **6 roles** y sus flujos de solicitud/aprobación.
 - Los **3 tipos de préstamo** (SIMPLE / POR_CURSO / EXCEPCIONAL).
-- **Reservas con antelación (booking)** para libros y académicos, con prioridad híbrida.
-- **Deportivos**: préstamo **directo del mismo día** (se pide y se devuelve el mismo día,
-  sin reserva anticipada; el plazo vence al final del día).
+- **Reservas con antelación (booking)** para los tres tipos de recurso, atendidas por **FIFO**.
+- **Deportivos**: los préstamos directos se piden y se devuelven el mismo día; también pueden reservarse con antelación. El plazo del préstamo vence al final del día.
 - **Préstamos y devoluciones** con garantía, estado del ítem y plazos.
 - **Notificaciones dentro de la plataforma** cuando una solicitud se acepta o rechaza, con el
   periodo para presentarse a recoger el recurso.
@@ -300,7 +299,7 @@ y, dentro del mismo tipo, **FIFO** (orden de solicitud).
 | Feature | Descripción |
 |---|---|
 | **RF1** | Catálogo / Inventario (alta/baja/estado, consulta de disponibilidad) |
-| **RF2** | Reservas (crear, cancelar/modificar, resolución de prioridad) |
+| **RF2** | Reservas (crear, cancelar/modificar y atender la cola en orden FIFO) |
 | **RF3** | Préstamos / Devoluciones — incluye la `Solicitud` y su aceptación manual para SIMPLE (ya no hay registro directo sin solicitud previa), garantía, estado, plazos, marcado de vencidos, y la notificación dentro de la plataforma al aceptar/rechazar |
 | **RF4** | Autorización de académicos — extiende la misma `Solicitud` de RF3 con aval docente y, si es EXCEPCIONAL, autorización de Dirección, antes de la aceptación del custodio |
 | **RF5** | Sanciones (bloqueo temporal, multa/reposición, consulta de sanciones activas) |
@@ -355,7 +354,7 @@ Prioridad (MoSCoW): ALTA/DEBE · MEDIA/DEBERÍA · BAJA/PODRÍA. Puntos (Plannin
 | HF.1.3.1 | Custodio/Infra | ver el estado de cada ítem (disponible/prestado/reservado/mant.) | RF1 | ALTA | 3 |
 | HF.2.1.1 | Estudiante | reservar un recurso con antelación | RF2 | ALTA | 5 |
 | HF.2.2.1 | Estudiante | cancelar o modificar mi reserva | RF2 | MEDIA | 3 |
-| HF.2.3.1 | Sistema | resolver la prioridad (híbrida: tipo + FIFO) ante conflicto | RF2 | MEDIA | 5 |
+| HF.2.3.1 | Sistema | atender reservas pendientes en orden FIFO ante conflicto | RF2 | MEDIA | 5 |
 | HF.3.1.1 | Custodio CE | registrar la entrega con garantía (carnet/DNI) y estado del ítem | RF3 | ALTA | 5 |
 | HF.3.2.1 | Custodio CE | registrar la devolución y verificar el estado | RF3 | ALTA | 3 |
 | HF.3.3.1 | Estudiante | ver el plazo de devolución de mi préstamo | RF3 | ALTA | 2 |
@@ -405,7 +404,7 @@ ambas alimentan la implementación (Fase C).
 1. **Modelo relacional (BD)** derivado del dominio + enumeraciones (con la restricción
    tipo ↔ recurso e invariante `registradoPor ≠ prestatario`).
 2. **Diagramas de secuencia** de los flujos críticos:
-   - Reserva (booking) → derivar en préstamo al llegar la franja; desempate por prioridad.
+   - Reserva (booking) → derivar en préstamo al llegar la franja; desempate FIFO por creación.
    - Préstamo SIMPLE (solicitud → aceptación manual de `CUSTODIO_CE` → registro + notificación).
    - Solicitud académica POR_CURSO / EXCEPCIONAL con aval docente / autorización dirección →
      aceptación de `CUSTODIO_INFRA` → registro + notificación.
@@ -423,7 +422,7 @@ ambas alimentan la implementación (Fase C).
 
 ### Fase C — Implementación R1 (MVP)
 
-Login + roles (RF7, RNF1) · Catálogo/inventario (RF1) · Reservas con prioridad (RF2) ·
+Login + roles (RF7, RNF1) · Catálogo/inventario (RF1) · Reservas con cola FIFO (RF2) ·
 Préstamos/devoluciones con garantía y estado (RF3) · responsive (RNF2).
 Incluye **bloqueo básico por sanción** (dependencia de RF3: marcar vencidos y bloquear).
 
@@ -450,7 +449,7 @@ del análisis. Cada hallazgo quedó resuelto así:
 | # | Hallazgo (fallo de lógica) | Resolución |
 |---|---|---|
 | 1 | "Reserva" tenía dos significados: booking (Partes 2–3) vs cola de no-disponible (dominio). | **Reserva = booking anticipado**; absorbe el caso "no disponible" (se reserva para cuando se libere). |
-| 2 | Prioridad contradictoria: FIFO (Parte 3) vs por tipo (dominio). | **Híbrida:** por tipo `EXCEPCIONAL>POR_CURSO>SIMPLE` y FIFO dentro del mismo tipo. |
+| 2 | Prioridad contradictoria: FIFO (Parte 3) vs por tipo (dominio). | Para esta entrega se adopta **FIFO por orden de creación**, como indica el requisito de reservas. |
 | 3 | SIMPLE decía "auto-aprobado" y a la vez "lo aprueba CUSTODIO_CE". | **Aprobar ≠ registrar:** aprobación automática; el custodio **registra** la entrega. |
 | 4 | Nada impedía un libro POR_CURSO o un académico SIMPLE. | **Invariante estricto tipo ↔ recurso** (libros/deportivos = SIMPLE; académicos = POR_CURSO/EXCEPCIONAL). |
 | 5 | `PERSONAL_ADMINISTRATIVO` sin stakeholder/persona/historia. | **Eliminado** (→ 6 roles). El caso "staff que pide para sí" lo cubre `CUSTODIO_INFRA`. |
@@ -474,7 +473,7 @@ del análisis. Cada hallazgo quedó resuelto así:
 | **Mariana Valery Luis Jimenez** | Backend Python (semi-junior) | Modelos SQLAlchemy · endpoints FastAPI · CRUD de catálogo y préstamos/devoluciones |
 | **Aldair Daniel Condori Ataucuri** | HTML/CSS/JS (junior, sin frameworks) | Frontend (HTML/CSS/Bootstrap + `fetch`): catálogo/disponibilidad · reservas · historial |
 | **Fernando Enrique Llosa Manchego** | HTML/CSS/JS (junior, sin frameworks) | Frontend (HTML/CSS/Bootstrap + `fetch`): préstamos/devoluciones · sanciones · login |
-| **Cristhian Luis Taipe Huanca** | Senior (hackathones/trabajo), desarrolla con IA | Arquitectura · esquema BD · auth/roles (JWT) · lógica compleja (prioridad de reservas, invariantes, flujos de aprobación) · **capa JS de integración (helper `fetch`/render)** · code review · apoyo al equipo |
+| **Cristhian Luis Taipe Huanca** | Senior (hackathones/trabajo), desarrolla con IA | Arquitectura · esquema BD · auth/roles (JWT) · lógica compleja (cola FIFO de reservas, invariantes, flujos de aprobación) · **capa JS de integración (helper `fetch`/render)** · code review · apoyo al equipo |
 
 **Consideraciones de reparto**
 
@@ -482,7 +481,7 @@ del análisis. Cada hallazgo quedó resuelto así:
   vistas; el líder técnico entrega el patrón `fetch`/render y los componentes base (Bootstrap)
   para que ellos rellenen HTML/CSS.
 - **Backend con apoyo:** Mariana lidera el CRUD estándar; el líder técnico toma la lógica de
-  dominio no trivial (cola de prioridad, invariante tipo↔recurso, `registradoPor ≠ prestatario`,
+  dominio no trivial (cola FIFO, invariante tipo↔recurso, `registradoPor ≠ prestatario`,
   aprobaciones POR_CURSO/EXCEPCIONAL).
 - **Riesgo principal:** el JS de consumo de API supera el nivel junior → mitigado con el helper
   reutilizable y pair-programming puntual con el líder técnico.

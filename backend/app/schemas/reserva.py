@@ -13,10 +13,12 @@ class ReservaCreate(BaseModel):
 
     recurso_id: int
     fecha: date
-    franja: str = Field(min_length=1, max_length=30)
-    # Determina la prioridad en la cola (EXCEPCIONAL > POR_CURSO > SIMPLE,
-    # docs/00-contexto-alcance-propuesta.md §4). Default SIMPLE para no
-    # romper clientes que todavía no lo envían.
+    franja: str = Field(
+        min_length=11,
+        max_length=11,
+        pattern=r"^(?:[01][0-9]|2[0-3]):[0-5][0-9]-(?:[01][0-9]|2[0-3]):[0-5][0-9]$",
+    )
+    # Default SIMPLE para clientes que todavía no envían el tipo.
     tipo: TipoPrestamo = TipoPrestamo.SIMPLE
 
 

@@ -31,8 +31,8 @@ const ICONOS = {
 // La navegación depende del rol (ver artefacto "Wireframes Préstamos" ·
 // NAV): quien presta/reserva para sí mismo (Estudiante, Docente) ve
 // Mis Reservas/Mis Préstamos; un Custodio solo gestiona su Panel Custodio;
-// Dirección de Escuela ve Reportes (RF6) y Usuarios y Roles (RF7), igual
-// que Administrador del Sistema. Un usuario con varios roles ve la unión.
+// Dirección de Escuela ve Reportes (RF6); Usuarios y Roles (RF7) queda
+// reservado al Administrador del Sistema. Un usuario con varios roles ve la unión.
 function itemsNav() {
   const items = [
     ["inicio.html", "inicio", "Inicio"],
@@ -53,7 +53,7 @@ function itemsNav() {
   if (hasRole("DIRECCION_ESCUELA")) {
     items.push(["reportes.html", "reportes", "Reportes"]);
   }
-  if (hasRole("DIRECCION_ESCUELA", "ADMINISTRADOR_SISTEMA")) {
+  if (hasRole("ADMINISTRADOR_SISTEMA")) {
     items.push(["usuarios.html", "usuarios", "Usuarios y Roles"]);
   }
   // Notificaciones y Perfil van al final, cerca de "Cerrar sesión": son

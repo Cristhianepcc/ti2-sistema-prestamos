@@ -14,6 +14,11 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1)
 
+    @field_validator("email", mode="before")
+    @classmethod
+    def _normalizar_email(cls, value):
+        return value.strip().lower() if isinstance(value, str) else value
+
 
 class UsuarioPublico(BaseModel):
     """Datos del usuario que sí se exponen en las respuestas.

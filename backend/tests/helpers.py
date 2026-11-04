@@ -13,7 +13,7 @@ def crear_usuario(db, sufijo: str) -> Usuario:
     usuario = Usuario(
         codigo=f"TEST-{sufijo}",
         nombres=f"Usuario {sufijo}",
-        email=f"{sufijo.lower()}@test.local",
+        email=f"{sufijo.lower()}@example.com",
         password_hash="test-hash",
     )
     db.add(usuario)

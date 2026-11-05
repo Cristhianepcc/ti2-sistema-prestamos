@@ -7,8 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Prestamo
-from ..models.enums import EstadoPrestamo, Rol
+from ..models import Prestamo, Recurso
+from ..models.enums import EstadoPrestamo, Gestor, Rol
 from ..schemas.prestamo import DevolucionCreate, PrestamoCreate, PrestamoPublico
 from ..security import UsuarioActual, require_role
 from ..services.prestamo_service import (
@@ -25,6 +25,11 @@ router = APIRouter(prefix="/prestamos", tags=["prestamos"])
     "",
     response_model=PrestamoPublico,
     status_code=status.HTTP_201_CREATED,
+    summary="Registrar préstamo (uso interno)",
+    description=(
+        "Uso interno: los préstamos originados por una solicitud se crean "
+        "mediante POST /api/solicitudes/{id}/aceptar."
+    ),
     dependencies=[Depends(require_role(Rol.CUSTODIO_CE, Rol.CUSTODIO_INFRA))],
 )
 def registrar_prestamo(
@@ -32,7 +37,7 @@ def registrar_prestamo(
     usuario: UsuarioActual,
     db: Annotated[Session, Depends(get_db)],
 ) -> Prestamo:
-    """Registra la entrega de un recurso. Aplica las invariantes de #30."""
+    """Registro técnico para pruebas y compatibilidad; preferir aceptar solicitud."""
     try:
         return crear_prestamo(
             db,
@@ -69,6 +74,7 @@ def devolver_prestamo(
             prestamo_id=id,
             condicion_devolucion=datos.condicion_devolucion,
             danado=datos.danado,
+            perdido=datos.perdido,
         )
     except RegistroPrestamoNoEncontrado as e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
@@ -93,6 +99,13 @@ def listar_prestamos(
             status.HTTP_403_FORBIDDEN,
             "Solo un custodio puede consultar préstamos de otros usuarios",
         )
+    else:
+        gestores = []
+        if usuario.tiene_rol(Rol.CUSTODIO_CE):
+            gestores.append(Gestor.CENTRO_ESTUDIANTES)
+        if usuario.tiene_rol(Rol.CUSTODIO_INFRA):
+            gestores.append(Gestor.INFRAESTRUCTURA)
+        stmt = stmt.join(Prestamo.recurso).where(Recurso.gestor.in_(gestores))
 
     if estado is not None:
         stmt = stmt.where(Prestamo.estado == estado)

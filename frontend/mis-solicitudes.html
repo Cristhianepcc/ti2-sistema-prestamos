@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Solicitudes</title>
+    <link href="css/styles.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app">
+        <aside class="app-sidebar" id="app-sidebar"></aside>
+        <div class="app-main">
+            <h2 class="page-title">Mis Solicitudes</h2>
+            <p class="nota-futura">Consulta el estado de las solicitudes que enviaste desde el catálogo.</p>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>Recurso</th><th>Tipo</th><th>Motivo</th><th>Estado</th><th>Fecha</th></tr>
+                    </thead>
+                    <tbody id="mis-solicitudes"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script src="js/api.js"></script>
+    <script src="js/render.js"></script>
+    <script src="js/shell.js"></script>
+    <script src="js/mis-solicitudes.js"></script>
+</body>
+</html>

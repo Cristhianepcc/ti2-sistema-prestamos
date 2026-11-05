@@ -15,7 +15,9 @@ from ..models.enums import (
 )
 from ..models.prestamo import Garantia, Prestamo
 from ..models.recurso import Recurso
+from ..models.reserva import Reserva
 from ..models.usuario import Usuario
+from ..models.enums import EstadoReserva
 from .invariantes import TipoRecursoIncompatible, validar_tipo_recurso
 
 
@@ -76,8 +78,10 @@ def crear_prestamo(
     modalidad_uso: ModalidadUso,
     fecha_limite: datetime | None = None,
     reserva_id: int | None = None,
+    solicitud_id: int | None = None,
     condicion_entrega: str | None = None,
     garantia: Mapping[str, Any] | None = None,
+    commit: bool = True,
 ) -> Prestamo:
     """Registra un préstamo activo y marca el recurso como prestado."""
     if registrado_por_id == prestatario_id:
@@ -125,6 +129,7 @@ def crear_prestamo(
         prestatario_id=prestatario_id,
         registrado_por_id=registrado_por_id,
         reserva_id=reserva_id,
+        solicitud_id=solicitud_id,
         fecha_limite=fecha_limite,
         tipo_prestamo=tipo_prestamo,
         modalidad_uso=modalidad_uso,
@@ -135,8 +140,10 @@ def crear_prestamo(
     db.add(prestamo)
 
     try:
-        db.commit()
-        db.refresh(prestamo)
+        db.flush()
+        if commit:
+            db.commit()
+            db.refresh(prestamo)
     except Exception:
         db.rollback()
         raise
@@ -150,6 +157,7 @@ def registrar_devolucion(
     prestamo_id: int,
     condicion_devolucion: str | None = None,
     danado: bool = False,
+    perdido: bool = False,
 ) -> Prestamo:
     """Registra la devolución y actualiza el estado del recurso."""
     prestamo = db.get(Prestamo, prestamo_id)
@@ -166,9 +174,22 @@ def registrar_devolucion(
     prestamo.estado = EstadoPrestamo.DEVUELTO
     prestamo.fecha_devolucion = datetime.now(timezone.utc)
     prestamo.condicion_devolucion = condicion_devolucion
-    recurso.estado = (
-        EstadoRecurso.MANTENIMIENTO if danado else EstadoRecurso.DISPONIBLE
-    )
+    motivo_sancion = _motivo_sancion_devolucion(prestamo, danado=danado, perdido=perdido)
+    if perdido or danado:
+        # TODO(RF1): agregar estado BAJA y retirar el recurso perdido del catálogo.
+        # Mientras no exista esa decisión, MANTENIMIENTO lo mantiene no disponible.
+        recurso.estado = EstadoRecurso.MANTENIMIENTO
+        db.query(Reserva).filter(
+            Reserva.recurso_id == recurso.id,
+            Reserva.estado == EstadoReserva.PENDIENTE,
+        ).update(
+            {Reserva.estado: EstadoReserva.CANCELADA},
+            synchronize_session=False,
+        )
+    else:
+        recurso.estado = EstadoRecurso.DISPONIBLE
+    # TODO(RF5): crear la sanción usando motivo_sancion cuando exista ese módulo.
+    _ = motivo_sancion
 
     try:
         db.commit()
@@ -178,6 +199,23 @@ def registrar_devolucion(
         raise
 
     return prestamo
+
+
+def _motivo_sancion_devolucion(
+    prestamo: Prestamo, *, danado: bool, perdido: bool, ahora: datetime | None = None
+) -> str | None:
+    """Resuelve el motivo previsto para RF5; pérdida prevalece sobre daño y retraso."""
+    if perdido:
+        return "PERDIDA"
+    if danado:
+        return "DANIO"
+    ahora = ahora or datetime.now(timezone.utc)
+    fecha_limite = prestamo.fecha_limite
+    if fecha_limite.tzinfo is None:
+        fecha_limite = fecha_limite.replace(tzinfo=timezone.utc)
+    if fecha_limite < ahora:
+        return "RETRASO"
+    return None
 
 
 def marcar_prestamos_atrasados(db: Session) -> int:

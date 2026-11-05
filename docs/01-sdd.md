@@ -278,8 +278,10 @@ Además de los `CHECK` de BD, la **capa de servicio** garantiza:
   manualmente** (ya no hay aprobación automática de `SIMPLE`); al aceptar, la misma acción
   crea la fila `prestamo`. Al aceptar o rechazar se crea una fila `notificacion` para el
   solicitante.
-- **Bloqueo por sanción:** no se permite crear reserva/solicitud/préstamo si el usuario tiene
-  alguna `sancion.activa = TRUE`.
+- **Bloqueo por sanción:** el diseño define que no se permite crear reserva/solicitud/préstamo
+  si el usuario tiene alguna `sancion.activa = TRUE`. **Pendiente:** RF5 todavía no implementa
+  la entidad ni la consulta; el servicio conserva puntos de extensión, así que el bloqueo aún
+  no se aplica.
 - **Cola de reservas:** las solicitudes pendientes de un recurso se atienden por FIFO:
   `created_at ASC, id ASC`. El campo `prioridad` queda en 0 por compatibilidad y no ordena la cola.
 - **Marcar vencidos:** un proceso/consulta cambia a `ATRASADO` los préstamos `ACTIVO` cuyo
@@ -346,10 +348,14 @@ la lista completa de roles y no permite quitar el rol del último administrador 
 // POST /api/reservas  -> 201
 { "recurso_id": 10, "fecha": "2099-09-25", "franja": "10:00-12:00", "tipo": "SIMPLE" }
 // "tipo" es opcional (default SIMPLE); valida tipo↔recurso y no altera el orden FIFO
-// 409 -> { "detail": "Tienes una sanción activa" }
 ```
 
-### 4.4 Préstamos / Devoluciones (RF3) — issues #13, #14
+La API actual crea, lista y cancela reservas y valida que la fecha/franja no hayan pasado.
+El tipo solo se valida durante el alta y no se persiste en la tabla `reserva`; por eso la
+confirmación del custodio y la conversión de una reserva en préstamo requieren una decisión
+de esquema e integración posterior. El bloqueo por sanciones queda pendiente de RF5.
+
+### 4.4 Préstamos / Devoluciones (RF3) — issues #29, #30, #31
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
 | POST | `/api/prestamos` | CUSTODIO_CE / CUSTODIO_INFRA | Crea el préstamo (uso interno: lo invoca `POST /solicitudes/{id}/aceptar`, no el frontend directo — ver §4.5) |
@@ -529,8 +535,7 @@ sequenceDiagram
   R->>DB: INSERT reserva (PENDIENTE)
   Note over R,DB: al llegar la franja, un custodio confirma
   API-->>E: 201 reserva creada
-  E->>API: (en la franja) el custodio registra el préstamo
-  API->>DB: INSERT prestamo (reserva_id) + UPDATE reserva.estado=CONFIRMADA
+  Note over API,DB: La API actual implementa crear, consultar y cancelar reservas. La confirmación por custodio y su derivación en préstamo quedan pendientes de integrar con el tipo de préstamo y la solicitud.
 ```
 
 ### 7.4 Solicitud académica POR_CURSO / EXCEPCIONAL (RF4)

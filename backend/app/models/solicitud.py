@@ -21,6 +21,7 @@ class Solicitud(Base):
     solicitante_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("usuario.id"), nullable=False
     )
+    solicitante: Mapped["Usuario"] = relationship(foreign_keys=[solicitante_id])
     recurso_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("recurso.id"), nullable=False
     )

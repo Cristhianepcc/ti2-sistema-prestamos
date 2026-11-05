@@ -4,9 +4,9 @@
 > Quien hace el frontend puede maquetar y programar el `fetch`
 > **sin esperar** a que el backend esté listo: basta con respetar estas formas.
 >
-> Alcance: autenticación (RF7), gestión administrativa de usuarios y roles (RF7),
-> y catálogo de recursos (RF1). El resto de endpoints está esbozado en
-> [`01-sdd.md`](01-sdd.md) §4 y se detallará en su issue.
+> Alcance: autenticación, gestión de usuarios y roles, catálogo, reservas, préstamos,
+> solicitudes y notificaciones. Las respuestas de estos módulos son el contrato vigente
+> para el frontend.
 >
 > Issues relacionados: #7 y #8 (backend), #10 y #11 (catálogo), #13 y #14 (login),
 > y #60 (gestión administrativa de usuarios y roles).
@@ -394,6 +394,11 @@ Requiere autenticación mediante `Authorization: Bearer <access_token>`.
 }
 ```
 
+La reserva debe corresponder a un recurso no disponible. La versión actual del API no
+implementa todavía la confirmación de entrega por el custodio ni la conversión automática
+de la reserva en préstamo; tampoco enlaza una solicitud rechazada por indisponibilidad con
+una reserva. Ver la limitación documentada en `01-sdd.md` §7.3.
+
 | Campo | Tipo | Obligatorio | Notas |
 |---|---|---|---|
 | `recurso_id` | int | Sí | ID del recurso que se quiere reservar |
@@ -433,7 +438,8 @@ Devuelve un objeto `ReservaPublica`:
 | `404` | El recurso indicado no existe |
 | `409` | El recurso está disponible y no requiere reserva |
 | `409` | La fecha o la hora de inicio ya pasó, la hora final no supera la inicial o `tipo` no corresponde al recurso |
-| `409` | El usuario tiene una sanción activa, según la regla del SDD |
+| `409` | El recurso está en mantenimiento |
+| `409` | El mismo usuario ya tiene una reserva pendiente/confirmada para el mismo recurso, fecha y franja |
 | `422` | `fecha`, `franja` o `tipo` no cumplen el formato esperado |
 
 La comprobación de sanciones aún está pendiente de RF5: el servicio actual tiene ese punto como TODO y todavía no bloquea reservas por sanción activa.
@@ -476,7 +482,8 @@ Devuelve `204` sin cuerpo cuando la cancelación se completa.
 
 ### POST `/api/solicitudes` — Crear solicitud
 
-Requiere autenticación. Cualquier rol, sin sanción activa.
+Requiere autenticación. Cualquier cuenta activa puede crear la solicitud. El bloqueo por
+sanciones aún no se aplica porque RF5 no está implementado.
 
 #### Request
 
@@ -504,6 +511,7 @@ Devuelve un objeto `SolicitudPublica`:
 {
   "id": 1,
   "solicitante_id": 1,
+  "solicitante": { "id": 1, "codigo": "20200001", "nombres": "Diego Ramírez Cusi" },
   "recurso_id": 10,
   "recurso": { "id": 10, "codigo": "LIB-001", "nombre": "Clean Code", "...": "resto de RecursoPublico" },
   "tipo_solicitud": "SIMPLE",
@@ -529,7 +537,7 @@ desde cualquier paso previo a `ACEPTADA`.
 |---|---|
 | `401` | Falta el token o es inválido/expiró |
 | `404` | `recurso_id` no existe |
-| `409` | El solicitante tiene una sanción activa |
+| `409` | El recurso no está disponible; para una fecha futura se debe crear una reserva |
 | `409` | `tipo_solicitud=SIMPLE` sobre un recurso `ACADEMICO`, o `POR_CURSO`/`EXCEPCIONAL` sobre uno que no lo es (mismo invariante tipo↔recurso del Anexo RF3) |
 | `422` | Falta `motivo` con `tipo_solicitud` distinto de `SIMPLE` |
 
@@ -684,7 +692,7 @@ Requiere autenticación. Solo el dueño de la notificación puede marcarla.
 
 #### Response `200`
 
-El mismo objeto, con `leida: true`.
+Devuelve `{ "leida": true }` (o el valor enviado en la actualización).
 
 | Código | Cuándo |
 |---|---|
@@ -781,15 +789,16 @@ Requiere autenticación con rol `CUSTODIO_CE` o `CUSTODIO_INFRA`.
 #### Request
 
 ~~~json
-{ "condicion_devolucion": "Buen estado, sin daños", "danado": false }
+{ "condicion_devolucion": "Buen estado, sin daños", "danado": false, "perdido": false }
 ~~~
 
 | Campo | Tipo | Obligatorio | Notas |
 |---|---|---|---|
 | `condicion_devolucion` | string o `null` | No | |
 | `danado` | boolean | No (default `false`) | Si es `true`, el recurso pasa a `MANTENIMIENTO` en vez de `DISPONIBLE` |
+| `perdido` | boolean | No (default `false`) | Si es `true`, el recurso queda no disponible en `MANTENIMIENTO` mientras se define el estado `BAJA` |
 
-Solo se pueden devolver préstamos en estado `ACTIVO` o `ATRASADO`. Al devolver, `estado` pasa a `DEVUELTO`, se completa `fecha_devolucion`, y el recurso vuelve a `DISPONIBLE` (o `MANTENIMIENTO` si `danado=true`).
+Solo se pueden devolver préstamos en estado `ACTIVO` o `ATRASADO`. Al devolver, `estado` pasa a `DEVUELTO` y se completa `fecha_devolucion`. Si `danado` o `perdido` es `true`, el recurso queda en `MANTENIMIENTO` y no disponible hasta que se decida cómo representarlo como baja lógica. Si ambos son `true`, la pérdida prevalece al determinar el motivo de sanción. La sanción aún no se crea: RF5 está pendiente.
 
 #### Response `200`
 

@@ -2,26 +2,13 @@ if (!requireAuth()) throw new Error("sin sesión");
 
 renderSidebar("custodio");
 
-const selectRecursos = document.getElementById("select-recurso");
-const formRegistrar = document.getElementById("form-registrar-prestamo");
 const cajaActivos = document.getElementById("lista-prestamos-activos");
 const buscarActivos = document.getElementById("buscar-activos");
 
 let prestamosActivos = [];
 
 async function init() {
-    await cargarRecursosDisponibles();
     await cargarPrestamosActivos();
-}
-
-async function cargarRecursosDisponibles() {
-    try {
-        const recursos = await api.get("/recursos?disponible=true");
-        selectRecursos.innerHTML = '<option value="">Seleccione un recurso...</option>' +
-            recursos.map(r => `<option value="${r.id}">${esc(r.nombre)} (${esc(r.codigo)}) - ${esc(r.tipo_recurso)}</option>`).join("");
-    } catch (e) {
-        console.error("Error al cargar recursos:", e);
-    }
 }
 
 async function cargarPrestamosActivos() {
@@ -65,9 +52,16 @@ function filaPrestamoActivo(p) {
     </tr>
     <tr class="fila-devolucion" data-id="${esc(p.id)}" hidden>
         <td colspan="6">
-            <form class="fila-doble" style="align-items:flex-end;">
-                <label class="field" style="flex:1;">Condición de devolución
-                    <input type="text" name="condicion_devolucion" placeholder="Estado en que se devuelve" required>
+            <form class="fila-doble" style="align-items:flex-end;flex-wrap:wrap;">
+                <label class="field" style="flex:1;">Comentario de devolución
+                    <input type="text" name="condicion_devolucion" placeholder="Opcional">
+                </label>
+                <label class="field">Resultado
+                    <select name="resultado">
+                        <option value="OK">En buen estado</option>
+                        <option value="DANADO">Dañado</option>
+                        <option value="PERDIDO">Perdido</option>
+                    </select>
                 </label>
                 <button type="button" class="btn btn-ghost btn-sm btn-cancelar-devolucion">Cancelar</button>
                 <button type="submit" class="btn btn-primary btn-sm">Confirmar devolución</button>
@@ -112,66 +106,12 @@ cajaActivos.addEventListener("submit", async (evento) => {
     try {
         await api.post(`/prestamos/${fila.dataset.id}/devolucion`, {
             condicion_devolucion: datos.condicion_devolucion,
+            danado: datos.resultado === "DANADO",
+            perdido: datos.resultado === "PERDIDO",
         });
         await cargarPrestamosActivos();
-        await cargarRecursosDisponibles();
     } catch (e) {
         showFormError(errorDiv, e.message || "Error al registrar la devolución.");
-        setBusy(btn, false);
-    }
-});
-
-// --- Chips (tipo_prestamo / modalidad_uso) ----------------------------------
-
-formRegistrar.querySelectorAll("[data-chip-grupo]").forEach((grupo) => {
-    grupo.addEventListener("click", (evento) => {
-        const chip = evento.target.closest(".chip-opt");
-        if (!chip) return;
-        grupo.querySelectorAll(".chip-opt").forEach((c) => c.classList.toggle("on", c === chip));
-        grupo.nextElementSibling.value = chip.dataset.valor;
-    });
-});
-
-formRegistrar.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const datos = formValues(formRegistrar);
-    const btn = formRegistrar.querySelector('button[type="submit"]');
-    const errorDiv = formRegistrar.querySelector(".form-error-msg");
-
-    setBusy(btn, true, "Registrando entrega...");
-    showFormError(errorDiv, "");
-
-    const payload = {
-        recurso_id: datos.recurso_id,
-        prestatario_id: parseInt(datos.prestatario_id),
-        tipo_prestamo: datos.tipo_prestamo,
-        modalidad_uso: datos.modalidad_uso,
-        condicion_entrega: datos.condicion_entrega,
-    };
-
-    if (datos.garantia_tipo) {
-        payload.garantia = {
-            tipo: datos.garantia_tipo,
-            valor: parseFloat(datos.garantia_valor || 0),
-        };
-    }
-
-    try {
-        await api.post("/prestamos", payload);
-        formRegistrar.reset();
-        // reset() vuelve los <input hidden> a su valor por defecto en el HTML;
-        // los chips visuales no son controles de formulario, hay que
-        // resincronizarlos a mano con ese mismo valor.
-        formRegistrar.querySelectorAll("[data-chip-grupo]").forEach((grupo) => {
-            const valorPorDefecto = grupo.nextElementSibling.value;
-            grupo.querySelectorAll(".chip-opt").forEach((c) => {
-                c.classList.toggle("on", c.dataset.valor === valorPorDefecto);
-            });
-        });
-        await init();
-    } catch (err) {
-        showFormError(errorDiv, err.message || "Error al registrar la entrega.");
-    } finally {
         setBusy(btn, false);
     }
 });

@@ -48,6 +48,7 @@ class DevolucionCreate(BaseModel):
 
     condicion_devolucion: str | None = None
     danado: bool = False
+    perdido: bool = False
 
 
 class PrestamoPublico(BaseModel):
@@ -61,6 +62,7 @@ class PrestamoPublico(BaseModel):
     prestatario_id: int
     registrado_por_id: int
     reserva_id: int | None
+    solicitud_id: int | None
     fecha_entrega: datetime
     fecha_limite: datetime
     fecha_devolucion: datetime | None

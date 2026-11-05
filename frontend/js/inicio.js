@@ -159,7 +159,7 @@ function filaPrestamo(p) {
   };
 }
 
-function panelCustodio(rol, prestamosActivos) {
+function panelCustodio(rol, prestamosActivos, solicitudesPendientes) {
   const gestor = GESTOR_POR_ROL_CUSTODIO[rol];
   const delGestor = prestamosActivos.filter((p) => p.recurso && p.recurso.gestor === gestor);
   const vencenPronto = delGestor.filter((p) => diasHasta(p.fecha_limite) < 2);
@@ -170,12 +170,15 @@ function panelCustodio(rol, prestamosActivos) {
   return panelRol({
     titulo: `Inicio — ${ETIQUETA_ROL[rol]}`,
     descripcion: esCE
-      ? "Aprueba automáticamente y registra los préstamos SIMPLE de libros e implementos deportivos."
-      : "Registra el préstamo académico una vez resuelta la solicitud. Nunca \"aprueba\": solo registra.",
+      ? "Revisa solicitudes de libros e implementos deportivos y registra la entrega al aceptarlas."
+      : "Revisa solicitudes académicas aprobadas y registra la entrega del recurso.",
     stats: [
       { n: delGestor.length, l: `Préstamos activos (${esCE ? "CE" : "Infra"})` },
       { n: vencenPronto.length, l: "Vencen pronto", color: vencenPronto.length > 0 ? "warn" : undefined },
-      { n: entregasHoy.length, l: "Entregas registradas hoy" },
+      {
+        n: solicitudesPendientes.filter((s) => s.recurso?.gestor === gestor).length,
+        l: "Solicitudes por atender",
+      },
     ],
     colA: {
       titulo: "Vencen pronto",
@@ -186,7 +189,7 @@ function panelCustodio(rol, prestamosActivos) {
       titulo: "Accesos rápidos",
       type: "actions",
       actions: [
-        { href: "registrar-prestamo.html", texto: "Registrar entrega" },
+        { href: "solicitudes.html", texto: "Atender solicitudes" },
         { href: "registrar-prestamo.html", texto: "Registrar devolución" },
         { href: "registrar-prestamo.html", texto: "Ver préstamos atrasados" },
       ],
@@ -194,9 +197,12 @@ function panelCustodio(rol, prestamosActivos) {
   });
 }
 
-function panelDireccion(recursos) {
+function panelDireccion(recursos, solicitudesPendientes) {
   const conteos = {};
   for (const r of recursos) conteos[r.tipo_recurso] = (conteos[r.tipo_recurso] || 0) + 1;
+  const porAutorizar = solicitudesPendientes.filter(
+    (s) => s.estado === "AVALADA" && s.tipo_solicitud === "EXCEPCIONAL"
+  );
 
   return panelRol({
     titulo: "Inicio — Dirección de Escuela",
@@ -207,12 +213,17 @@ function panelDireccion(recursos) {
       // necesita un endpoint propio de RF6, que todavía no existe.
       { n: "—", l: "Préstamos activos (sistema, RF6)" },
       { n: "—", l: "Sanciones activas (RF5)" },
-      { n: "—", l: "Por autorizar · excepcional (RF4)" },
+      { n: porAutorizar.length, l: "Por autorizar · excepcional" },
     ],
     colA: {
       titulo: "Por autorizar",
-      sub: "RF4 · futuro · solo EXCEPCIONAL",
-      nota: "La bandeja de autorizaciones llega en una próxima entrega.",
+      sub: "Solicitudes excepcionales avaladas",
+      rows: porAutorizar.slice(0, 4).map((s) => ({
+        t: s.recurso?.nombre || `Solicitud #${s.id}`,
+        s: s.motivo || "Sin motivo indicado",
+        badge: badgeSolicitud(s.estado),
+      })),
+      nota: porAutorizar.length ? null : "No hay solicitudes por autorizar.",
     },
     colB: {
       titulo: "Inventario por tipo",
@@ -221,24 +232,34 @@ function panelDireccion(recursos) {
   });
 }
 
-function panelDocente() {
+function panelDocente(solicitudesPendientes) {
+  const porAvalar = solicitudesPendientes.filter(
+    (s) =>
+      s.estado === "SOLICITADA" &&
+      ["POR_CURSO", "EXCEPCIONAL"].includes(s.tipo_solicitud)
+  );
   return panelRol({
     titulo: "Inicio — Docente",
     descripcion: "Avala las solicitudes académicas de sus alumnos antes de que pasen a Dirección (RF4, próxima entrega). Para préstamos propios usa las mismas pantallas que cualquier usuario.",
     stats: [
-      { n: "—", l: "Solicitudes por avalar (RF4)" },
-      { n: "—", l: "Avaladas este mes (RF4)" },
-      { n: "—", l: "Rechazadas este mes (RF4)" },
+      { n: porAvalar.length, l: "Solicitudes por avalar" },
+      { n: "—", l: "Avales registrados este mes" },
+      { n: "—", l: "Rechazos registrados este mes" },
     ],
     colA: {
       titulo: "Solicitudes de mis alumnos",
-      sub: "RF4 · futuro",
-      nota: "Avalar solicitudes académicas llega en una próxima entrega.",
+      sub: "Solicitudes académicas",
+      rows: porAvalar.slice(0, 4).map((s) => ({
+        t: s.recurso?.nombre || `Solicitud #${s.id}`,
+        s: s.motivo || "Sin motivo indicado",
+        badge: badgeSolicitud(s.estado),
+      })),
+      nota: porAvalar.length ? null : "No tienes solicitudes pendientes de avalar.",
     },
     colB: {
       titulo: "Avales recientes",
-      sub: "RF4 · futuro",
-      nota: "Todavía no hay historial de avales.",
+      type: "actions",
+      actions: [{ href: "solicitudes.html", texto: "Abrir bandeja de solicitudes" }],
     },
   });
 }
@@ -297,6 +318,15 @@ async function cargarInicio() {
     api.get("/reservas?mias=true").catch(() => []),
     api.get("/recursos").catch(() => []),
   ]);
+  const tieneRolAprobador = hasRole(
+    "CUSTODIO_CE",
+    "CUSTODIO_INFRA",
+    "DOCENTE",
+    "DIRECCION_ESCUELA"
+  );
+  const solicitudesPendientes = tieneRolAprobador
+    ? await api.get("/solicitudes?pendientes=true").catch(() => [])
+    : [];
 
   pintarStats(misPrestamos, misReservas);
   pintarCatalogoDestacado(recursos);
@@ -309,10 +339,13 @@ async function cargarInicio() {
   }
 
   const paneles = [];
-  if (hasRole("CUSTODIO_CE")) paneles.push(panelCustodio("CUSTODIO_CE", prestamosActivos));
-  if (hasRole("CUSTODIO_INFRA")) paneles.push(panelCustodio("CUSTODIO_INFRA", prestamosActivos));
-  if (hasRole("DIRECCION_ESCUELA")) paneles.push(panelDireccion(recursos));
-  if (hasRole("DOCENTE")) paneles.push(panelDocente());
+  if (hasRole("CUSTODIO_CE"))
+    paneles.push(panelCustodio("CUSTODIO_CE", prestamosActivos, solicitudesPendientes));
+  if (hasRole("CUSTODIO_INFRA"))
+    paneles.push(panelCustodio("CUSTODIO_INFRA", prestamosActivos, solicitudesPendientes));
+  if (hasRole("DIRECCION_ESCUELA"))
+    paneles.push(panelDireccion(recursos, solicitudesPendientes));
+  if (hasRole("DOCENTE")) paneles.push(panelDocente(solicitudesPendientes));
   if (hasRole("ADMINISTRADOR_SISTEMA")) paneles.push(await panelAdministrador());
 
   document.getElementById("bloques-rol").innerHTML = paneles.join("");

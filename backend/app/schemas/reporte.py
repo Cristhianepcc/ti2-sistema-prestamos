@@ -17,6 +17,7 @@ from ..models.enums import (
     EstadoRecurso,
     Gestor,
     ModalidadUso,
+    Rol,
     TipoPrestamo,
     TipoRecurso,
 )
@@ -56,6 +57,12 @@ class ReporteInventario(BaseModel):
     por_estado: dict[EstadoRecurso, int]
     por_gestor: dict[Gestor, int]
     tipo_por_estado: dict[TipoRecurso, dict[EstadoRecurso, int]]
+
+
+class ReporteUsuarios(BaseModel):
+    total_usuarios: int
+    por_rol: dict[Rol, int]
+    administradores: int
 
 
 class PeriodoReporte(BaseModel):

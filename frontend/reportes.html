@@ -15,7 +15,22 @@
             <h2 class="page-title">Reportes</h2>
             <p class="hint">Vista de solo lectura del inventario y los préstamos del sistema (RF6).</p>
 
-            <div class="block-title">Inventario</div>
+            <div class="block-title">Usuarios</div>
+            <div id="usuarios-stats" class="stat-row"></div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rol</th>
+                            <th>Cuentas</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usuarios-tabla"></tbody>
+                </table>
+            </div>
+            <p class="hint">Un usuario con varios roles cuenta en cada uno; la suma puede superar el total de cuentas. Gestioná roles desde <a href="usuarios.html">Usuarios y Roles</a>.</p>
+
+            <div class="block-title" style="margin-top:28px">Inventario</div>
             <div id="inventario-stats" class="stat-row"></div>
             <div class="table-wrap">
                 <table>

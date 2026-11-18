@@ -265,16 +265,16 @@ function panelDocente(solicitudesPendientes) {
 }
 
 async function panelAdministrador() {
-  const [salud, respuestaUsuarios] = await Promise.all([
+  // Los 3 stats de abajo vienen de GET /reportes/usuarios (RF6), la misma
+  // fuente que pinta Reportes > Usuarios: antes se recalculaban acá con un
+  // Set/filter sobre la lista completa de /usuarios, duplicando esa lógica.
+  const [salud, respuestaUsuarios, resumenUsuarios] = await Promise.all([
     api.get("/health").catch(() => null),
     api.get("/usuarios").catch(() => null),
+    api.get("/reportes/usuarios").catch(() => null),
   ]);
   const apiOk = salud && salud.status === "ok";
   const usuarios = Array.isArray(respuestaUsuarios) ? respuestaUsuarios : null;
-  const roles = new Set((usuarios || []).flatMap((u) => u.roles));
-  const administradores = (usuarios || []).filter((u) =>
-    u.roles.includes("ADMINISTRADOR_SISTEMA")
-  ).length;
   const recientes = usuarios
     ? [...usuarios]
         .sort((a, b) => b.id - a.id)
@@ -286,9 +286,14 @@ async function panelAdministrador() {
     titulo: "Inicio — Administrador del Sistema",
     descripcion: "Gestiona cuentas y permisos (RF7). Rol técnico: no aprueba préstamos.",
     stats: [
-      { n: usuarios ? usuarios.length : "—", l: "Usuarios registrados" },
-      { n: usuarios ? roles.size : "—", l: "Tipos de rol en uso" },
-      { n: usuarios ? administradores : "—", l: "Cuentas con rol administrador" },
+      { n: resumenUsuarios ? resumenUsuarios.total_usuarios : "—", l: "Usuarios registrados" },
+      {
+        n: resumenUsuarios
+          ? Object.values(resumenUsuarios.por_rol).filter((n) => n > 0).length
+          : "—",
+        l: "Tipos de rol en uso",
+      },
+      { n: resumenUsuarios ? resumenUsuarios.administradores : "—", l: "Cuentas con rol administrador" },
     ],
     colA: {
       titulo: "Usuarios recientes",

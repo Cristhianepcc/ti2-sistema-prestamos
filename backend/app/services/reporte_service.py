@@ -16,12 +16,13 @@ from ..models.enums import (
     EstadoRecurso,
     Gestor,
     ModalidadUso,
+    Rol,
     TipoPrestamo,
     TipoRecurso,
 )
 from ..models.prestamo import Garantia, Prestamo
 from ..models.recurso import Recurso
-from ..models.usuario import Usuario
+from ..models.usuario import Usuario, UsuarioRol
 
 
 class ReporteError(Exception):
@@ -149,6 +150,21 @@ def reporte_inventario(db: Session) -> dict:
     }
 
 
+def reporte_usuarios(db: Session) -> dict:
+    """Resumen de cuentas para el admin: cuántas hay y con qué roles.
+
+    `por_rol` cuenta filas de `usuario_rol`, no usuarios: alguien con dos
+    roles suma en ambos (igual que el panel de Inicio que reemplaza).
+    """
+    total_usuarios = db.scalar(select(func.count()).select_from(Usuario)) or 0
+    por_rol = _contar_enum(db, UsuarioRol.rol, Rol, [])
+    return {
+        "total_usuarios": total_usuarios,
+        "por_rol": por_rol,
+        "administradores": por_rol[Rol.ADMINISTRADOR_SISTEMA],
+    }
+
+
 def reporte_prestamos(
     db: Session,
     *,
@@ -162,6 +178,10 @@ def reporte_prestamos(
         raise RangoInvalido("`desde` no puede ser posterior a `hasta`")
 
     ahora = _ahora()
+    hoy = ahora.date()
+    if (desde is not None and desde > hoy) or (hasta is not None and hasta > hoy):
+        raise RangoInvalido("El rango no puede ser una fecha futura")
+
     filtros_rango = []
     if desde is not None:
         filtros_rango.append(Prestamo.fecha_entrega >= _inicio_del_dia(desde))

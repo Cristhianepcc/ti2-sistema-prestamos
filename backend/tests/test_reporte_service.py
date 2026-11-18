@@ -11,6 +11,7 @@ from app.models import (
     Gestor,
     ModalidadUso,
     Prestamo,
+    Rol,
     TipoPrestamo,
     TipoRecurso,
 )
@@ -21,6 +22,7 @@ from app.services.reporte_service import (
     reporte_inventario,
     reporte_prestamos,
     reporte_resumen,
+    reporte_usuarios,
 )
 from .helpers import crear_recurso, crear_usuario
 
@@ -91,6 +93,36 @@ def test_reporte_inventario_cuenta_por_tipo_estado_y_gestor(db_session):
     assert reporte["tipo_por_estado"][TipoRecurso.LIBRO][EstadoRecurso.DISPONIBLE] == 1
     assert reporte["tipo_por_estado"][TipoRecurso.LIBRO][EstadoRecurso.PRESTADO] == 1
     assert reporte["tipo_por_estado"][TipoRecurso.ACADEMICO][EstadoRecurso.MANTENIMIENTO] == 1
+
+
+# --- Reporte de usuarios ------------------------------------------------------
+
+
+def test_reporte_usuarios_vacio_devuelve_ceros_con_todas_las_claves(db_session):
+    reporte = reporte_usuarios(db_session)
+
+    assert reporte["total_usuarios"] == 0
+    assert reporte["por_rol"] == {r: 0 for r in Rol}
+    assert reporte["administradores"] == 0
+
+
+def test_reporte_usuarios_cuenta_por_rol_y_multirol(db_session):
+    estudiante = crear_usuario(db_session, "RU-EST")
+    estudiante.roles.append(Rol.ESTUDIANTE)
+    docente_custodio = crear_usuario(db_session, "RU-MULTI")
+    docente_custodio.roles.extend([Rol.DOCENTE, Rol.CUSTODIO_CE])
+    admin = crear_usuario(db_session, "RU-ADM")
+    admin.roles.append(Rol.ADMINISTRADOR_SISTEMA)
+    db_session.commit()
+
+    reporte = reporte_usuarios(db_session)
+
+    assert reporte["total_usuarios"] == 3
+    assert reporte["por_rol"][Rol.ESTUDIANTE] == 1
+    assert reporte["por_rol"][Rol.DOCENTE] == 1
+    assert reporte["por_rol"][Rol.CUSTODIO_CE] == 1
+    assert reporte["por_rol"][Rol.ADMINISTRADOR_SISTEMA] == 1
+    assert reporte["administradores"] == 1
 
 
 # --- Reporte de préstamos: vacío y regla de atraso ---------------------------
@@ -199,6 +231,16 @@ def test_filtro_rango_es_inclusive_y_cubre_todo_el_dia_final(db_session):
 def test_desde_mayor_que_hasta_lanza_rango_invalido(db_session):
     with pytest.raises(RangoInvalido):
         reporte_prestamos(db_session, desde=AHORA.date(), hasta=(AHORA - timedelta(days=1)).date())
+
+
+def test_hasta_futuro_lanza_rango_invalido(db_session):
+    with pytest.raises(RangoInvalido):
+        reporte_prestamos(db_session, hasta=(AHORA + timedelta(days=7)).date())
+
+
+def test_desde_futuro_lanza_rango_invalido(db_session):
+    with pytest.raises(RangoInvalido):
+        reporte_prestamos(db_session, desde=(AHORA + timedelta(days=1)).date())
 
 
 # --- top y limite_atrasados ---------------------------------------------------

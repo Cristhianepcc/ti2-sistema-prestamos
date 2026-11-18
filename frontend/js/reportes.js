@@ -33,6 +33,34 @@ function statHTML(n, l, color) {
   return `<div class="stat"><div class="n"${style}>${esc(n)}</div><div class="l">${esc(l)}</div></div>`;
 }
 
+// --- Usuarios --------------------------------------------------------------------
+
+const usuariosStats = document.getElementById("usuarios-stats");
+const usuariosTabla = document.getElementById("usuarios-tabla");
+
+function filaRol(rol, cantidad) {
+  return `<tr><td>${esc(ETIQUETA_ROL[rol] || rol)}</td><td>${esc(cantidad)}</td></tr>`;
+}
+
+async function cargarUsuarios() {
+  showLoading(usuariosStats);
+  showLoading(usuariosTabla, 5);
+  try {
+    const r = await api.get("/reportes/usuarios");
+    usuariosStats.innerHTML = [
+      statHTML(r.total_usuarios, "Usuarios registrados"),
+      statHTML(r.administradores, "Cuentas administrador"),
+    ].join("");
+
+    usuariosTabla.innerHTML = Object.entries(r.por_rol)
+      .map(([rol, cantidad]) => filaRol(rol, cantidad))
+      .join("");
+  } catch (e) {
+    showError(usuariosStats, e.message);
+    showError(usuariosTabla, e.message, 5);
+  }
+}
+
 // --- Inventario ------------------------------------------------------------------
 
 const inventarioStats = document.getElementById("inventario-stats");
@@ -83,6 +111,14 @@ const atrasadosTabla = document.getElementById("atrasados-tabla");
 const atrasadosNota = document.getElementById("atrasados-nota");
 const filtroDesde = document.getElementById("filtro-desde");
 const filtroHasta = document.getElementById("filtro-hasta");
+
+// El reporte de préstamos es retrospectivo (fecha_entrega nunca es futura),
+// así que no tiene sentido dejar elegir un rango que no puede tener datos.
+// El backend valida lo mismo (RangoInvalido -> 422) para quien llame la API
+// directo, sin pasar por este selector.
+const hoyISO = new Date().toISOString().slice(0, 10);
+filtroDesde.max = hoyISO;
+filtroHasta.max = hoyISO;
 
 function filaAtrasado(item) {
   return `<tr>
@@ -152,5 +188,6 @@ document.getElementById("btn-limpiar-filtro").addEventListener("click", () => {
 
 // --- Carga inicial -------------------------------------------------------------------
 
+cargarUsuarios();
 cargarInventario();
 cargarPrestamos();

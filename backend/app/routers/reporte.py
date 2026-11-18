@@ -13,6 +13,7 @@ from ..schemas.reporte import (
     ReporteInventario,
     ReportePrestamos,
     ReporteResumen,
+    ReporteUsuarios,
 )
 from ..security import UsuarioActual, require_role
 from ..services.reporte_service import (
@@ -22,6 +23,7 @@ from ..services.reporte_service import (
     reporte_inventario,
     reporte_prestamos,
     reporte_resumen,
+    reporte_usuarios,
 )
 
 router = APIRouter(tags=["historial-y-reportes"])
@@ -86,3 +88,12 @@ def obtener_reporte_prestamos(
 )
 def obtener_reporte_resumen(db: Annotated[Session, Depends(get_db)]) -> dict:
     return reporte_resumen(db)
+
+
+@router.get(
+    "/reportes/usuarios",
+    response_model=ReporteUsuarios,
+    dependencies=[Depends(require_role(Rol.ADMINISTRADOR_SISTEMA))],
+)
+def obtener_reporte_usuarios(db: Annotated[Session, Depends(get_db)]) -> dict:
+    return reporte_usuarios(db)

@@ -13,6 +13,7 @@ ENDPOINTS = [
     "/api/reportes/inventario",
     "/api/reportes/prestamos",
     "/api/reportes/resumen",
+    "/api/reportes/usuarios",
 ]
 
 
@@ -81,6 +82,16 @@ def test_reporte_prestamos_fecha_invalida_recibe_422(db_session):
 
     respuesta = cliente(db_session, admin).get(
         "/api/reportes/prestamos", params={"desde": "no-es-una-fecha"}
+    )
+
+    assert respuesta.status_code == 422
+
+
+def test_reporte_prestamos_hasta_futuro_recibe_422(db_session):
+    admin = crear_actor(db_session, "REP-422-FUTURO", Rol.ADMINISTRADOR_SISTEMA)
+
+    respuesta = cliente(db_session, admin).get(
+        "/api/reportes/prestamos", params={"hasta": "2099-01-01"}
     )
 
     assert respuesta.status_code == 422

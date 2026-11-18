@@ -405,7 +405,8 @@ de esquema e integración posterior. El bloqueo por sanciones queda pendiente de
 |---|---|---|---|
 | GET | `/api/historial?usuario_id=` | autenticado (propio) / administrador del sistema | Historial de préstamos |
 | GET | `/api/reportes/inventario` | ADMINISTRADOR_SISTEMA | Reporte de inventario |
-| GET | `/api/reportes/prestamos` | ADMINISTRADOR_SISTEMA | Reporte de préstamos |
+| GET | `/api/reportes/prestamos` | ADMINISTRADOR_SISTEMA | Reporte de préstamos (incluye atrasados) |
+| GET | `/api/reportes/resumen` | ADMINISTRADOR_SISTEMA | Resumen liviano para la tarjeta de Inicio (no previsto originalmente en este anexo) |
 
 ---
 
@@ -615,7 +616,7 @@ sequenceDiagram
 | **RF3** Préstamos | `prestamo`, `garantia`, `solicitud` (SIMPLE), `notificacion` | `/api/prestamos*`, `/api/solicitudes*`, `/api/notificaciones*` | `prestamo_service`, `solicitud_service` (invariantes, vencidos, aceptación) | #13, #14 |
 | **RF4** Autorización acad. | `solicitud` (POR_CURSO/EXCEPCIONAL) | `/api/solicitudes*` | `routers/solicitudes`, `solicitud_service` | (60%) |
 | **RF5** Sanciones | `sancion` | `/api/sanciones*` | `sancion_service` (bloqueo) | (60/100%) |
-| **RF6** Historial/Reportes | `reporte` (+ lectura) | `/api/historial`, `/api/reportes*` | `routers/reportes` | (100%) |
+| **RF6** Historial/Reportes | solo lectura sobre `prestamo`/`recurso`/`garantia` (sin tabla `reporte` propia) | `/api/historial`, `/api/reportes*` | `routers/reporte`, `reporte_service` | (100%) |
 | **RF7** Usuarios/Roles | `usuario`, `usuario_rol` | `/api/auth*`, `/api/usuarios*` | `security.py`, `routers/auth`, `routers/usuarios` | #4, #6, #12, #13, #14, #60 |
 | **RNF1** Seguridad | — | (todos) | `security.py` | #4 |
 | **RNF2** Usabilidad | — | — | frontend Bootstrap responsive | #9–#14 |

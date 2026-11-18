@@ -15,6 +15,7 @@ Con Docker:
 """
 import sys
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
@@ -43,6 +44,7 @@ from .models import (
     UsuarioRol,
 )
 from .security import hash_password
+from .services.prestamo_service import registrar_devolucion
 from .services.solicitud_service import aceptar_solicitud, crear_solicitud
 
 #: Contraseña de todos los usuarios de ejemplo. Solo para desarrollo y la demo.
@@ -236,18 +238,26 @@ def _sembrar_solicitudes(db: Session) -> int:
 
 
 def _sembrar_prestamos(db: Session) -> int:
-    """Crea préstamos aceptando solicitudes, sin estados PRESTADO ficticios."""
+    """Crea préstamos aceptando solicitudes, sin estados PRESTADO ficticios.
+
+    Variados a propósito (activos, uno ya vencido, uno devuelto, con y sin
+    garantía) para que el reporte de préstamos y el historial (RF6) tengan
+    datos reales que mostrar en vez de listas vacías.
+    """
     solicitante = db.scalar(select(Usuario).where(Usuario.email == "diego@unsa.edu.pe"))
     custodio = db.scalar(select(Usuario).where(Usuario.email == "pedro@unsa.edu.pe"))
     if solicitante is None or custodio is None:
         return 0
 
+    # codigo, modalidad, dias hasta el plazo (negativo = ya vencido), garantía, ¿se devuelve?
     ejemplos = (
-        ("LIB-002", ModalidadUso.RETIRO_TEMPORAL, 2),
-        ("DEP-002", ModalidadUso.EN_SITIO, 1),
+        ("LIB-002", ModalidadUso.RETIRO_TEMPORAL, 2, None, False),
+        ("DEP-002", ModalidadUso.EN_SITIO, 1, None, False),
+        ("LIB-003", ModalidadUso.RETIRO_TEMPORAL, -5, {"tipo": "DNI", "valor": Decimal("20.00")}, False),
+        ("LIB-004", ModalidadUso.RETIRO_TEMPORAL, 7, None, True),
     )
     nuevos = 0
-    for codigo, modalidad, dias in ejemplos:
+    for codigo, modalidad, dias, garantia, devuelto in ejemplos:
         recurso = db.scalar(select(Recurso).where(Recurso.codigo == codigo))
         if recurso is None:
             continue
@@ -275,14 +285,21 @@ def _sembrar_prestamos(db: Session) -> int:
             )
         if solicitud.estado != EstadoSolicitud.SOLICITADA:
             continue
-        aceptar_solicitud(
+        solicitud = aceptar_solicitud(
             db,
             solicitud_id=solicitud.id,
             custodio_id=custodio.id,
             modalidad_uso=modalidad,
             fecha_limite=datetime.now(timezone.utc) + timedelta(days=dias),
             condicion_entrega="Buen estado",
+            garantia=garantia,
         )
+        if devuelto:
+            registrar_devolucion(
+                db,
+                prestamo_id=solicitud.prestamo_id,
+                condicion_devolucion="Buen estado, sin daños",
+            )
         nuevos += 1
     return nuevos
 

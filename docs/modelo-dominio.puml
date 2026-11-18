@@ -1,0 +1,289 @@
+@startuml modelo-dominio-grupo8
+' ---------------------------------------------------------------------------
+' Modelo de dominio — Sistema de Prestamos (Grupo 8)
+' Fuente de verdad: docs/00-contexto-alcance-propuesta.md (seccion 4).
+' Reemplaza a docs/modelo-dominio-grupo8.pdf (version previa: 7 roles,
+' categoriaPrestatario, CUSTODIO_ADMINISTRATIVO).
+' Pegar en https://www.planttext.com/
+' ---------------------------------------------------------------------------
+
+title Modelo de dominio — Sistema de Prestamos de Recursos (Grupo 8)
+
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor #FEFEFE
+  BorderColor #3C4858
+  ArrowColor #3C4858
+  FontSize 12
+}
+skinparam enum {
+  BackgroundColor #EEF4FF
+  BorderColor #4A6FA5
+}
+skinparam package {
+  BackgroundColor #FAFAFA
+  BorderColor #9AA5B1
+  FontStyle bold
+}
+
+' =========================== Identidad y Roles ============================
+package "Identidad y Roles  «generico»" {
+  class Usuario {
+    - codigo : String
+    - nombres : String
+    - email : String
+    - activo : boolean
+    --
+    + tieneRol(r : Rol) : boolean
+    + tieneSancionActiva() : boolean
+  }
+
+  enum Rol {
+    ESTUDIANTE
+    DOCENTE
+    CUSTODIO_CE
+    CUSTODIO_INFRA
+    ADMINISTRADOR_SISTEMA
+  }
+}
+
+' ========================= Catalogo de Recursos ===========================
+package "Catalogo de Recursos  «soporte»" {
+  abstract class Recurso {
+    - codigo : String
+    - nombre : String
+    - descripcion : String
+    - ubicacion : String
+    - estado : EstadoRecurso
+    - gestor : Gestor
+    --
+    + estaDisponible() : boolean
+  }
+
+  class Libro {
+    - isbn : String
+    - autor : String
+    - categoria : String
+  }
+
+  class ImplementoDeportivo {
+    - tipo : String
+  }
+
+  class ImplementoAcademico {
+    - codigoPatrimonial : String
+    - requiereAval : boolean
+  }
+
+  enum Gestor {
+    CENTRO_ESTUDIANTES
+    INFRAESTRUCTURA
+  }
+
+  enum EstadoRecurso {
+    DISPONIBLE
+    RESERVADO
+    PRESTADO
+    MANTENIMIENTO
+  }
+}
+
+' ================================ Reservas ================================
+package "Reservas  «soporte»" {
+  class Reserva {
+    - fecha : Date
+    - franja : String
+    - estado : EstadoReserva
+    - prioridad : int
+    --
+    + confirmar() : void
+    + cancelar() : void
+  }
+
+  enum EstadoReserva {
+    PENDIENTE
+    CONFIRMADA
+    CANCELADA
+    VENCIDA
+  }
+}
+
+' ======================== Solicitudes Academicas ==========================
+package "Solicitudes Academicas  «soporte»" {
+  class SolicitudAcademica {
+    - motivo : String
+    - fecha : Date
+    - tipo : TipoSolicitud
+    - estado : EstadoSolicitud
+    --
+    + avalar(docente : Usuario) : void
+    + autorizar(direccion : Usuario) : void
+    + rechazar() : void
+  }
+
+  enum TipoSolicitud {
+    POR_CURSO
+    EXCEPCIONAL
+  }
+
+  enum EstadoSolicitud {
+    SOLICITADA
+    AVALADA
+    AUTORIZADA
+    RECHAZADA
+  }
+}
+
+' ======================== Prestamos  (NUCLEO) =============================
+package "Prestamos  «NUCLEO»" #FFF6E5 {
+  class Prestamo {
+    - fechaEntrega : Date
+    - fechaLimite : Date
+    - fechaDevolucion : Date
+    - estado : EstadoPrestamo
+    - tipoPrestamo : TipoPrestamo
+    - modalidadUso : ModalidadUso
+    - condicionEntrega : String
+    - condicionDevolucion : String
+    --
+    + registrarDevolucion(cond : String) : void
+    + estaAtrasado() : boolean
+  }
+
+  class Garantia {
+    - tipo : String
+    - valor : BigDecimal
+    - devuelta : boolean
+  }
+
+  enum EstadoPrestamo {
+    ACTIVO
+    DEVUELTO
+    ATRASADO
+  }
+
+  enum TipoPrestamo {
+    SIMPLE
+    POR_CURSO
+    EXCEPCIONAL
+  }
+
+  enum ModalidadUso {
+    EN_SITIO
+    RETIRO_TEMPORAL
+  }
+}
+
+' =============================== Sanciones ================================
+package "Sanciones  «soporte»" {
+  class Sancion {
+    - motivo : MotivoSancion
+    - inicio : Date
+    - fin : Date
+    - monto : BigDecimal
+    - activa : boolean
+    --
+    + estaVigente(hoy : Date) : boolean
+  }
+
+  enum MotivoSancion {
+    RETRASO
+    DANIO
+    PERDIDA
+  }
+}
+
+' ========================= Historial y Reportes ===========================
+package "Historial y Reportes  «generico»" {
+  class Reporte {
+    - tipo : String
+    - generadoEn : Date
+  }
+}
+
+' ====================== Herencia y asociaciones ===========================
+' ORDEN DE DECLARACION = ORDEN VERTICAL. Graphviz rankea el primer extremo de
+' cada asociacion por encima del segundo, asi que siempre se declara primero la
+' entidad que debe quedar arriba. El diagrama se lee de arriba hacia abajo:
+'   quien pide  ->  la intencion  ->  el prestamo  ->  las consecuencias
+' Las cardinalidades son las del diccionario (00-contexto seccion 4); al
+' invertir un extremo se invierte tambien la punta del rol (p.ej. "sobre <").
+
+' --- Nivel 0: los dos actores del dominio ---
+Usuario "0..*" -- "0..*" Rol : tiene >
+Recurso <|-- Libro
+Recurso <|-- ImplementoDeportivo
+Recurso <|-- ImplementoAcademico
+
+' --- Nivel 1: la intencion (reservar / pedir permiso) ---
+Usuario "1" -- "0..*" Reserva : realiza >
+Usuario "1" -- "0..*" SolicitudAcademica : solicita >
+Usuario "1" -- "0..*" SolicitudAcademica : avala >
+Usuario "1" -- "0..*" SolicitudAcademica : autoriza >
+Usuario "1" -- "0..*" Reporte : genera >
+Recurso "1" -- "0..*" Reserva : sobre <
+ImplementoAcademico "1" -- "0..*" SolicitudAcademica : requiere <
+SolicitudAcademica "1" -- "0..1" Reserva : genera >
+
+' --- Nivel 2: el prestamo (nucleo) ---
+Reserva "1" -- "0..1" Prestamo : deriva en >
+SolicitudAcademica "1" -- "0..1" Prestamo : habilita >
+Usuario "1" -- "0..*" Prestamo : prestatario >
+Usuario "1" -- "0..*" Prestamo : registra >
+Recurso "1" -- "0..*" Prestamo : entrega <
+
+' --- Nivel 3: las consecuencias ---
+Prestamo "1" *-- "0..1" Garantia : respalda >
+Prestamo "1" -- "0..1" Sancion : puede generar >
+Usuario "1" -- "0..*" Sancion : afecta <
+
+' ======================== Invariantes del dominio =========================
+note right of Prestamo
+  <b>Invariantes</b>
+  • registradoPorId != prestatarioId
+    (un custodio no se autoregistra)
+  • Tipo <-> recurso (estricto):
+    SIMPLE -> LIBRO / DEPORTIVO
+    POR_CURSO y EXCEPCIONAL -> ACADEMICO
+  • Aprobar != registrar: el SIMPLE se
+    aprueba solo; la entrega la registra
+    un custodio.
+end note
+
+note bottom of Recurso
+  gestor coherente con el subtipo:
+  Libro / ImplementoDeportivo -> CENTRO_ESTUDIANTES
+  ImplementoAcademico -> INFRAESTRUCTURA
+end note
+
+note left of Reserva
+  Reserva con antelacion (booking) para
+  una fecha/franja futura; cubre el caso
+  "no disponible ahora".
+  Prioridad hibrida:
+  EXCEPCIONAL > POR_CURSO > SIMPLE,
+  y FIFO dentro del mismo tipo.
+end note
+
+note bottom of Sancion
+  Solo se puede solicitar si el usuario
+  no tiene ninguna sancion activa.
+end note
+
+note bottom of Reporte
+  Vista de solo lectura sobre eventos:
+  no participa en transacciones.
+end note
+
+legend bottom
+  <b>Lectura del diagrama: de arriba hacia abajo, siguiendo el ciclo de vida</b>
+  |= Nivel |= Entidades |= Que representa |
+  | 0 | Usuario · Rol · Recurso (+ subtipos) | los actores: quien pide y que se pide |
+  | 1 | Reserva · SolicitudAcademica · Reporte | la intencion: "cuando lo tengo" / "tengo permiso" |
+  | 2 | <b>Prestamo</b> | el nucleo: la entrega efectiva |
+  | 3 | Garantia · Sancion | las consecuencias del prestamo |
+endlegend
+
+@enduml

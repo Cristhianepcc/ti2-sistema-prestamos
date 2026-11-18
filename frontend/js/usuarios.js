@@ -19,7 +19,6 @@ const ROLES_USUARIO = [
   ["DOCENTE", "Docente"],
   ["CUSTODIO_CE", "Custodio del Centro de Estudiantes"],
   ["CUSTODIO_INFRA", "Custodio de Infraestructura"],
-  ["DIRECCION_ESCUELA", "Dirección de Escuela"],
   ["ADMINISTRADOR_SISTEMA", "Administrador del sistema"],
 ];
 

@@ -1,0 +1,323 @@
+@startuml arquitectura-capas-grupo8
+' ---------------------------------------------------------------------------
+' Arquitectura en capas — Sistema de Prestamos (Grupo 8)
+' Extension del modelo de dominio (docs/modelo-dominio.puml) hacia una
+' arquitectura en capas segun la plantilla de la asignatura:
+'     presentation  ->  servicios  ->  dominio  ->  repositorio
+' con submodulos de negocio, interfaces de servicio e inversion de
+' dependencias hacia el repositorio.
+' Pegar en https://www.planttext.com/
+'
+' ESTADO
+'   «impl» = ya construido en el repo (R1)
+'   «plan» = disenado en el SDD, pendiente (R2/R3)
+' Hoy no existen todavia las interfaces ni la capa de repositorio: las
+' consultas SQLAlchemy viven dentro de los routers. Este es el objetivo.
+'
+' LAYOUT: cada modulo forma una columna vertical
+'   Controller -> IServicio -> ServicioImpl -> IRepositorio -> RepositorioImpl
+' Las dependencias son clase a clase; apuntar a un paquete descoloca Graphviz.
+' ---------------------------------------------------------------------------
+
+title Arquitectura en capas — Sistema de Prestamos de Recursos (Grupo 8)
+
+hide circle
+hide empty members
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+skinparam nodesep 10
+skinparam ranksep 28
+skinparam class {
+  BorderColor #333333
+  ArrowColor #444444
+  FontSize 11
+}
+skinparam package {
+  BorderColor #555555
+  FontStyle bold
+}
+skinparam note {
+  BackgroundColor #FFFFFF
+  BorderColor #555555
+  FontSize 10
+}
+
+' Un color por modulo de negocio, constante en las cuatro capas
+!$cUsu = "#FFF2CC"
+!$cRec = "#FFFFCC"
+!$cRes = "#E6D9FF"
+!$cSol = "#FFE0EF"
+!$cPre = "#FFDDC1"
+!$cSan = "#E4E4E4"
+
+' =========================================================================
+' CAPA 1 — PRESENTATION
+' =========================================================================
+package "presentation" as CAPA1 #FFCCCC {
+
+  package "vista" as Vista #FFFFFF {
+    class "index.html" as VUsu <<impl>> $cUsu
+    class "catalogo.html" as VRec <<impl>> $cRec
+    class "reservas.html" as VRes <<plan>> $cRes
+    class "solicitudes.html" as VSol <<plan>> $cSol
+    class "prestamos.html" as VPre <<plan>> $cPre
+    class "sanciones.html" as VSan <<plan>> $cSan
+    class "api.js" as VApi <<impl>>
+    class "render.js" as VRender <<impl>>
+    class "styles.css" as VCss <<impl>>
+  }
+
+  package "controladores" as Ctrl #FFFFFF {
+    class UsuarioController <<impl>> $cUsu {
+      + login() · me()
+    }
+    class RecursoController <<impl>> $cRec {
+      + listar() · crear()
+    }
+    class ReservaController <<plan>> $cRes {
+      + crear() · cambiarEstado()
+    }
+    class SolicitudController <<plan>> $cSol {
+      + crear() · avalar()
+    }
+    class PrestamoController <<plan>> $cPre {
+      + registrar() · devolver()
+    }
+    class SancionController <<plan>> $cSan {
+      + listar()
+    }
+  }
+}
+
+' =========================================================================
+' CAPA 2 — SERVICIOS  (casos de uso)
+' =========================================================================
+package "servicios" as CAPA2 #CCF2F2 {
+  interface IUsuarioServicio <<plan>> $cUsu {
+    + autenticar() · perfil()
+  }
+  class UsuarioServicioImpl <<plan>> $cUsu
+
+  interface IRecursoServicio <<plan>> $cRec {
+    + listar() · crear()
+  }
+  class RecursoServicioImpl <<plan>> $cRec
+
+  interface IReservaServicio <<plan>> $cRes {
+    + reservar() · confirmar()
+  }
+  class ReservaServicioImpl <<plan>> $cRes
+
+  interface ISolicitudServicio <<plan>> $cSol {
+    + solicitar() · avalar()
+    + autorizar()
+  }
+  class SolicitudServicioImpl <<plan>> $cSol
+
+  interface IPrestamoServicio <<plan>> $cPre {
+    + registrar()
+    + registrarDevolucion()
+  }
+  class PrestamoServicioImpl <<plan>> $cPre
+
+  interface ISancionServicio <<plan>> $cSan {
+    + tieneSancionActiva()
+    + sancionar()
+  }
+  class SancionServicioImpl <<plan>> $cSan
+}
+
+' =========================================================================
+' CAPA 3 — DOMINIO
+' =========================================================================
+package "dominio" as CAPA3 #CCE0FF {
+
+  package "usuario" as DUsu $cUsu {
+    class Usuario <<impl>>
+    class UsuarioRol <<impl>>
+    enum Rol <<impl>>
+    interface IUsuarioRepositorio <<plan>> {
+      + buscarPorEmail() · buscar()
+    }
+  }
+
+  package "recurso" as DRec $cRec {
+    class RecursoFabrica <<plan>> {
+      + crearRecurso(tipo, datos)
+    }
+    abstract class Recurso <<impl>>
+    class Libro <<impl>>
+    class ImplementoDeportivo <<impl>>
+    class ImplementoAcademico <<impl>>
+    interface IRecursoRepositorio <<plan>> {
+      + adicionar(Recurso)
+      + eliminar(Recurso)
+      + actualizar(Recurso)
+      + buscar(int id)
+    }
+  }
+
+  package "reserva" as DRes $cRes {
+    class Reserva <<plan>>
+    class ReservaServicioDominio <<plan>> {
+      + calcularPrioridad()
+      + resolverChoqueFranja()
+    }
+    interface IReservaRepositorio <<plan>> {
+      + buscarPorFranja()
+    }
+  }
+
+  package "solicitud" as DSol $cSol {
+    class SolicitudAcademica <<plan>>
+    interface ISolicitudRepositorio <<plan>> {
+      + buscar(int id)
+    }
+  }
+
+  package "prestamo" as DPre $cPre {
+    class Prestamo <<plan>>
+    class Garantia <<plan>>
+    class PrestamoServicioDominio <<plan>> {
+      + validarTipoVsRecurso()
+      + validarRegistrador()
+    }
+    interface IPrestamoRepositorio <<plan>> {
+      + buscarActivosDe()
+    }
+  }
+
+  package "sancion" as DSan $cSan {
+    class Sancion <<plan>>
+    class Reporte <<plan>>
+    interface ISancionRepositorio <<plan>> {
+      + buscarActivasDe()
+    }
+  }
+}
+
+' =========================================================================
+' CAPA 4 — REPOSITORIO
+' =========================================================================
+package "repositorio" as CAPA4 #CCFFCC {
+  package "postgresql" as Pg #FFFFFF {
+    class UsuarioRepositorioImpl <<plan>> $cUsu
+    class RecursoRepositorioImpl <<plan>> $cRec
+    class ReservaRepositorioImpl <<plan>> $cRes
+    class SolicitudRepositorioImpl <<plan>> $cSol
+    class PrestamoRepositorioImpl <<plan>> $cPre
+    class SancionRepositorioImpl <<plan>> $cSan
+  }
+}
+
+' =========================================================================
+' DEPENDENCIAS  (una columna vertical por modulo de negocio)
+' =========================================================================
+
+' --- vista -> controlador ---
+VUsu ..> UsuarioController
+VRec ..> RecursoController
+VRes ..> ReservaController
+VSol ..> SolicitudController
+VPre ..> PrestamoController
+VSan ..> SancionController
+
+' --- controlador -> interfaz de servicio ---
+UsuarioController ..> IUsuarioServicio
+RecursoController ..> IRecursoServicio
+ReservaController ..> IReservaServicio
+SolicitudController ..> ISolicitudServicio
+PrestamoController ..> IPrestamoServicio
+SancionController ..> ISancionServicio
+
+' --- realizacion de los servicios ---
+IUsuarioServicio <|.. UsuarioServicioImpl
+IRecursoServicio <|.. RecursoServicioImpl
+IReservaServicio <|.. ReservaServicioImpl
+ISolicitudServicio <|.. SolicitudServicioImpl
+IPrestamoServicio <|.. PrestamoServicioImpl
+ISancionServicio <|.. SancionServicioImpl
+
+' --- servicio -> interfaz de repositorio (declarada en el dominio) ---
+UsuarioServicioImpl ..> IUsuarioRepositorio
+RecursoServicioImpl ..> IRecursoRepositorio
+ReservaServicioImpl ..> IReservaRepositorio
+SolicitudServicioImpl ..> ISolicitudRepositorio
+PrestamoServicioImpl ..> IPrestamoRepositorio
+SancionServicioImpl ..> ISancionRepositorio
+
+' --- inversion de dependencias: la capa 4 implementa lo que declara el dominio ---
+IUsuarioRepositorio <|.. UsuarioRepositorioImpl
+IRecursoRepositorio <|.. RecursoRepositorioImpl
+IReservaRepositorio <|.. ReservaRepositorioImpl
+ISolicitudRepositorio <|.. SolicitudRepositorioImpl
+IPrestamoRepositorio <|.. PrestamoRepositorioImpl
+ISancionRepositorio <|.. SancionRepositorioImpl
+
+' --- herencia del catalogo ---
+Recurso <|-- Libro
+Recurso <|-- ImplementoDeportivo
+Recurso <|-- ImplementoAcademico
+
+' =========================================================================
+' FRAMEWORKS  (notas al costado, como en la plantilla)
+' =========================================================================
+note as NF1
+  <b>MVC Framework</b>
+  FastAPI (APIRouter).
+  Los controladores son
+  los modulos de
+  app/routers/
+end note
+NF1 .. Ctrl
+
+note as NF2
+  <b>Security Framework</b>
+  JWT + bcrypt
+  security.py:
+  get_current_user()
+  require_role()
+end note
+NF2 .. UsuarioController
+
+note as NF3
+  <b>Validacion / DTO</b>
+  Pydantic (app/schemas/)
+  Contrato:
+  02-contrato-api.md
+end note
+NF3 .. CAPA2
+
+note as NF4
+  <b>ORM: Mapping</b>
+  SQLAlchemy declarativo.
+  El dominio y el mapeo
+  son las mismas clases.
+  Recurso: tabla unica +
+  discriminador.
+end note
+NF4 .. Recurso
+
+note as NF5
+  <b>ORM: Query Language</b>
+  select() sobre PostgreSQL
+  (driver psycopg).
+  Session por request:
+  database.py get_db()
+end note
+NF5 .. Pg
+
+legend bottom
+  |= Capa |= Responsabilidad |= Tecnologia |
+  | presentation | Vista (HTML/JS) y controladores HTTP | Bootstrap 5 · JS vanilla · FastAPI |
+  | servicios | Casos de uso; orquesta dominio y repositorio | Python · Pydantic |
+  | dominio | Entidades, reglas e invariantes; declara IRepositorio | SQLAlchemy (mapeo) |
+  | repositorio | Implementa la persistencia de cada agregado | SQLAlchemy · PostgreSQL |
+  <i>Un color por modulo de negocio: usuario · recurso · reserva · solicitud · prestamo · sancion</i>
+  <b>Estado:</b> «impl» = ya construido en R1 (login JWT, catalogo, entidades Usuario y Recurso).
+  «plan» = disenado en el SDD para R2/R3. Hoy services/ esta vacio y no existe la capa de
+  repositorio: las consultas SQLAlchemy viven dentro de los routers.
+endlegend
+
+@enduml

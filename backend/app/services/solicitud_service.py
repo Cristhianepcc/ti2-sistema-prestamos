@@ -73,7 +73,7 @@ def paso_pendiente(solicitud: Solicitud) -> Rol | None:
             return _rol_custodio(solicitud)
     if estado == EstadoSolicitud.AVALADA:
         if tipo == TipoSolicitud.EXCEPCIONAL:
-            return Rol.DIRECCION_ESCUELA
+            return Rol.ADMINISTRADOR_SISTEMA
         if tipo == TipoSolicitud.POR_CURSO:
             return _rol_custodio(solicitud)
     if estado == EstadoSolicitud.AUTORIZADA and tipo == TipoSolicitud.EXCEPCIONAL:
@@ -200,8 +200,8 @@ def autorizar_solicitud(
 ) -> Solicitud:
     solicitud = _obtener_solicitud(db, solicitud_id)
     direccion = _obtener_actor(db, direccion_id)
-    if not direccion.tiene_rol(Rol.DIRECCION_ESCUELA):
-        raise PermisoSolicitud("Solo Dirección de Escuela puede autorizar")
+    if not direccion.tiene_rol(Rol.ADMINISTRADOR_SISTEMA):
+        raise PermisoSolicitud("Solo el Administrador del sistema puede autorizar")
     if solicitud.tipo_solicitud != TipoSolicitud.EXCEPCIONAL:
         raise ConflictoSolicitud("Solo las solicitudes EXCEPCIONAL requieren autorización")
     if solicitud.estado != EstadoSolicitud.AVALADA:

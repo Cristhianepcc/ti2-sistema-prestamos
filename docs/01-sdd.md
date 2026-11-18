@@ -101,7 +101,7 @@ Modelo relacional derivado del diccionario de datos del doc oficial (§4). La he
 ### 3.1 Enumeraciones (tipos Postgres)
 | Enum | Valores |
 |---|---|
-| `rol` | ESTUDIANTE · DOCENTE · CUSTODIO_CE · CUSTODIO_INFRA · DIRECCION_ESCUELA · ADMINISTRADOR_SISTEMA |
+| `rol` | ESTUDIANTE · DOCENTE · CUSTODIO_CE · CUSTODIO_INFRA · ADMINISTRADOR_SISTEMA |
 | `gestor` | CENTRO_ESTUDIANTES · INFRAESTRUCTURA |
 | `tipo_recurso` | LIBRO · DEPORTIVO · ACADEMICO |
 | `estado_recurso` | DISPONIBLE · RESERVADO · PRESTADO · MANTENIMIENTO |
@@ -202,7 +202,7 @@ CREATE TABLE solicitud (
   tipo             tipo_solicitud NOT NULL,
   estado           estado_solicitud NOT NULL DEFAULT 'SOLICITADA',
   avalado_por_id     INTEGER REFERENCES usuario(id),   -- docente (POR_CURSO/EXCEPCIONAL)
-  autorizado_por_id  INTEGER REFERENCES usuario(id),   -- dirección (solo EXCEPCIONAL)
+  autorizado_por_id  INTEGER REFERENCES usuario(id),   -- administrador del sistema (solo EXCEPCIONAL)
   aceptado_por_id    INTEGER REFERENCES usuario(id),   -- custodio (CE o Infra, según gestor del recurso)
   motivo_rechazo     TEXT
 );
@@ -381,11 +381,11 @@ de esquema e integración posterior. El bloqueo por sanciones queda pendiente de
 |---|---|---|---|
 | POST | `/api/solicitudes` | autenticado (sin sanción) | Crear solicitud (SIMPLE, POR_CURSO o EXCEPCIONAL) |
 | GET | `/api/solicitudes?mias=true` | autenticado | Mis solicitudes |
-| GET | `/api/solicitudes?pendientes=true` | DOCENTE / DIRECCION_ESCUELA / custodios | Bandeja de lo que el rol puede resolver ahora |
+| GET | `/api/solicitudes?pendientes=true` | DOCENTE / ADMINISTRADOR_SISTEMA / custodios | Bandeja de lo que el rol puede resolver ahora |
 | POST | `/api/solicitudes/{id}/avalar` | DOCENTE | Avalar (solo POR_CURSO/EXCEPCIONAL) |
-| POST | `/api/solicitudes/{id}/autorizar` | DIRECCION_ESCUELA | Autorizar (solo EXCEPCIONAL) |
+| POST | `/api/solicitudes/{id}/autorizar` | ADMINISTRADOR_SISTEMA | Autorizar (solo EXCEPCIONAL) |
 | POST | `/api/solicitudes/{id}/aceptar` | CUSTODIO_CE / CUSTODIO_INFRA (según `gestor` del recurso) | Acepta y crea el préstamo (llama internamente a `POST /api/prestamos`) |
-| POST | `/api/solicitudes/{id}/rechazar` | quien tenga el paso pendiente (docente, dirección o custodio) | Rechaza |
+| POST | `/api/solicitudes/{id}/rechazar` | quien tenga el paso pendiente (docente, administrador del sistema o custodio) | Rechaza |
 
 ### 4.6 Notificaciones (RF3/RF4)
 | Método | Ruta | Rol | Descripción |
@@ -403,9 +403,9 @@ de esquema e integración posterior. El bloqueo por sanciones queda pendiente de
 ### 4.8 Historial y reportes (RF6)
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
-| GET | `/api/historial?usuario_id=` | autenticado (propio) / dirección | Historial de préstamos |
-| GET | `/api/reportes/inventario` | DIRECCION_ESCUELA | Reporte de inventario |
-| GET | `/api/reportes/prestamos` | DIRECCION_ESCUELA | Reporte de préstamos |
+| GET | `/api/historial?usuario_id=` | autenticado (propio) / administrador del sistema | Historial de préstamos |
+| GET | `/api/reportes/inventario` | ADMINISTRADOR_SISTEMA | Reporte de inventario |
+| GET | `/api/reportes/prestamos` | ADMINISTRADOR_SISTEMA | Reporte de préstamos |
 
 ---
 
@@ -438,23 +438,23 @@ de esquema e integración posterior. El bloqueo por sanciones queda pendiente de
 ## 6. Diseño de interfaz (UI)
 
 ### 6.1 Pantallas por rol
-| Pantalla | Estudiante | Custodio CE | Custodio Infra | Docente | Dirección | Admin |
-|---|:--:|:--:|:--:|:--:|:--:|:--:|
-| Login | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Catálogo / disponibilidad | ✅ | ✅ | ✅ | ✅ | ✅ | — |
-| Alta/edición de recurso | — | ✅ | ✅ | — | — | — |
-| Reservar / mis reservas | ✅ | — | — | ✅ | — | — |
-| Solicitar préstamo (SIMPLE/POR_CURSO/EXCEPCIONAL) | ✅ | — | — | ✅ | — | — |
-| Bandeja de solicitudes a aceptar/rechazar | — | ✅ | ✅ | — | — | — |
-| Bandeja aval / autorización | — | — | — | ✅ | ✅ | — |
-| Registrar devolución | — | ✅ | ✅ | — | — | — |
-| Mis préstamos (plazo) | ✅ | ✅ | ✅ | ✅ | — | — |
-| Notificaciones | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Mis sanciones | ✅ | ✅ | ✅ | ✅ | — | — |
-| Registrar sanción | — | ✅ | ✅ | — | — | — |
-| Historial | ✅ | — | — | ✅ | ✅ | — |
-| Reportes | — | — | — | — | ✅ | — |
-| Gestión de usuarios/roles | — | — | — | — | — | ✅ |
+| Pantalla | Estudiante | Custodio CE | Custodio Infra | Docente | Admin |
+|---|:--:|:--:|:--:|:--:|:--:|
+| Login | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Catálogo / disponibilidad | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Alta/edición de recurso | — | ✅ | ✅ | — | — |
+| Reservar / mis reservas | ✅ | — | — | ✅ | — |
+| Solicitar préstamo (SIMPLE/POR_CURSO/EXCEPCIONAL) | ✅ | — | — | ✅ | — |
+| Bandeja de solicitudes a aceptar/rechazar | — | ✅ | ✅ | — | — |
+| Bandeja aval / autorización | — | — | — | ✅ | ✅ |
+| Registrar devolución | — | ✅ | ✅ | — | — |
+| Mis préstamos (plazo) | ✅ | ✅ | ✅ | ✅ | — |
+| Notificaciones | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Mis sanciones | ✅ | ✅ | ✅ | ✅ | — |
+| Registrar sanción | — | ✅ | ✅ | — | — |
+| Historial | ✅ | — | — | ✅ | ✅ |
+| Reportes | — | — | — | — | ✅ |
+| Gestión de usuarios/roles | — | — | — | — | ✅ |
 
 ### 6.2 Principios de UI
 - **Móvil primero** (RNF2): layout de una columna en móvil, grid en escritorio (Bootstrap).

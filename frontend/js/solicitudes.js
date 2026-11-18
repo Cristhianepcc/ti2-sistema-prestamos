@@ -18,7 +18,7 @@ function accionDisponible(s) {
   if (
     s.estado === "AVALADA" &&
     s.tipo_solicitud === "EXCEPCIONAL" &&
-    hasRole("DIRECCION_ESCUELA")
+    hasRole("ADMINISTRADOR_SISTEMA")
   ) {
     return ["autorizar", "Autorizar"];
   }

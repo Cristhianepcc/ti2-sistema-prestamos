@@ -65,10 +65,10 @@ centralizando el inventario y reduciendo el tiempo de atención y la pérdida de
 | Dirección de la Escuela | Directo | Autoridad máxima; atiende pedidos excepcionales; autoriza administradores. |
 | Centro de Estudiantes (organización) | Afectado | Responsable global de libros y deportivos; control y rendición de cuentas. |
 
-### Roles del sistema (6 roles)
+### Roles del sistema (5 roles)
 
 `ESTUDIANTE` · `DOCENTE` · `CUSTODIO_CE` · `CUSTODIO_INFRA` ·
-`DIRECCION_ESCUELA` · `ADMINISTRADOR_SISTEMA`
+`ADMINISTRADOR_SISTEMA`
 
 - **Quién puede SOLICITAR:** cualquier rol; único requisito **no tener sanción activa**. Toda
   solicitud se pide **desde la plataforma**, sin importar el tipo de préstamo — ya no hay
@@ -78,8 +78,7 @@ centralizando el inventario y reduciendo el tiempo de atención y la pérdida de
     y registra la entrega al aceptar (ver §4).
   - `CUSTODIO_INFRA` → aprueba **POR_CURSO** y **EXCEPCIONAL** (custodio de Infraestructura, incluye a los laboratoristas).
   - `DOCENTE` → **avala** solicitudes POR_CURSO.
-  - `DIRECCION_ESCUELA` → **autoriza** solicitudes EXCEPCIONAL.
-  - `ADMINISTRADOR_SISTEMA` → rol **técnico**: gestiona cuentas y permisos; **no** aprueba préstamos (RF7).
+  - `ADMINISTRADOR_SISTEMA` → **autoriza** solicitudes EXCEPCIONAL, ve reportes y gestiona cuentas y permisos (RF7).
 - Un mismo usuario puede tener **varios roles** a la vez (p. ej. un laboratorista es `CUSTODIO_INFRA` y a la vez puede solicitar un préstamo para sí como cualquier otro).
 
 > **Cambio vs. borrador del diagrama:** se eliminó el rol `PERSONAL_ADMINISTRATIVO` (sin
@@ -153,7 +152,7 @@ dato independiente del tipo (un libro SIMPLE es RETIRO; un deportivo SIMPLE es E
 |---|---|---|
 | **SIMPLE** | El usuario **solicita** → `CUSTODIO_CE` **acepta o rechaza manualmente** (sin sanción + recurso disponible) | Al aceptar, el propio custodio **registra** la entrega. Solo libros/deportivos. |
 | **POR_CURSO** | El usuario **solicita** → `DOCENTE` avala → `CUSTODIO_INFRA` acepta y registra | Uso académico para un curso (normalmente EN_SITIO). |
-| **EXCEPCIONAL** | El usuario **solicita** → `DOCENTE` avala → `DIRECCION_ESCUELA` autoriza → `CUSTODIO_INFRA` acepta y registra | RETIRO_TEMPORAL fuera de la Escuela. |
+| **EXCEPCIONAL** | El usuario **solicita** → `DOCENTE` avala → `ADMINISTRADOR_SISTEMA` autoriza → `CUSTODIO_INFRA` acepta y registra | RETIRO_TEMPORAL fuera de la Escuela. |
 
 > **Cambio vs. versión previa:** SIMPLE ya **no** se aprueba automáticamente — ahora pasa por
 > la misma `Solicitud` que los demás tipos, con aceptación manual de `CUSTODIO_CE` (hallazgo #13).
@@ -201,7 +200,7 @@ dato independiente del tipo (un libro SIMPLE es RETIRO; un deportivo SIMPLE es E
 
 | Enum | Valores |
 |---|---|
-| **Rol** | ESTUDIANTE · DOCENTE · CUSTODIO_CE · CUSTODIO_INFRA · DIRECCION_ESCUELA · ADMINISTRADOR_SISTEMA |
+| **Rol** | ESTUDIANTE · DOCENTE · CUSTODIO_CE · CUSTODIO_INFRA · ADMINISTRADOR_SISTEMA |
 | **Gestor** | CENTRO_ESTUDIANTES · INFRAESTRUCTURA |
 | **EstadoRecurso** | DISPONIBLE · RESERVADO · PRESTADO · MANTENIMIENTO |
 | **EstadoReserva** | PENDIENTE · CONFIRMADA · CANCELADA · VENCIDA |
@@ -259,7 +258,7 @@ dato independiente del tipo (un libro SIMPLE es RETIRO; un deportivo SIMPLE es E
 ### Dentro del alcance ✅
 
 - Los **tres tipos de recurso** (libros, implementos deportivos, implementos académicos).
-- Los **6 roles** y sus flujos de solicitud/aprobación.
+- Los **5 roles** y sus flujos de solicitud/aprobación.
 - Los **3 tipos de préstamo** (SIMPLE / POR_CURSO / EXCEPCIONAL).
 - **Reservas con antelación (booking)** para los tres tipos de recurso, atendidas por **FIFO**.
 - **Deportivos**: los préstamos directos se piden y se devuelven el mismo día; también pueden reservarse con antelación. El plazo del préstamo vence al final del día.

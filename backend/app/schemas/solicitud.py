@@ -80,6 +80,9 @@ class AceptarSolicitud(BaseModel):
     reserva_id: int | None = None
     fecha_limite: datetime | None = None
     condicion_entrega: str | None = None
+    # Aceptado por la API, pero frontend/js/solicitudes.js (pantalla de
+    # "Aceptar" del custodio) todavía no tiene el campo para capturarla —
+    # ver TODO(RF3) ahí. Hoy nunca llega poblado desde la UI real.
     garantia: GarantiaCreate | None = None
 
 

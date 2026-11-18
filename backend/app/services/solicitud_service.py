@@ -289,8 +289,13 @@ def aceptar_solicitud(
     fecha_limite: datetime | None = None,
     condicion_entrega: str | None = None,
     garantia: dict | None = None,
+    ahora: datetime | None = None,
 ) -> Solicitud:
-    """Acepta la solicitud y crea préstamo + notificación en una transacción."""
+    """Acepta la solicitud y crea préstamo + notificación en una transacción.
+
+    `ahora` se reenvía a `crear_prestamo` (parámetro de prueba, igual que ahí);
+    por defecto es la hora real.
+    """
     solicitud = _obtener_solicitud(db, solicitud_id)
     custodio = _obtener_actor(db, custodio_id)
     rol_custodio = _rol_custodio(solicitud)
@@ -336,6 +341,7 @@ def aceptar_solicitud(
             condicion_entrega=condicion_entrega,
             garantia=garantia,
             commit=False,
+            ahora=ahora,
         )
         prestamo.solicitud = solicitud
         solicitud.estado = EstadoSolicitud.ACEPTADA

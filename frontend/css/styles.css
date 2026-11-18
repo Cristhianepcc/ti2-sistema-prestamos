@@ -1170,3 +1170,176 @@ td .sub {
 .fila-doble .field {
   flex: 1;
 }
+
+/* ---- reportes: kpis y gráficos ---- */
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 26px;
+}
+
+.kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--linea);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  background: var(--fondo);
+}
+
+.kpi-icono {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--fondo-suave);
+  color: var(--azul);
+}
+
+.kpi-icono.danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.kpi-card .n {
+  font-family: var(--f-titulos);
+  font-weight: 800;
+  font-size: 28px;
+  color: var(--tinta);
+  line-height: 1.1;
+}
+
+.kpi-card .l {
+  font-size: 12px;
+  color: var(--tinta-suave);
+  font-weight: 600;
+}
+
+.chart-donut {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.chart-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--tinta-suave);
+}
+
+.chart-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chart-legend b {
+  margin-left: auto;
+  color: var(--tinta);
+  font-weight: 700;
+}
+
+.chart-legend-inline {
+  flex-direction: row;
+  gap: 18px;
+  margin-bottom: 8px;
+}
+
+.chart-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  display: inline-block;
+  flex: none;
+}
+
+.chart-linea {
+  min-width: 0;
+}
+
+.chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.chart-grid {
+  stroke: var(--linea);
+  stroke-width: 1;
+}
+
+.chart-eje {
+  font-size: 10px;
+  fill: var(--tinta-suave);
+  font-family: var(--f-texto);
+}
+
+.chart-barras {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chart-barra-fila {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) 2fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.chart-barra-etiqueta {
+  min-width: 0;
+}
+
+.chart-barra-etiqueta .t {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tinta);
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-barra-etiqueta .s {
+  display: block;
+  font-size: 11px;
+  color: var(--tinta-suave);
+}
+
+.chart-barra-pista {
+  background: var(--fondo-suave);
+  border-radius: var(--radius-full);
+  height: 10px;
+  overflow: hidden;
+}
+
+.chart-barra-valor {
+  height: 100%;
+  border-radius: var(--radius-full);
+}
+
+.chart-barra-total {
+  font-size: 13px;
+  color: var(--tinta);
+  min-width: 24px;
+  text-align: right;
+}
+
+@media (max-width: 760px) {
+  .chart-barra-fila {
+    grid-template-columns: minmax(70px, 1fr) 1.4fr auto;
+  }
+}

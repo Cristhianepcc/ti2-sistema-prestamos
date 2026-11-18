@@ -118,10 +118,26 @@ class ReportePrestamos(BaseModel):
     por_tipo: dict[TipoPrestamo, int]
     por_modalidad: dict[ModalidadUso, int]
     mas_prestados: list[RecursoMasPrestado]
+    distribucion_roles: dict[str, int]
     garantias: GarantiasResumen
     atrasados: AtrasadosResumen
 
 
 class ReporteResumen(BaseModel):
+    total_usuarios: int
+    total_recursos: int
+    total_prestamos: int
     prestamos_activos: int
     prestamos_atrasados: int
+
+
+class PuntoEvolucion(BaseModel):
+    fecha: date
+    prestamos: int
+    devoluciones: int
+
+
+class EvolucionPrestamos(BaseModel):
+    granularidad: str
+    periodo: PeriodoReporte
+    puntos: list[PuntoEvolucion]

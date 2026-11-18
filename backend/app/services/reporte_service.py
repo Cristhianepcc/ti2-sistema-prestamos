@@ -4,11 +4,12 @@ Ver docs/plan-reportes-rf6.md. Todo se calcula en cada petición con `GROUP BY`
 en la base de datos (RNF3): no se carga la tabla completa a Python para
 contar. No se persiste nada nuevo; no hay tabla `reporte`.
 """
+from collections import defaultdict
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from typing import Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from ..models.enums import (
@@ -73,6 +74,39 @@ def _contar_enum(db: Session, columna, enum_cls, filtros: Sequence) -> dict:
     for valor, total in filas:
         conteo[valor] = total
     return conteo
+
+
+def _validar_rango(desde: date | None, hasta: date | None, *, hoy: date) -> None:
+    """Regla de rango compartida por `reporte_prestamos` y `evolucion_prestamos`."""
+    if desde is not None and hasta is not None and desde > hasta:
+        raise RangoInvalido("`desde` no puede ser posterior a `hasta`")
+    if (desde is not None and desde > hoy) or (hasta is not None and hasta > hoy):
+        raise RangoInvalido("El rango no puede ser una fecha futura")
+
+
+# Prioridad para elegir el rol "dominante" de un prestatario con varios roles,
+# así un préstamo nunca se cuenta dos veces en `distribucion_roles` (sección
+# "Demanda de recursos" del rediseño de Reportes): gana el rol menos común.
+_PRIORIDAD_ROL_DOMINANTE = [
+    Rol.ADMINISTRADOR_SISTEMA,
+    Rol.CUSTODIO_CE,
+    Rol.CUSTODIO_INFRA,
+    Rol.DOCENTE,
+    Rol.ESTUDIANTE,
+]
+
+
+def _rol_dominante(roles: set[Rol]) -> Rol:
+    for rol in _PRIORIDAD_ROL_DOMINANTE:
+        if rol in roles:
+            return rol
+    return Rol.ESTUDIANTE
+
+
+def _categoria_distribucion(rol: Rol) -> str:
+    if rol in (Rol.CUSTODIO_CE, Rol.CUSTODIO_INFRA):
+        return "CUSTODIO"
+    return rol.value
 
 
 def listar_historial(
@@ -174,13 +208,8 @@ def reporte_prestamos(
     limite_atrasados: int = 50,
 ) -> dict:
     """Totales de préstamos en `[desde, hasta]`, más la foto actual de atrasados."""
-    if desde is not None and hasta is not None and desde > hasta:
-        raise RangoInvalido("`desde` no puede ser posterior a `hasta`")
-
     ahora = _ahora()
-    hoy = ahora.date()
-    if (desde is not None and desde > hoy) or (hasta is not None and hasta > hoy):
-        raise RangoInvalido("El rango no puede ser una fecha futura")
+    _validar_rango(desde, hasta, hoy=ahora.date())
 
     filtros_rango = []
     if desde is not None:
@@ -223,6 +252,20 @@ def reporte_prestamos(
         ).all()
     ]
 
+    roles_por_prestamo: dict[int, set[Rol]] = defaultdict(set)
+    for prestamo_id, rol in db.execute(
+        select(Prestamo.id, UsuarioRol.rol)
+        .join(UsuarioRol, UsuarioRol.usuario_id == Prestamo.prestatario_id)
+        .where(*filtros_rango)
+    ).all():
+        roles_por_prestamo[prestamo_id].add(rol)
+    distribucion_roles = {"ESTUDIANTE": 0, "DOCENTE": 0, "CUSTODIO": 0, "ADMINISTRADOR_SISTEMA": 0}
+    for roles in roles_por_prestamo.values():
+        distribucion_roles[_categoria_distribucion(_rol_dominante(roles))] += 1
+
+    # Cuenta lo que haya en la tabla `garantia`, pero hoy nada la llena en uso
+    # real: la pantalla de "Aceptar" del custodio no tiene campo de garantía
+    # (ver TODO en frontend/js/solicitudes.js). Sin seeds de ejemplo, esto da 0.
     retenidas, valor_retenido = db.execute(
         select(func.count(Garantia.id), func.sum(Garantia.valor))
         .join(Prestamo, Prestamo.id == Garantia.prestamo_id)
@@ -267,6 +310,7 @@ def reporte_prestamos(
         "por_tipo": por_tipo,
         "por_modalidad": por_modalidad,
         "mas_prestados": mas_prestados,
+        "distribucion_roles": distribucion_roles,
         "garantias": {
             "retenidas": retenidas or 0,
             "valor_retenido": valor_retenido if valor_retenido is not None else Decimal("0.00"),
@@ -276,8 +320,12 @@ def reporte_prestamos(
 
 
 def reporte_resumen(db: Session) -> dict:
-    """Resumen liviano para la tarjeta de Inicio del administrador."""
+    """Resumen liviano para la tarjeta de Inicio del administrador y los 4 KPIs
+    de "Resumen general" en Reportes (una sola llamada para los cuatro)."""
     ahora = _ahora()
+    total_usuarios = db.scalar(select(func.count()).select_from(Usuario)) or 0
+    total_recursos = db.scalar(select(func.count()).select_from(Recurso)) or 0
+    total_prestamos = db.scalar(select(func.count()).select_from(Prestamo)) or 0
     prestamos_activos = (
         db.scalar(
             select(func.count())
@@ -290,4 +338,91 @@ def reporte_resumen(db: Session) -> dict:
         db.scalar(select(func.count()).select_from(Prestamo).where(_condicion_atrasado(ahora)))
         or 0
     )
-    return {"prestamos_activos": prestamos_activos, "prestamos_atrasados": prestamos_atrasados}
+    return {
+        "total_usuarios": total_usuarios,
+        "total_recursos": total_recursos,
+        "total_prestamos": total_prestamos,
+        "prestamos_activos": prestamos_activos,
+        "prestamos_atrasados": prestamos_atrasados,
+    }
+
+
+def evolucion_prestamos(db: Session, *, desde: date | None = None, hasta: date | None = None) -> dict:
+    """Serie temporal de préstamos entregados vs. devueltos, para el gráfico
+    de líneas de "Actividad de préstamos". Por defecto, últimos 30 días.
+
+    Bucketing en Python (no SQL) a propósito: las consultas de `reporte_service`
+    evitan funciones de fecha específicas de un motor (tests en SQLite,
+    producción en PostgreSQL). Solo se traen las 2 columnas de fecha que hacen
+    falta, no filas completas (RNF3).
+    """
+    ahora = _ahora()
+    hoy = ahora.date()
+    _validar_rango(desde, hasta, hoy=hoy)
+    if hasta is None:
+        hasta = hoy
+    if desde is None:
+        desde = hasta - timedelta(days=29)
+
+    inicio_rango = _inicio_del_dia(desde)
+    fin_rango = _inicio_del_dia(hasta + timedelta(days=1))
+    filas = db.execute(
+        select(Prestamo.fecha_entrega, Prestamo.fecha_devolucion).where(
+            or_(
+                (Prestamo.fecha_entrega >= inicio_rango) & (Prestamo.fecha_entrega < fin_rango),
+                (Prestamo.fecha_devolucion >= inicio_rango) & (Prestamo.fecha_devolucion < fin_rango),
+            )
+        )
+    ).all()
+
+    dias_en_rango = (hasta - desde).days + 1
+    granularidad = "dia" if dias_en_rango <= 62 else "mes"
+
+    def _bucket(fecha: datetime) -> date:
+        fecha = _en_utc(fecha).date()
+        return fecha if granularidad == "dia" else fecha.replace(day=1)
+
+    # Un préstamo puede aparecer en `filas` por su entrega, por su devolución,
+    # o por ambas (si las dos cayeron en el rango): cada serie se cuenta por
+    # separado y cada una revisa su propia fecha contra `[desde, hasta]`, así
+    # que una devolución tardía de un préstamo entregado antes del rango sí
+    # se grafica, y un préstamo entregado en el rango pero devuelto después no
+    # infla la serie de devoluciones.
+    prestamos_por_bucket: dict[date, int] = defaultdict(int)
+    devoluciones_por_bucket: dict[date, int] = defaultdict(int)
+    for fecha_entrega, fecha_devolucion in filas:
+        fecha_entrega_dia = _en_utc(fecha_entrega).date()
+        if desde <= fecha_entrega_dia <= hasta:
+            prestamos_por_bucket[_bucket(fecha_entrega)] += 1
+        if fecha_devolucion is not None:
+            fecha_devolucion_dia = _en_utc(fecha_devolucion).date()
+            if desde <= fecha_devolucion_dia <= hasta:
+                devoluciones_por_bucket[_bucket(fecha_devolucion)] += 1
+
+    buckets: list[date] = []
+    cursor = desde if granularidad == "dia" else desde.replace(day=1)
+    paso = timedelta(days=1)
+    limite = hasta if granularidad == "dia" else hasta.replace(day=1)
+    while cursor <= limite:
+        buckets.append(cursor)
+        if granularidad == "dia":
+            cursor += paso
+        else:
+            siguiente_mes = cursor.month % 12 + 1
+            siguiente_anio = cursor.year + (1 if cursor.month == 12 else 0)
+            cursor = cursor.replace(year=siguiente_anio, month=siguiente_mes)
+
+    puntos = [
+        {
+            "fecha": bucket,
+            "prestamos": prestamos_por_bucket.get(bucket, 0),
+            "devoluciones": devoluciones_por_bucket.get(bucket, 0),
+        }
+        for bucket in buckets
+    ]
+
+    return {
+        "granularidad": granularidad,
+        "periodo": {"desde": desde, "hasta": hasta},
+        "puntos": puntos,
+    }

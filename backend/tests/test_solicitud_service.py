@@ -16,6 +16,7 @@ from app.models import (
     TipoSolicitud,
     TipoRecurso,
 )
+from app.services.invariantes import ZONA_LIMA
 from app.services.prestamo_service import ConflictoPrestamo
 from app.services.solicitud_service import (
     ConflictoSolicitud,
@@ -28,6 +29,10 @@ from app.services.solicitud_service import (
     rechazar_solicitud,
 )
 from .helpers import crear_recurso, crear_usuario
+
+# Martes 10:00 Lima: dentro del horario de Centro de Estudiantes/Infraestructura,
+# para que aceptar_solicitud/crear_prestamo no dependan de la hora real.
+AHORA_LABORAL = datetime(2026, 6, 9, 10, 0, tzinfo=ZONA_LIMA)
 
 
 def actor(db, sufijo: str, rol: Rol):
@@ -63,6 +68,7 @@ def test_flujo_por_curso_aval_y_aceptacion_crea_prestamo_y_notificacion(db_sessi
         custodio_id=custodio.id,
         modalidad_uso=ModalidadUso.EN_SITIO,
         fecha_limite=datetime.now(timezone.utc) + timedelta(days=1),
+        ahora=AHORA_LABORAL,
     )
     prestamo = db_session.query(Prestamo).filter_by(solicitud_id=solicitud.id).one()
     notificacion = db_session.query(Notificacion).filter_by(solicitud_id=solicitud.id).one()
@@ -169,6 +175,7 @@ def test_no_se_puede_avalar_simple_ni_rechazar_una_aceptada(db_session):
         solicitud_id=simple.id,
         custodio_id=custodio.id,
         modalidad_uso=ModalidadUso.RETIRO_TEMPORAL,
+        ahora=AHORA_LABORAL,
     )
     with pytest.raises(ConflictoSolicitud, match="ya no puede rechazarse"):
         rechazar_solicitud(
@@ -195,6 +202,7 @@ def test_aceptacion_fallida_no_deja_solicitud_aceptada_ni_notificacion(db_sessio
             solicitud_id=solicitud.id,
             custodio_id=custodio.id,
             modalidad_uso=ModalidadUso.RETIRO_TEMPORAL,
+            ahora=AHORA_LABORAL,
         )
 
     db_session.refresh(solicitud)
@@ -241,6 +249,7 @@ def test_devolucion_perdida_saca_recurso_de_disponibilidad(db_session):
         registrado_por_id=custodio.id,
         tipo_prestamo=TipoPrestamo.SIMPLE,
         modalidad_uso=ModalidadUso.RETIRO_TEMPORAL,
+        ahora=AHORA_LABORAL,
     )
 
     registrar_devolucion(db_session, prestamo_id=prestamo.id, perdido=True)

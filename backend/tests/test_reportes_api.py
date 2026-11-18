@@ -12,6 +12,7 @@ from .helpers import crear_usuario
 ENDPOINTS = [
     "/api/reportes/inventario",
     "/api/reportes/prestamos",
+    "/api/reportes/prestamos/evolucion",
     "/api/reportes/resumen",
     "/api/reportes/usuarios",
 ]
@@ -92,6 +93,16 @@ def test_reporte_prestamos_hasta_futuro_recibe_422(db_session):
 
     respuesta = cliente(db_session, admin).get(
         "/api/reportes/prestamos", params={"hasta": "2099-01-01"}
+    )
+
+    assert respuesta.status_code == 422
+
+
+def test_evolucion_prestamos_hasta_futuro_recibe_422(db_session):
+    admin = crear_actor(db_session, "REP-422-EVOFUT", Rol.ADMINISTRADOR_SISTEMA)
+
+    respuesta = cliente(db_session, admin).get(
+        "/api/reportes/prestamos/evolucion", params={"hasta": "2099-01-01"}
     )
 
     assert respuesta.status_code == 422

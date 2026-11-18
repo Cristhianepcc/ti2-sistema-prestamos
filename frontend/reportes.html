@@ -13,7 +13,9 @@
 
         <div class="app-main">
             <h2 class="page-title">Reportes</h2>
-            <p class="hint">Vista de solo lectura del inventario y los préstamos del sistema (RF6).</p>
+            <p class="hint">Vista de solo lectura del sistema de préstamos (RF6).</p>
+
+            <div id="kpi-grid" class="kpi-grid"></div>
 
             <div class="block-title">Usuarios</div>
             <div id="usuarios-stats" class="stat-row"></div>
@@ -32,6 +34,7 @@
 
             <div class="block-title" style="margin-top:28px">Inventario</div>
             <div id="inventario-stats" class="stat-row"></div>
+            <div id="inventario-donut" style="margin-bottom:18px"></div>
             <div class="table-wrap">
                 <table>
                     <thead>
@@ -47,7 +50,13 @@
                 </table>
             </div>
 
-            <div class="block-title" style="margin-top:28px">Préstamos</div>
+            <div class="block-title" style="margin-top:28px">Actividad de préstamos</div>
+            <div class="filters" id="periodos-rapidos">
+                <button type="button" class="filter" data-periodo="7d">Últimos 7 días</button>
+                <button type="button" class="filter" data-periodo="30d">Últimos 30 días</button>
+                <button type="button" class="filter" data-periodo="semestre">Este semestre</button>
+                <button type="button" class="filter" data-periodo="anio">Este año</button>
+            </div>
             <div class="toolbar">
                 <label class="field">Desde
                     <input type="date" id="filtro-desde">
@@ -59,19 +68,22 @@
                 <button type="button" class="btn btn-ghost btn-sm" id="btn-limpiar-filtro">Limpiar</button>
             </div>
             <div id="prestamos-stats" class="stat-row"></div>
+            <div id="evolucion-chart"></div>
 
+            <div class="block-title" style="margin-top:28px">Demanda de recursos</div>
             <div class="two-col">
                 <div>
-                    <div class="block-title">Más prestados<span>en el periodo</span></div>
+                    <div class="block-title">Más solicitados<span>en el periodo</span></div>
                     <div id="mas-prestados"></div>
                 </div>
                 <div>
-                    <div class="block-title">Garantías retenidas</div>
-                    <div id="garantias"></div>
+                    <div class="block-title">Distribución por roles<span>en el periodo</span></div>
+                    <div id="distribucion-roles"></div>
                 </div>
             </div>
 
-            <div class="block-title" style="margin-top:22px">Préstamos atrasados<span>foto actual, no depende del periodo</span></div>
+            <div class="block-title" style="margin-top:28px">Incidencias y alertas</div>
+            <div class="block-title" style="margin-top:8px">Préstamos atrasados<span>foto actual, no depende del periodo</span></div>
             <div class="table-wrap">
                 <table>
                     <thead>
@@ -80,20 +92,23 @@
                             <th>Prestatario</th>
                             <th>Vence</th>
                             <th>Días de atraso</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody id="atrasados-tabla"></tbody>
                 </table>
             </div>
             <p class="hint" id="atrasados-nota"></p>
-            <p class="hint">¿Buscás el historial de préstamos de un usuario puntual? Mirá
-                <a href="historial.html">Historial</a> en el menú.</p>
+
+            <div class="block-title" style="margin-top:22px">Garantías retenidas</div>
+            <div id="garantias"></div>
         </div>
     </div>
 
     <script src="js/api.js"></script>
     <script src="js/render.js"></script>
     <script src="js/shell.js"></script>
+    <script src="js/charts.js"></script>
     <script src="js/reportes.js"></script>
 </body>
 </html>

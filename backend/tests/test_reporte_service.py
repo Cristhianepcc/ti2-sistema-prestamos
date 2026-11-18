@@ -18,6 +18,7 @@ from app.models import (
 from app.services.reporte_service import (
     RangoInvalido,
     UsuarioNoEncontrado,
+    evolucion_prestamos,
     listar_historial,
     reporte_inventario,
     reporte_prestamos,
@@ -135,6 +136,12 @@ def test_reporte_prestamos_vacio_devuelve_ceros(db_session):
     assert reporte["total_prestamos"] == 0
     assert reporte["por_estado"] == {e: 0 for e in EstadoPrestamo}
     assert reporte["mas_prestados"] == []
+    assert reporte["distribucion_roles"] == {
+        "ESTUDIANTE": 0,
+        "DOCENTE": 0,
+        "CUSTODIO": 0,
+        "ADMINISTRADOR_SISTEMA": 0,
+    }
     assert reporte["garantias"] == {"retenidas": 0, "valor_retenido": Decimal("0")}
     assert reporte["atrasados"] == {"total": 0, "items": []}
 
@@ -163,7 +170,8 @@ def test_activo_vencido_se_cuenta_como_atrasado_en_reporte_y_resumen(db_session)
     assert item["prestatario"]["codigo"] == prestatario.codigo
 
     resumen = reporte_resumen(db_session)
-    assert resumen == {"prestamos_activos": 1, "prestamos_atrasados": 1}
+    assert resumen["prestamos_activos"] == 1
+    assert resumen["prestamos_atrasados"] == 1
 
 
 def test_activo_sin_vencer_no_se_cuenta_como_atrasado(db_session):
@@ -185,7 +193,8 @@ def test_activo_sin_vencer_no_se_cuenta_como_atrasado(db_session):
     assert reporte["atrasados"]["total"] == 0
 
     resumen = reporte_resumen(db_session)
-    assert resumen == {"prestamos_activos": 1, "prestamos_atrasados": 0}
+    assert resumen["prestamos_activos"] == 1
+    assert resumen["prestamos_atrasados"] == 0
 
 
 # --- Filtro de rango ----------------------------------------------------------
@@ -305,6 +314,153 @@ def test_garantias_retenidas_solo_cuenta_no_devueltas_de_prestamos_no_devueltos(
     reporte = reporte_prestamos(db_session)
 
     assert reporte["garantias"] == {"retenidas": 1, "valor_retenido": Decimal("50.00")}
+
+
+# --- Distribución de préstamos por rol -----------------------------------------
+
+
+def test_distribucion_roles_no_cuenta_dos_veces_a_un_prestatario_multirol(db_session):
+    registrador = crear_usuario(db_session, "DR-REG")
+    recurso = crear_recurso(db_session, TipoRecurso.LIBRO, "DR-1")
+    docente_custodio = crear_usuario(db_session, "DR-MULTI")
+    docente_custodio.roles.extend([Rol.DOCENTE, Rol.CUSTODIO_CE])
+    db_session.commit()
+    _crear_prestamo(db_session, recurso=recurso, prestatario=docente_custodio, registrador=registrador)
+
+    reporte = reporte_prestamos(db_session)
+
+    # Gana el rol menos común: CUSTODIO_CE pesa más que DOCENTE.
+    assert reporte["distribucion_roles"]["CUSTODIO"] == 1
+    assert reporte["distribucion_roles"]["DOCENTE"] == 0
+    assert sum(reporte["distribucion_roles"].values()) == 1
+
+
+def test_distribucion_roles_funde_custodio_ce_e_infra(db_session):
+    registrador = crear_usuario(db_session, "DR-REG2")
+    recurso = crear_recurso(db_session, TipoRecurso.LIBRO, "DR-2")
+    custodio_ce = crear_usuario(db_session, "DR-CE")
+    custodio_ce.roles.append(Rol.CUSTODIO_CE)
+    custodio_infra = crear_usuario(db_session, "DR-INFRA")
+    custodio_infra.roles.append(Rol.CUSTODIO_INFRA)
+    db_session.commit()
+    _crear_prestamo(db_session, recurso=recurso, prestatario=custodio_ce, registrador=registrador)
+    _crear_prestamo(db_session, recurso=recurso, prestatario=custodio_infra, registrador=registrador)
+
+    reporte = reporte_prestamos(db_session)
+
+    assert reporte["distribucion_roles"]["CUSTODIO"] == 2
+
+
+def test_distribucion_roles_admin_gana_sobre_cualquier_otro_rol(db_session):
+    registrador = crear_usuario(db_session, "DR-REG3")
+    recurso = crear_recurso(db_session, TipoRecurso.LIBRO, "DR-3")
+    estudiante_admin = crear_usuario(db_session, "DR-ADM")
+    estudiante_admin.roles.extend([Rol.ESTUDIANTE, Rol.ADMINISTRADOR_SISTEMA])
+    db_session.commit()
+    _crear_prestamo(db_session, recurso=recurso, prestatario=estudiante_admin, registrador=registrador)
+
+    reporte = reporte_prestamos(db_session)
+
+    assert reporte["distribucion_roles"]["ADMINISTRADOR_SISTEMA"] == 1
+    assert reporte["distribucion_roles"]["ESTUDIANTE"] == 0
+
+
+# --- Resumen general ------------------------------------------------------------
+
+
+def test_reporte_resumen_cuenta_usuarios_recursos_y_prestamos(db_session):
+    prestatario = crear_usuario(db_session, "RES-USR")
+    registrador = crear_usuario(db_session, "RES-REG")
+    recurso = crear_recurso(db_session, TipoRecurso.LIBRO, "RES")
+    _crear_prestamo(db_session, recurso=recurso, prestatario=prestatario, registrador=registrador)
+
+    resumen = reporte_resumen(db_session)
+
+    assert resumen["total_usuarios"] == 2
+    assert resumen["total_recursos"] == 1
+    assert resumen["total_prestamos"] == 1
+
+
+# --- Evolución de préstamos ------------------------------------------------------
+
+
+def test_evolucion_vacio_devuelve_puntos_en_cero_ultimos_30_dias(db_session):
+    reporte = evolucion_prestamos(db_session)
+
+    assert reporte["granularidad"] == "dia"
+    assert len(reporte["puntos"]) == 30
+    assert all(p["prestamos"] == 0 and p["devoluciones"] == 0 for p in reporte["puntos"])
+
+
+def test_evolucion_agrupa_por_dia_en_un_rango_corto(db_session):
+    prestatario = crear_usuario(db_session, "EVO-USR")
+    registrador = crear_usuario(db_session, "EVO-REG")
+    recurso = crear_recurso(db_session, TipoRecurso.LIBRO, "EVO")
+    hoy = AHORA.date()
+    _crear_prestamo(
+        db_session,
+        recurso=recurso,
+        prestatario=prestatario,
+        registrador=registrador,
+        fecha_entrega=AHORA - timedelta(days=2),
+        estado=EstadoPrestamo.DEVUELTO,
+        fecha_devolucion=AHORA,
+    )
+
+    reporte = evolucion_prestamos(db_session, desde=hoy - timedelta(days=6), hasta=hoy)
+
+    assert reporte["granularidad"] == "dia"
+    por_fecha = {p["fecha"]: p for p in reporte["puntos"]}
+    assert por_fecha[(AHORA - timedelta(days=2)).date()]["prestamos"] == 1
+    assert por_fecha[hoy]["devoluciones"] == 1
+
+
+def test_evolucion_agrupa_por_mes_en_un_rango_largo(db_session):
+    prestatario = crear_usuario(db_session, "EVOM-USR")
+    registrador = crear_usuario(db_session, "EVOM-REG")
+    recurso = crear_recurso(db_session, TipoRecurso.LIBRO, "EVOM")
+    hoy = AHORA.date()
+    _crear_prestamo(
+        db_session, recurso=recurso, prestatario=prestatario, registrador=registrador, fecha_entrega=AHORA
+    )
+
+    reporte = evolucion_prestamos(db_session, desde=hoy - timedelta(days=120), hasta=hoy)
+
+    assert reporte["granularidad"] == "mes"
+    por_fecha = {p["fecha"]: p for p in reporte["puntos"]}
+    assert por_fecha[hoy.replace(day=1)]["prestamos"] == 1
+
+
+def test_evolucion_cuenta_devolucion_de_prestamo_entregado_antes_del_rango(db_session):
+    """Regresión: un préstamo entregado antes de `desde` pero devuelto dentro
+    del rango debe aparecer en la serie de devoluciones."""
+    prestatario = crear_usuario(db_session, "EVOD-USR")
+    registrador = crear_usuario(db_session, "EVOD-REG")
+    recurso = crear_recurso(db_session, TipoRecurso.LIBRO, "EVOD")
+    hoy = AHORA.date()
+    _crear_prestamo(
+        db_session,
+        recurso=recurso,
+        prestatario=prestatario,
+        registrador=registrador,
+        fecha_entrega=AHORA - timedelta(days=20),
+        estado=EstadoPrestamo.DEVUELTO,
+        fecha_devolucion=AHORA,
+    )
+
+    reporte = evolucion_prestamos(db_session, desde=hoy - timedelta(days=6), hasta=hoy)
+
+    por_fecha = {p["fecha"]: p for p in reporte["puntos"]}
+    assert por_fecha[hoy]["devoluciones"] == 1
+    assert sum(p["prestamos"] for p in reporte["puntos"]) == 0
+
+
+def test_evolucion_rango_invalido(db_session):
+    hoy = AHORA.date()
+    with pytest.raises(RangoInvalido):
+        evolucion_prestamos(db_session, desde=hoy, hasta=hoy - timedelta(days=1))
+    with pytest.raises(RangoInvalido):
+        evolucion_prestamos(db_session, hasta=hoy + timedelta(days=1))
 
 
 # --- Historial -----------------------------------------------------------------

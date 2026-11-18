@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models.enums import EstadoPrestamo, Rol
 from ..schemas.reporte import (
+    EvolucionPrestamos,
     HistorialResponse,
     ReporteInventario,
     ReportePrestamos,
@@ -19,6 +20,7 @@ from ..security import UsuarioActual, require_role
 from ..services.reporte_service import (
     RangoInvalido,
     UsuarioNoEncontrado,
+    evolucion_prestamos,
     listar_historial,
     reporte_inventario,
     reporte_prestamos,
@@ -77,6 +79,22 @@ def obtener_reporte_prestamos(
         return reporte_prestamos(
             db, desde=desde, hasta=hasta, top=top, limite_atrasados=limite_atrasados
         )
+    except RangoInvalido as e:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
+
+
+@router.get(
+    "/reportes/prestamos/evolucion",
+    response_model=EvolucionPrestamos,
+    dependencies=[Depends(require_role(Rol.ADMINISTRADOR_SISTEMA))],
+)
+def obtener_evolucion_prestamos(
+    db: Annotated[Session, Depends(get_db)],
+    desde: date | None = None,
+    hasta: date | None = None,
+) -> dict:
+    try:
+        return evolucion_prestamos(db, desde=desde, hasta=hasta)
     except RangoInvalido as e:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
 

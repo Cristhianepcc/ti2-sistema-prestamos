@@ -405,8 +405,10 @@ una reserva. Ver la limitación documentada en `01-sdd.md` §7.3.
 | Campo | Tipo | Obligatorio | Notas |
 |---|---|---|---|
 | `recurso_id` | int | Sí | ID del recurso que se quiere reservar |
-| `fecha` | string (`YYYY-MM-DD`) | Sí | Debe ser hoy o una fecha futura. Si es hoy, la hora inicial debe ser posterior a la hora local actual (America/Lima). |
-| `franja` | string | Sí | Intervalo de 24 horas con formato exacto `HH:MM-HH:MM`; la hora final debe ser posterior a la inicial. |
+| `fecha` | string (`YYYY-MM-DD`) | Sí | Debe ser hoy o una fecha futura, y **no puede ser sábado ni domingo** (ver abajo). Si es hoy, la hora inicial debe ser posterior a la hora local actual (America/Lima). |
+| `franja` | string | Sí | Intervalo de 24 horas con formato exacto `HH:MM-HH:MM`; la hora final debe ser posterior a la inicial, y **ambos extremos deben caer entre 8:00 y 19:00** (ver abajo). |
+
+**Horario de atención:** Centro de Estudiantes e Infraestructura no atienden sábados ni domingos, ni fuera de 8:00-19:00. Esto aplica tanto a `fecha`/`franja` acá como al momento real de entrega de un préstamo (Anexo RF3, `POST /api/prestamos` y `POST /api/solicitudes/{id}/aceptar`): si nadie está trabajando en ese instante, no se puede registrar la entrega. Por la misma razón, cuando el backend calcula `fecha_limite` automáticamente (sin que el custodio la envíe explícita), y el plazo por defecto cae sábado o domingo, se corre al lunes siguiente — un vencimiento no puede caer un día que nadie puede recibir la devolución.
 | `tipo` | enum `TipoPrestamo` | No (default `SIMPLE`) | `SIMPLE`, `POR_CURSO` o `EXCEPCIONAL`. Se valida contra el mismo invariante tipo↔recurso de `POST /api/prestamos` (Anexo RF3): `SIMPLE` solo en `LIBRO`/`DEPORTIVO`; `POR_CURSO`/`EXCEPCIONAL` solo en `ACADEMICO`. |
 
 El backend asigna `usuario_id`, `estado`, `prioridad` y `created_at`; no se envían en el request. La cola se atiende por FIFO (`created_at` ascendente; el ID desempata registros con la misma marca de tiempo). `prioridad` se conserva por compatibilidad con el esquema previo y vale `0`; no cambia el orden. `tipo` no se persiste en la fila de la reserva (la tabla `reserva` no tiene esa columna, ver `01-sdd.md` §3.3).
@@ -443,6 +445,7 @@ Devuelve un objeto `ReservaPublica`:
 | `409` | La fecha o la hora de inicio ya pasó, la hora final no supera la inicial o `tipo` no corresponde al recurso |
 | `409` | El recurso está en mantenimiento |
 | `409` | El mismo usuario ya tiene una reserva pendiente/confirmada para el mismo recurso, fecha y franja |
+| `409` | `fecha` cae en sábado/domingo, o `franja` queda fuera de 8:00-19:00 |
 | `422` | `fecha`, `franja` o `tipo` no cumplen el formato esperado |
 
 La comprobación de sanciones aún está pendiente de RF5: el servicio actual tiene ese punto como TODO y todavía no bloquea reservas por sanción activa.
@@ -782,6 +785,7 @@ El backend asigna `registrado_por_id`, `fecha_entrega` y `estado`; y `fecha_limi
 | `409` | El recurso no está `DISPONIBLE` |
 | `409` | `tipo_prestamo=SIMPLE` sobre un recurso `ACADEMICO`, o `POR_CURSO`/`EXCEPCIONAL` sobre uno que no lo es |
 | `409` | `tipo_prestamo=EXCEPCIONAL` con `modalidad_uso` distinta de `RETIRO_TEMPORAL` |
+| `409` | Se registra fuera del horario de atención: sábado/domingo, o fuera de 8:00-19:00 (hora de Lima) — ver Anexo de Reservas |
 
 ---
 
@@ -954,6 +958,7 @@ Requiere rol `ADMINISTRADOR_SISTEMA`.
   "mas_prestados": [
     { "recurso_id": 3, "codigo": "LIB-003", "nombre": "Clean Code", "total": 9 }
   ],
+  "distribucion_roles": { "ESTUDIANTE": 48, "DOCENTE": 6, "CUSTODIO": 2, "ADMINISTRADOR_SISTEMA": 1 },
   "garantias": { "retenidas": 4, "valor_retenido": "120.00" },
   "atrasados": {
     "total": 3,
@@ -979,26 +984,101 @@ Requiere rol `ADMINISTRADOR_SISTEMA`.
 - `atrasados.items` ordena por más días de atraso primero; `atrasados.total` es el total
   real aunque `items` esté recortado por `limite_atrasados`.
 - Expone datos personales mínimos del prestatario (id, código, nombres); no email ni roles.
+- `distribucion_roles` cuenta cada préstamo **una sola vez**, incluso si el prestatario tiene
+  varios roles: gana el rol menos común (`ADMINISTRADOR_SISTEMA > CUSTODIO (CE/Infra) > DOCENTE
+  > ESTUDIANTE`). `CUSTODIO_CE` y `CUSTODIO_INFRA` se funden en la clave `CUSTODIO`. Respeta el
+  rango `desde`/`hasta` igual que `por_estado`/`por_tipo`/`mas_prestados`.
 
 | Código | Cuándo |
 |---|---|
 | `401` | Falta el token o es inválido/expiró |
 | `403` | El usuario no es `ADMINISTRADOR_SISTEMA` |
-| `422` | `desde > hasta`, o alguna fecha/parámetro con formato inválido |
+| `422` | `desde > hasta`, alguna fecha es futura, o algún parámetro con formato inválido |
 
-### GET `/api/reportes/resumen` — Resumen para Inicio
+### GET `/api/reportes/prestamos/evolucion` — Evolución de préstamos y devoluciones
 
-Requiere rol `ADMINISTRADOR_SISTEMA`. Endpoint liviano para la tarjeta de Inicio del
-administrador (evita correr el reporte completo de préstamos solo por dos contadores).
+Requiere rol `ADMINISTRADOR_SISTEMA`. Serie temporal para el gráfico de líneas de
+"Actividad de préstamos" en Reportes.
+
+| Param | Tipo | Defecto | Efecto |
+|---|---|---|---|
+| `desde` | fecha `YYYY-MM-DD` | hoy − 29 días | Inicio del rango (inclusive) |
+| `hasta` | fecha `YYYY-MM-DD` | hoy | Fin del rango (inclusive) |
 
 #### Response `200`
 
 ```json
-{ "prestamos_activos": 8, "prestamos_atrasados": 3 }
+{
+  "granularidad": "dia",
+  "periodo": { "desde": "2026-10-19", "hasta": "2026-11-17" },
+  "puntos": [
+    { "fecha": "2026-10-19", "prestamos": 3, "devoluciones": 1 },
+    { "fecha": "2026-10-20", "prestamos": 0, "devoluciones": 2 }
+  ]
+}
+```
+
+- `granularidad`: `"dia"` si el rango pedido es de 62 días o menos; `"mes"` si es más largo
+  (cada punto es el primer día del mes). Evita series kilométricas en rangos de "este año".
+- `prestamos`: préstamos cuya `fecha_entrega` cae en ese bucket. `devoluciones`: préstamos cuya
+  `fecha_devolucion` cae en ese bucket — **independiente** de cuándo se entregaron (un préstamo
+  entregado antes de `desde` pero devuelto dentro del rango sí cuenta en `devoluciones`).
+- `puntos` siempre incluye todos los buckets del rango, aunque valgan `0` en ambas series.
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `403` | El usuario no es `ADMINISTRADOR_SISTEMA` |
+| `422` | `desde > hasta`, alguna fecha es futura, o algún parámetro con formato inválido |
+
+### GET `/api/reportes/resumen` — Resumen para Inicio y KPIs de Reportes
+
+Requiere rol `ADMINISTRADOR_SISTEMA`. Endpoint liviano: alimenta tanto la tarjeta de Inicio
+del administrador como los 4 indicadores de "Resumen general" en Reportes, en una sola
+llamada (evita pedir `/reportes/inventario` solo por el conteo de recursos).
+
+#### Response `200`
+
+```json
+{
+  "total_usuarios": 24,
+  "total_recursos": 42,
+  "total_prestamos": 57,
+  "prestamos_activos": 8,
+  "prestamos_atrasados": 3
+}
 ```
 
 `prestamos_activos` incluye a los atrasados (todo préstamo no devuelto); `prestamos_atrasados`
-es el subconjunto vencido.
+es el subconjunto vencido. `total_prestamos` es histórico, sin filtro de fecha.
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `403` | El usuario no es `ADMINISTRADOR_SISTEMA` |
+
+### GET `/api/reportes/usuarios` — Reporte de usuarios
+
+Requiere rol `ADMINISTRADOR_SISTEMA`. Sin parámetros: foto de las cuentas del sistema.
+
+#### Response `200`
+
+```json
+{
+  "total_usuarios": 24,
+  "por_rol": {
+    "ESTUDIANTE": 15,
+    "DOCENTE": 5,
+    "CUSTODIO_CE": 1,
+    "CUSTODIO_INFRA": 1,
+    "ADMINISTRADOR_SISTEMA": 2
+  },
+  "administradores": 2
+}
+```
+
+`por_rol` cuenta filas de `usuario_rol`, no usuarios: alguien con dos roles suma en ambos, así
+que la suma de `por_rol` puede superar `total_usuarios`.
 
 | Código | Cuándo |
 |---|---|

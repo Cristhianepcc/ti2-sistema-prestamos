@@ -14,7 +14,12 @@ from .helpers import crear_recurso, crear_usuario
 
 
 def fecha_futura_lima():
-    return datetime.now(timezone(timedelta(hours=-5))).date() + timedelta(days=1)
+    """Mañana en hora Lima, saltando sábado/domingo: la regla de horario
+    laboral (Centro de Estudiantes/Infraestructura) rechaza esos días."""
+    fecha = datetime.now(timezone(timedelta(hours=-5))).date() + timedelta(days=1)
+    while fecha.weekday() >= 5:
+        fecha += timedelta(days=1)
+    return fecha
 
 
 @pytest.mark.parametrize(
@@ -63,6 +68,32 @@ def test_rechaza_franjas_invalidas(franja):
     ahora = datetime(2026, 6, 10, 12, 0, tzinfo=timezone(timedelta(hours=-5)))
     with pytest.raises(ConflictoReserva):
         validar_fecha_franja(date(2026, 6, 11), franja, ahora=ahora)
+
+
+# --- Horario de atención (sábado/domingo, 8:00-19:00) -------------------------
+
+
+@pytest.mark.parametrize(
+    "fecha",
+    [date(2026, 6, 13), date(2026, 6, 14)],  # sábado, domingo
+)
+def test_rechaza_reservar_sabado_o_domingo(fecha):
+    ahora = datetime(2026, 6, 9, 12, 0, tzinfo=timezone(timedelta(hours=-5)))
+    with pytest.raises(ConflictoReserva, match="sábados ni domingos"):
+        validar_fecha_franja(fecha, "10:00-12:00", ahora=ahora)
+
+
+@pytest.mark.parametrize("franja", ["06:00-08:00", "07:30-09:00", "18:00-20:00", "19:00-20:00"])
+def test_rechaza_franja_fuera_de_8_a_19(franja):
+    ahora = datetime(2026, 6, 9, 6, 0, tzinfo=timezone(timedelta(hours=-5)))
+    with pytest.raises(ConflictoReserva, match="8:00 a 19:00"):
+        validar_fecha_franja(date(2026, 6, 10), franja, ahora=ahora)
+
+
+def test_permite_franja_justo_en_el_limite_de_8_a_19():
+    ahora = datetime(2026, 6, 9, 6, 0, tzinfo=timezone(timedelta(hours=-5)))
+    # No debe lanzar: 08:00 es la apertura, 19:00 el cierre, ambos inclusive.
+    validar_fecha_franja(date(2026, 6, 10), "08:00-19:00", ahora=ahora)
 
 
 def test_atiende_la_cola_en_orden_fifo_sin_prioridad_por_tipo(db_session):

@@ -13,6 +13,10 @@ document.getElementById("historial-subtitulo").textContent = esAdmin
   : "Lo que pediste, cuándo, y si lo devolviste a tiempo.";
 if (esAdmin) document.getElementById("campo-usuario-id").hidden = false;
 
+// Deep link desde Reportes > Incidencias ("Ver historial" de un atrasado):
+// ?usuario_id=X precarga la búsqueda en vez de mostrar el historial propio.
+const usuarioIdPrecargado = esAdmin ? new URLSearchParams(location.search).get("usuario_id") : null;
+
 // --- Fechas -------------------------------------------------------------------
 
 function parseFechaLocal(texto) {
@@ -40,6 +44,8 @@ const tabla = document.getElementById("historial-tabla");
 const paginacion = document.getElementById("historial-paginacion");
 const btnAnterior = document.getElementById("btn-historial-anterior");
 const btnSiguiente = document.getElementById("btn-historial-siguiente");
+
+if (usuarioIdPrecargado) campoUsuarioId.value = usuarioIdPrecargado;
 
 function mostrarMensaje(texto) {
   mensaje.className = "alert-danger";

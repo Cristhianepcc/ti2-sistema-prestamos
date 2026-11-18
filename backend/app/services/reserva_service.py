@@ -1,7 +1,7 @@
 ﻿"""Reglas de negocio de reservas (RF2, issue #25)."""
 
 import re
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, datetime, time
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -9,6 +9,12 @@ from sqlalchemy.orm import Session
 from ..models.enums import EstadoRecurso, EstadoReserva, TipoPrestamo, TipoRecurso
 from ..models.recurso import Recurso
 from ..models.reserva import Reserva
+from .invariantes import (
+    ZONA_LIMA,
+    FueraDeHorarioLaboral,
+    validar_dia_laboral,
+    validar_hora_laboral,
+)
 
 
 class ErrorReserva(Exception):
@@ -23,7 +29,6 @@ class ReservaNoEncontrada(ErrorReserva):
     """No se encontró el recurso indicado para la reserva."""
 
 
-_ZONA_LIMA = timezone(timedelta(hours=-5))
 _FORMATO_FRANJA = re.compile(
     r"(?P<inicio>(?:[01][0-9]|2[0-3]):[0-5][0-9])-"
     r"(?P<fin>(?:[01][0-9]|2[0-3]):[0-5][0-9])"
@@ -34,7 +39,7 @@ def validar_fecha_franja(
     fecha: date, franja: str, *, ahora: datetime | None = None
 ) -> str:
     """Valida una reserva futura y devuelve la franja normalizada."""
-    ahora = ahora or datetime.now(_ZONA_LIMA)
+    ahora = ahora or datetime.now(ZONA_LIMA)
     franja = franja.strip()
     coincidencia = _FORMATO_FRANJA.fullmatch(franja)
     if coincidencia is None:
@@ -50,6 +55,14 @@ def validar_fecha_franja(
         raise ConflictoReserva("No se puede reservar en una fecha pasada")
     if fecha == ahora.date() and inicio <= ahora.time().replace(tzinfo=None):
         raise ConflictoReserva("No se puede reservar una franja que ya comenzó")
+    # Centro de Estudiantes e Infraestructura no atienden fines de semana ni
+    # fuera de 8:00-19:00: no tiene sentido dejar reservar una franja que
+    # nadie va a poder confirmar ni entregar.
+    try:
+        validar_dia_laboral(fecha)
+        validar_hora_laboral(inicio, fin)
+    except FueraDeHorarioLaboral as e:
+        raise ConflictoReserva(str(e)) from e
     return franja
 
 

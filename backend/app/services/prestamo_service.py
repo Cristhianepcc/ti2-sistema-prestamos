@@ -18,7 +18,15 @@ from ..models.recurso import Recurso
 from ..models.reserva import Reserva
 from ..models.usuario import Usuario
 from ..models.enums import EstadoReserva
-from .invariantes import TipoRecursoIncompatible, validar_tipo_recurso
+from .invariantes import (
+    ZONA_LIMA,
+    FueraDeHorarioLaboral,
+    TipoRecursoIncompatible,
+    siguiente_dia_laboral,
+    validar_dia_laboral,
+    validar_hora_laboral,
+    validar_tipo_recurso,
+)
 
 
 class ErrorPrestamo(Exception):
@@ -55,7 +63,17 @@ def _calcular_fecha_limite(
         )
 
     plazo = _PLAZOS_POR_DEFECTO.get((tipo_recurso, tipo_prestamo), timedelta(days=7))
-    return fecha_entrega + plazo
+    limite = fecha_entrega + plazo
+    # Plazos cortos (1 o 3 días) pueden caer sábado/domingo aunque la entrega
+    # haya sido en horario laboral (ej. jueves + 3 días = domingo). Si eso
+    # pasa, se corre al lunes siguiente: no tendría sentido vencer un día que
+    # nadie trabaja y en el que el prestatario no puede devolver.
+    dia_corregido = siguiente_dia_laboral(limite.date())
+    if dia_corregido != limite.date():
+        limite = limite.replace(
+            year=dia_corregido.year, month=dia_corregido.month, day=dia_corregido.day
+        )
+    return limite
 
 
 def _validar_sancion_activa(db: Session, usuario_id: int) -> None:
@@ -82,10 +100,26 @@ def crear_prestamo(
     condicion_entrega: str | None = None,
     garantia: Mapping[str, Any] | None = None,
     commit: bool = True,
+    ahora: datetime | None = None,
 ) -> Prestamo:
-    """Registra un préstamo activo y marca el recurso como prestado."""
+    """Registra un préstamo activo y marca el recurso como prestado.
+
+    `ahora` es un parámetro de prueba (igual que en
+    `reserva_service.validar_fecha_franja`): por defecto es la hora real.
+    """
     if registrado_por_id == prestatario_id:
         raise ConflictoPrestamo("El registrador no puede ser el prestatario")
+
+    ahora = ahora or datetime.now(timezone.utc)
+    ahora_lima = ahora.astimezone(ZONA_LIMA)
+    # Centro de Estudiantes e Infraestructura no atienden fines de semana ni
+    # fuera de 8:00-19:00: un préstamo se entrega "ahora", así que si nadie
+    # está trabajando en este instante, no se puede registrar la entrega.
+    try:
+        validar_dia_laboral(ahora_lima.date())
+        validar_hora_laboral(ahora_lima.time())
+    except FueraDeHorarioLaboral as e:
+        raise ConflictoPrestamo(str(e)) from e
 
     recurso = db.get(Recurso, recurso_id)
     if recurso is None:
@@ -119,9 +153,7 @@ def crear_prestamo(
     _validar_sancion_activa(db, prestatario_id)
 
     if fecha_limite is None:
-        fecha_limite = _calcular_fecha_limite(
-            recurso.tipo_recurso, tipo_prestamo, datetime.now(timezone.utc)
-        )
+        fecha_limite = _calcular_fecha_limite(recurso.tipo_recurso, tipo_prestamo, ahora)
 
     datos_garantia = Garantia(**dict(garantia)) if garantia is not None else None
     prestamo = Prestamo(

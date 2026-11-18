@@ -75,6 +75,13 @@ async function resolver(solicitud, accion) {
       solicitud.recurso.tipo_recurso === "LIBRO"
         ? "RETIRO_TEMPORAL"
         : "EN_SITIO";
+    // TODO(RF3, docs/00 HF.3.1.1): "aceptar" es donde el custodio registra la
+    // entrega y, según el diseño, debería pedir la garantía (tipo + valor;
+    // ej. carnet/DNI) en ese momento. El backend ya la acepta como campo
+    // opcional (AceptarSolicitud.garantia en schemas/solicitud.py), pero esta
+    // pantalla nunca implementó el campo, así que en uso real nunca se crea
+    // ninguna garantía. El "garantías retenidas" que hoy aparece en Reportes
+    // viene solo de datos de ejemplo en seeds.py, no de este flujo.
     return api.post(ruta, { modalidad_uso: modalidad });
   }
   if (accion === "rechazar") {

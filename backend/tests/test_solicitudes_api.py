@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -6,7 +8,21 @@ from app.models import ModalidadUso, Rol, TipoRecurso
 from app.routers.notificacion import router as notificacion_router
 from app.routers.solicitud import router as solicitud_router
 from app.security import create_access_token
+from app.services import prestamo_service
+from app.services.invariantes import ZONA_LIMA
 from .helpers import crear_recurso, crear_usuario
+
+# Martes 10:00 Lima: dentro del horario de Centro de Estudiantes/Infraestructura.
+# La API no deja pasar un "ahora" de prueba (sería un hueco de seguridad), así
+# que para que "aceptar" no dependa de la hora real en que corre la suite, se
+# fija datetime.now() dentro de prestamo_service para la duración del test.
+AHORA_LABORAL = datetime(2026, 6, 9, 10, 0, tzinfo=ZONA_LIMA)
+
+
+class _DatetimeFijo(datetime):
+    @classmethod
+    def now(cls, tz=None):
+        return AHORA_LABORAL.astimezone(tz) if tz else AHORA_LABORAL
 
 
 def cliente(db_session, actor=None):
@@ -85,7 +101,8 @@ def test_bandeja_incluye_union_de_roles_y_orden_fifo(db_session):
     ]
 
 
-def test_aceptar_notifica_al_dueño_y_protege_patch_de_otro_usuario(db_session):
+def test_aceptar_notifica_al_dueño_y_protege_patch_de_otro_usuario(db_session, monkeypatch):
+    monkeypatch.setattr(prestamo_service, "datetime", _DatetimeFijo)
     solicitante = crear_actor(db_session, "API-ACEPTA-SOL")
     custodio = crear_actor(db_session, "API-ACEPTA-CUST", Rol.CUSTODIO_CE)
     ajeno = crear_actor(db_session, "API-ACEPTA-AJENO")

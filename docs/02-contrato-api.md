@@ -620,7 +620,7 @@ El objeto `SolicitudPublica` con `estado: "ACEPTADA"` y `prestamo_id` apuntando 
 
 ### POST `/api/solicitudes/{id}/rechazar` — Rechazo
 
-Requiere el rol que corresponde al paso **pendiente** de la solicitud (docente si está en `SOLICITADA` de un académico, dirección si está en `AVALADA` de un `EXCEPCIONAL`, o el custodio correspondiente en cualquier paso). Pasa a `RECHAZADA` y genera una `Notificacion` de tipo `SOLICITUD_RECHAZADA` para el solicitante.
+Requiere el rol que corresponde al paso **pendiente** de la solicitud (docente si está en `SOLICITADA` de un académico, administrador del sistema si está en `AVALADA` de un `EXCEPCIONAL`, o el custodio correspondiente en cualquier paso). Pasa a `RECHAZADA` y genera una `Notificacion` de tipo `SOLICITUD_RECHAZADA` para el solicitante.
 
 #### Request
 

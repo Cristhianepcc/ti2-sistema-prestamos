@@ -205,11 +205,11 @@ function panelDireccion(recursos, solicitudesPendientes) {
   );
 
   return panelRol({
-    titulo: "Inicio — Dirección de Escuela",
-    descripcion: "Autoriza solo las solicitudes EXCEPCIONAL ya avaladas por un docente. También es la única con vista de reportes de todo el sistema (RF6, próxima entrega).",
+    titulo: "Inicio — Administrador del sistema",
+    descripcion: "Autoriza solo las solicitudes EXCEPCIONAL ya avaladas por un docente. También es el único con vista de reportes de todo el sistema (RF6, próxima entrega).",
     stats: [
       // GET /prestamos?estado=ACTIVO es solo para custodios (403 para este
-      // rol) — un reporte "préstamos activos (sistema)" para Dirección
+      // rol) — un reporte "préstamos activos (sistema)" para el Administrador
       // necesita un endpoint propio de RF6, que todavía no existe.
       { n: "—", l: "Préstamos activos (sistema, RF6)" },
       { n: "—", l: "Sanciones activas (RF5)" },
@@ -240,7 +240,7 @@ function panelDocente(solicitudesPendientes) {
   );
   return panelRol({
     titulo: "Inicio — Docente",
-    descripcion: "Avala las solicitudes académicas de sus alumnos antes de que pasen a Dirección (RF4, próxima entrega). Para préstamos propios usa las mismas pantallas que cualquier usuario.",
+    descripcion: "Avala las solicitudes académicas de sus alumnos antes de que pasen a autorización del Administrador del sistema (RF4, próxima entrega). Para préstamos propios usa las mismas pantallas que cualquier usuario.",
     stats: [
       { n: porAvalar.length, l: "Solicitudes por avalar" },
       { n: "—", l: "Avales registrados este mes" },

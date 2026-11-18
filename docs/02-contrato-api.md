@@ -5,8 +5,8 @@
 > **sin esperar** a que el backend esté listo: basta con respetar estas formas.
 >
 > Alcance: autenticación, gestión de usuarios y roles, catálogo, reservas, préstamos,
-> solicitudes y notificaciones. Las respuestas de estos módulos son el contrato vigente
-> para el frontend.
+> solicitudes, notificaciones, historial y reportes. Las respuestas de estos módulos
+> son el contrato vigente para el frontend.
 >
 > Issues relacionados: #7 y #8 (backend), #10 y #11 (catálogo), #13 y #14 (login),
 > y #60 (gestión administrativa de usuarios y roles).
@@ -371,7 +371,10 @@ navegador aunque el endpoint funcione bien desde Swagger.
 ## 6. Pendiente de definir
 
 - Paginación de `GET /api/recursos`. Para el 30% el catálogo es chico y se devuelve
-  completo; cuando crezca habrá que decidir entre `?page/?size` o `?limit/?offset`.
+  completo. La convención ya quedó fijada en `GET /api/historial` (Anexo RF6):
+  `?limite/?offset` en español, igual que el resto de los query params de la API
+  (`mias`, `pendientes`, `estado`). Falta aplicarla a `/recursos` cuando el catálogo
+  crezca lo suficiente para justificarlo.
 - Orden por defecto de `GET /api/recursos` (hoy: sin orden garantizado; conviene fijar `codigo ASC`).
 - `POST /api/recursos` (alta, issue #8) — se documenta acá cuando se implemente.
 
@@ -833,3 +836,171 @@ Un array de `PrestamoPublico` (`[]` si no hay coincidencias).
 | `401` | Falta el token o es inválido/expiró |
 | `403` | Pide préstamos de otros usuarios (sin `mios=true`) sin ser custodio |
 | `422` | `estado` no es un valor válido del enum |
+
+---
+
+## Anexo RF6 — Historial y Reportes
+
+> Plan completo en `docs/plan-reportes-rf6.md`. Este anexo documenta solo el **nivel 1**
+> (lo mínimo que pide RF6); el nivel 2 (solicitudes, reservas, usuarios más activos) se
+> agrega aquí si se implementa.
+
+Todo `/api/reportes/*` requiere rol `ADMINISTRADOR_SISTEMA`. El historial lo ve el propio
+usuario, o el administrador por cualquier `usuario_id`.
+
+**Regla única de "atrasado"** (aplica a los 4 endpoints de este anexo): un préstamo está
+atrasado si `estado IN (ACTIVO, ATRASADO)` y `fecha_limite < ahora`. El estado `ATRASADO`
+guardado en BD no es fiable todavía porque nada invoca `marcar_prestamos_atrasados()`.
+
+### GET `/api/historial` — Historial de préstamos
+
+Requiere autenticación.
+
+| Param | Tipo | Defecto | Efecto |
+|---|---|---|---|
+| `usuario_id` | int | usuario autenticado | Ver reglas de acceso abajo |
+| `estado` | enum `EstadoPrestamo` | todos | Filtro opcional |
+| `limite` | int (1–100) | 20 | Tamaño de página |
+| `offset` | int (≥ 0) | 0 | Desplazamiento |
+
+Sin `usuario_id`, ve el propio historial. Con `usuario_id`, solo si es el propio o si el
+autenticado es `ADMINISTRADOR_SISTEMA`; cualquier otro caso es `403`.
+
+> **Convención de paginación:** primer endpoint de la API con paginación real — fija
+> `?limite/?offset` (ver nota de la Sección 6).
+
+#### Response `200`
+
+```json
+{
+  "total": 12,
+  "limite": 20,
+  "offset": 0,
+  "items": [
+    {
+      "prestamo_id": 31,
+      "recurso": { "id": 3, "codigo": "LIB-003", "nombre": "Clean Code", "tipo_recurso": "LIBRO" },
+      "tipo_prestamo": "SIMPLE",
+      "modalidad_uso": "RETIRO_TEMPORAL",
+      "estado": "DEVUELTO",
+      "fecha_entrega": "2026-10-02T15:10:00Z",
+      "fecha_limite": "2026-10-09T15:10:00Z",
+      "fecha_devolucion": "2026-10-08T11:00:00Z",
+      "dias_atraso": 0
+    }
+  ]
+}
+```
+
+`dias_atraso`: si ya se devolvió, días entre `fecha_limite` y `fecha_devolucion` (`0` si fue
+a tiempo); si sigue sin devolverse, días entre `fecha_limite` y ahora (`0` si no venció).
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `403` | `usuario_id` es de otro usuario y el autenticado no es `ADMINISTRADOR_SISTEMA` |
+| `404` | `usuario_id` no existe |
+| `422` | `estado`, `limite` u `offset` inválidos o fuera de rango |
+
+### GET `/api/reportes/inventario` — Reporte de inventario
+
+Requiere rol `ADMINISTRADOR_SISTEMA`. Sin parámetros: es una foto del inventario al momento
+de la consulta.
+
+#### Response `200`
+
+```json
+{
+  "total_recursos": 42,
+  "por_tipo": { "LIBRO": 25, "DEPORTIVO": 10, "ACADEMICO": 7 },
+  "por_estado": { "DISPONIBLE": 30, "RESERVADO": 2, "PRESTADO": 8, "MANTENIMIENTO": 2 },
+  "por_gestor": { "CENTRO_ESTUDIANTES": 35, "INFRAESTRUCTURA": 7 },
+  "tipo_por_estado": {
+    "LIBRO": { "DISPONIBLE": 18, "RESERVADO": 1, "PRESTADO": 5, "MANTENIMIENTO": 1 },
+    "DEPORTIVO": { "DISPONIBLE": 8, "RESERVADO": 1, "PRESTADO": 1, "MANTENIMIENTO": 0 },
+    "ACADEMICO": { "DISPONIBLE": 4, "RESERVADO": 0, "PRESTADO": 2, "MANTENIMIENTO": 1 }
+  }
+}
+```
+
+Todas las claves de los enums aparecen siempre, aunque valgan `0`. `MANTENIMIENTO` incluye
+los recursos retirados por daño o pérdida; no distingue el motivo (RF5 pendiente).
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `403` | El usuario no es `ADMINISTRADOR_SISTEMA` |
+
+### GET `/api/reportes/prestamos` — Reporte de préstamos
+
+Requiere rol `ADMINISTRADOR_SISTEMA`.
+
+| Param | Tipo | Defecto | Efecto |
+|---|---|---|---|
+| `desde` | fecha `YYYY-MM-DD` | sin límite | `fecha_entrega >= desde` |
+| `hasta` | fecha `YYYY-MM-DD` | sin límite | `fecha_entrega <= hasta`, incluyendo todo ese día |
+| `top` | int (1–20) | 5 | Tamaño de "más prestados" |
+| `limite_atrasados` | int (1–200) | 50 | Tope de filas en la lista de atrasados |
+
+#### Response `200`
+
+```json
+{
+  "periodo": { "desde": "2026-09-01", "hasta": "2026-11-17" },
+  "total_prestamos": 57,
+  "por_estado": { "ACTIVO": 8, "ATRASADO": 3, "DEVUELTO": 46 },
+  "por_tipo": { "SIMPLE": 40, "POR_CURSO": 14, "EXCEPCIONAL": 3 },
+  "por_modalidad": { "EN_SITIO": 22, "RETIRO_TEMPORAL": 35 },
+  "mas_prestados": [
+    { "recurso_id": 3, "codigo": "LIB-003", "nombre": "Clean Code", "total": 9 }
+  ],
+  "garantias": { "retenidas": 4, "valor_retenido": "120.00" },
+  "atrasados": {
+    "total": 3,
+    "items": [
+      {
+        "prestamo_id": 12,
+        "recurso": { "id": 7, "codigo": "ACA-002", "nombre": "Osciloscopio" },
+        "prestatario": { "id": 5, "codigo": "20230001", "nombres": "Ana Pérez" },
+        "fecha_limite": "2026-11-10T18:00:00Z",
+        "dias_atraso": 7
+      }
+    ]
+  }
+}
+```
+
+- `por_estado`, `por_tipo`, `por_modalidad`, `mas_prestados` y `garantias` respetan el rango
+  `desde`/`hasta`. `atrasados` es una **foto actual** y lo ignora: un préstamo vencido sigue
+  siendo un problema aunque se haya entregado fuera del periodo.
+- `garantias.retenidas`: garantías con `devuelta=false` de préstamos aún no devueltos;
+  `valor_retenido` es la suma de su `valor` (cadena decimal, igual que en `GarantiaPublica`).
+- Sin rango, `periodo` devuelve `null` en ambos campos.
+- `atrasados.items` ordena por más días de atraso primero; `atrasados.total` es el total
+  real aunque `items` esté recortado por `limite_atrasados`.
+- Expone datos personales mínimos del prestatario (id, código, nombres); no email ni roles.
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `403` | El usuario no es `ADMINISTRADOR_SISTEMA` |
+| `422` | `desde > hasta`, o alguna fecha/parámetro con formato inválido |
+
+### GET `/api/reportes/resumen` — Resumen para Inicio
+
+Requiere rol `ADMINISTRADOR_SISTEMA`. Endpoint liviano para la tarjeta de Inicio del
+administrador (evita correr el reporte completo de préstamos solo por dos contadores).
+
+#### Response `200`
+
+```json
+{ "prestamos_activos": 8, "prestamos_atrasados": 3 }
+```
+
+`prestamos_activos` incluye a los atrasados (todo préstamo no devuelto); `prestamos_atrasados`
+es el subconjunto vencido.
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `403` | El usuario no es `ADMINISTRADOR_SISTEMA` |

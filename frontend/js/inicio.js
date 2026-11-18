@@ -322,7 +322,7 @@ async function cargarInicio() {
     "CUSTODIO_CE",
     "CUSTODIO_INFRA",
     "DOCENTE",
-    "DIRECCION_ESCUELA"
+    "ADMINISTRADOR_SISTEMA"
   );
   const solicitudesPendientes = tieneRolAprobador
     ? await api.get("/solicitudes?pendientes=true").catch(() => [])
@@ -343,7 +343,7 @@ async function cargarInicio() {
     paneles.push(panelCustodio("CUSTODIO_CE", prestamosActivos, solicitudesPendientes));
   if (hasRole("CUSTODIO_INFRA"))
     paneles.push(panelCustodio("CUSTODIO_INFRA", prestamosActivos, solicitudesPendientes));
-  if (hasRole("DIRECCION_ESCUELA"))
+  if (hasRole("ADMINISTRADOR_SISTEMA"))
     paneles.push(panelDireccion(recursos, solicitudesPendientes));
   if (hasRole("DOCENTE")) paneles.push(panelDocente(solicitudesPendientes));
   if (hasRole("ADMINISTRADOR_SISTEMA")) paneles.push(await panelAdministrador());

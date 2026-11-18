@@ -81,7 +81,7 @@ def test_flujo_por_curso_aval_y_aceptacion_crea_prestamo_y_notificacion(db_sessi
 def test_flujo_excepcional_requiere_docente_y_direccion(db_session):
     solicitante = crear_usuario(db_session, "SOL-EXC")
     docente = actor(db_session, "DOC-EXC", Rol.DOCENTE)
-    direccion = actor(db_session, "DIR-EXC", Rol.DIRECCION_ESCUELA)
+    direccion = actor(db_session, "DIR-EXC", Rol.ADMINISTRADOR_SISTEMA)
     custodio = actor(db_session, "INF-EXC", Rol.CUSTODIO_INFRA)
     recurso = crear_recurso(db_session, TipoRecurso.ACADEMICO, "EXC")
     solicitud = crear_solicitud(
@@ -100,7 +100,7 @@ def test_flujo_excepcional_requiere_docente_y_direccion(db_session):
             modalidad_uso=ModalidadUso.RETIRO_TEMPORAL,
         )
     avalar_solicitud(db_session, solicitud_id=solicitud.id, docente_id=docente.id)
-    assert paso_pendiente(solicitud) == Rol.DIRECCION_ESCUELA
+    assert paso_pendiente(solicitud) == Rol.ADMINISTRADOR_SISTEMA
     autorizar_solicitud(
         db_session, solicitud_id=solicitud.id, direccion_id=direccion.id
     )

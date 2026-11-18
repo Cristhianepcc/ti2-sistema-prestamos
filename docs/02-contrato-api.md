@@ -316,7 +316,7 @@ por la API; el texto bonito para el usuario se arma en el frontend.
 
 | Enum | Valores |
 |---|---|
-| `Rol` | `ESTUDIANTE` · `DOCENTE` · `CUSTODIO_CE` · `CUSTODIO_INFRA` · `DIRECCION_ESCUELA` · `ADMINISTRADOR_SISTEMA` |
+| `Rol` | `ESTUDIANTE` · `DOCENTE` · `CUSTODIO_CE` · `CUSTODIO_INFRA` · `ADMINISTRADOR_SISTEMA` |
 | `TipoRecurso` | `LIBRO` · `DEPORTIVO` · `ACADEMICO` |
 | `EstadoRecurso` | `DISPONIBLE` · `RESERVADO` · `PRESTADO` · `MANTENIMIENTO` |
 | `Gestor` | `CENTRO_ESTUDIANTES` · `INFRAESTRUCTURA` |
@@ -550,7 +550,7 @@ Requiere autenticación. Dos modos, combinables con `estado`:
 | Param | Tipo | Efecto |
 |---|---|---|
 | `mias` | boolean | `true`: solo las solicitudes del usuario autenticado (como solicitante) |
-| `pendientes` | boolean | `true`: la bandeja de lo que el usuario autenticado puede resolver ahora — `DOCENTE` ve `SOLICITADA` de `POR_CURSO`/`EXCEPCIONAL`; `DIRECCION_ESCUELA` ve `AVALADA` de `EXCEPCIONAL`; `CUSTODIO_CE`/`CUSTODIO_INFRA` ven lo que ya pueden aceptar, filtrado por el `gestor` de su recurso |
+| `pendientes` | boolean | `true`: la bandeja de lo que el usuario autenticado puede resolver ahora — `DOCENTE` ve `SOLICITADA` de `POR_CURSO`/`EXCEPCIONAL`; `ADMINISTRADOR_SISTEMA` ve `AVALADA` de `EXCEPCIONAL`; `CUSTODIO_CE`/`CUSTODIO_INFRA` ven lo que ya pueden aceptar, filtrado por el `gestor` de su recurso |
 | `estado` | enum `EstadoSolicitud` | Filtra por estado exacto |
 
 Sin `mias=true` ni `pendientes=true`, un usuario sin rol de aprobación recibe `403`.
@@ -580,12 +580,12 @@ Requiere rol `DOCENTE`. Solo aplica a `tipo_solicitud` `POR_CURSO` o `EXCEPCIONA
 
 ### POST `/api/solicitudes/{id}/autorizar` — Autorización de Dirección
 
-Requiere rol `DIRECCION_ESCUELA`. Solo aplica a `tipo_solicitud=EXCEPCIONAL` en estado `AVALADA`. Pasa a `AUTORIZADA` y guarda `autorizado_por_id`.
+Requiere rol `ADMINISTRADOR_SISTEMA`. Solo aplica a `tipo_solicitud=EXCEPCIONAL` en estado `AVALADA`. Pasa a `AUTORIZADA` y guarda `autorizado_por_id`.
 
 | Código | Cuándo |
 |---|---|
 | `401` | Falta el token o es inválido/expiró |
-| `403` | El usuario no es `DIRECCION_ESCUELA` |
+| `403` | El usuario no es `ADMINISTRADOR_SISTEMA` |
 | `404` | La solicitud no existe |
 | `409` | La solicitud no está en `AVALADA`, o `tipo_solicitud != EXCEPCIONAL` |
 

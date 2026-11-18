@@ -1,0 +1,265 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1420" height="1330" viewBox="0 0 1420 1330" font-family="DejaVu Sans, Segoe UI, Helvetica, Arial, sans-serif">
+<rect width="1420" height="1330" fill="#FFFFFF"/>
+<defs><filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#2B3440" flood-opacity="0.13"/></filter></defs>
+<text x="60" y="52" font-size="21" font-weight="700" fill="#2B3440">Modelo de base de datos — Sistema de Préstamos de Recursos</text>
+<text x="60" y="76" font-size="12.5" fill="#7B8794">Grupo 8 · PostgreSQL 16 · generado desde el esquema real (6 tablas, 8 tipos enum, 8 claves foráneas)</text>
+<g filter="url(#sh)">
+<rect x="60" y="132" width="300" height="206" rx="7" fill="#FFFFFF" stroke="#3C4858" stroke-width="1.2"/>
+</g>
+<path d="M60 168 V139 a7 7 0 0 1 7 -7 H353 a7 7 0 0 1 7 7 V168 Z" fill="#4A6FA5"/>
+<text x="72" y="156" font-size="14.5" font-weight="700" fill="#FFFFFF" font-family="DejaVu Sans Mono, Consolas, monospace">usuario</text>
+<text x="71" y="191" font-size="8.6" font-weight="700" fill="#4A6FA5" font-family="DejaVu Sans Mono, Consolas, monospace">PK</text>
+<text x="118" y="191" font-size="11.5" fill="#2B3440" font-weight="600">id</text>
+<text x="349" y="191" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">integer</text>
+<text x="71" y="213" font-size="8.6" font-weight="700" fill="#4A6FA5" font-family="DejaVu Sans Mono, Consolas, monospace">UK</text>
+<text x="118" y="213" font-size="11.5" fill="#2B3440" font-weight="500">codigo</text>
+<text x="349" y="213" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">varchar(20)</text>
+<text x="118" y="235" font-size="11.5" fill="#2B3440" font-weight="500">nombres</text>
+<text x="349" y="235" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">varchar(120)</text>
+<text x="71" y="257" font-size="8.6" font-weight="700" fill="#4A6FA5" font-family="DejaVu Sans Mono, Consolas, monospace">UK</text>
+<text x="118" y="257" font-size="11.5" fill="#2B3440" font-weight="500">email</text>
+<text x="349" y="257" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">varchar(120)</text>
+<text x="118" y="279" font-size="11.5" fill="#2B3440" font-weight="500">password_hash</text>
+<text x="349" y="279" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">varchar(255)</text>
+<text x="118" y="301" font-size="11.5" fill="#2B3440" font-weight="500">activo</text>
+<text x="349" y="301" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">boolean</text>
+<text x="118" y="323" font-size="11.5" fill="#2B3440" font-weight="500">created_at</text>
+<text x="349" y="323" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">timestamptz</text>
+<g filter="url(#sh)">
+<rect x="60" y="392" width="300" height="96" rx="7" fill="#FFFFFF" stroke="#3C4858" stroke-width="1.2"/>
+</g>
+<path d="M60 428 V399 a7 7 0 0 1 7 -7 H353 a7 7 0 0 1 7 7 V428 Z" fill="#4A6FA5"/>
+<text x="72" y="416" font-size="14.5" font-weight="700" fill="#FFFFFF" font-family="DejaVu Sans Mono, Consolas, monospace">usuario_rol</text>
+<text x="71" y="451" font-size="8.6" font-weight="700" fill="#4A6FA5" font-family="DejaVu Sans Mono, Consolas, monospace">PK FK</text>
+<text x="118" y="451" font-size="11.5" fill="#2B3440" font-weight="600">usuario_id</text>
+<text x="349" y="451" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">integer</text>
+<text x="71" y="473" font-size="8.6" font-weight="700" fill="#4A6FA5" font-family="DejaVu Sans Mono, Consolas, monospace">PK</text>
+<text x="118" y="473" font-size="11.5" fill="#2B3440" font-weight="600">rol</text>
+<text x="349" y="473" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">rol</text>
+<g filter="url(#sh)">
+<rect x="60" y="762" width="300" height="162" rx="7" fill="#FFFFFF" stroke="#3C4858" stroke-width="1.2"/>
+</g>
+<path d="M60 798 V769 a7 7 0 0 1 7 -7 H353 a7 7 0 0 1 7 7 V798 Z" fill="#9A6B3A"/>
+<text x="72" y="786" font-size="14.5" font-weight="700" fill="#FFFFFF" font-family="DejaVu Sans Mono, Consolas, monospace">garantia</text>
+<text x="71" y="821" font-size="8.6" font-weight="700" fill="#9A6B3A" font-family="DejaVu Sans Mono, Consolas, monospace">PK</text>
+<text x="118" y="821" font-size="11.5" fill="#2B3440" font-weight="600">id</text>
+<text x="349" y="821" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">integer</text>
+<text x="71" y="843" font-size="8.6" font-weight="700" fill="#9A6B3A" font-family="DejaVu Sans Mono, Consolas, monospace">FK UK</text>
+<text x="118" y="843" font-size="11.5" fill="#2B3440" font-weight="500">prestamo_id</text>
+<text x="349" y="843" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">integer</text>
+<text x="118" y="865" font-size="11.5" fill="#2B3440" font-weight="500">tipo</text>
+<text x="349" y="865" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">varchar(60)</text>
+<text x="118" y="887" font-size="11.5" fill="#2B3440" font-weight="500">valor</text>
+<text x="349" y="887" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">numeric(10,2)</text>
+<text x="118" y="909" font-size="11.5" fill="#2B3440" font-weight="500">devuelta</text>
+<text x="349" y="909" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">boolean</text>
+<g filter="url(#sh)">
+<rect x="500" y="132" width="360" height="228" rx="7" fill="#FFFFFF" stroke="#3C4858" stroke-width="1.2"/>
+</g>
+<path d="M500 168 V139 a7 7 0 0 1 7 -7 H853 a7 7 0 0 1 7 7 V168 Z" fill="#9A6B3A"/>
+<text x="512" y="156" font-size="14.5" font-weight="700" fill="#FFFFFF" font-family="DejaVu Sans Mono, Consolas, monospace">reserva</text>
+<text x="511" y="191" font-size="8.6" font-weight="700" fill="#9A6B3A" font-family="DejaVu Sans Mono, Consolas, monospace">PK</text>
+<text x="558" y="191" font-size="11.5" fill="#2B3440" font-weight="600">id</text>
+<text x="849" y="191" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">integer</text>
+<text x="511" y="213" font-size="8.6" font-weight="700" fill="#9A6B3A" font-family="DejaVu Sans Mono, Consolas, monospace">FK</text>
+<text x="558" y="213" font-size="11.5" fill="#2B3440" font-weight="500">usuario_id</text>
+<text x="849" y="213" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">integer</text>
+<text x="511" y="235" font-size="8.6" font-weight="700" fill="#9A6B3A" font-family="DejaVu Sans Mono, Consolas, monospace">FK</text>
+<text x="558" y="235" font-size="11.5" fill="#2B3440" font-weight="500">recurso_id</text>
+<text x="849" y="235" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">integer</text>
+<text x="558" y="257" font-size="11.5" fill="#2B3440" font-weight="500">fecha</text>
+<text x="849" y="257" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">date</text>
+<text x="558" y="279" font-size="11.5" fill="#2B3440" font-weight="500">franja</text>
+<text x="849" y="279" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">varchar(30)</text>
+<text x="558" y="301" font-size="11.5" fill="#2B3440" font-weight="500">estado</text>
+<text x="849" y="301" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">estado_reserva</text>
+<text x="558" y="323" font-size="11.5" fill="#2B3440" font-weight="500">prioridad</text>
+<text x="849" y="323" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">integer</text>
+<text x="558" y="345" font-size="11.5" fill="#2B3440" font-weight="500">created_at</text>
+<text x="849" y="345" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">timestamptz</text>
+<g filter="url(#sh)">
+<rect x="500" y="622" width="360" height="352" rx="7" fill="#FFFFFF" stroke="#3C4858" stroke-width="1.2"/>
+</g>
+<path d="M500 658 V629 a7 7 0 0 1 7 -7 H853 a7 7 0 0 1 7 7 V658 Z" fill="#9A6B3A"/>
+<text x="512" y="646" font-size="14.5" font-weight="700" fill="#FFFFFF" font-family="DejaVu Sans Mono, Consolas, monospace">prestamo</text>
+<text x="511" y="681" font-size="8.6" font-weight="700" fill="#9A6B3A" font-family="DejaVu Sans Mono, Consolas, monospace">PK</text>
+<text x="558" y="681" font-size="11.5" fill="#2B3440" font-weight="600">id</text>
+<text x="849" y="681" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">integer</text>
+<text x="511" y="703" font-size="8.6" font-weight="700" fill="#9A6B3A" font-family="DejaVu Sans Mono, Consolas, monospace">FK</text>
+<text x="558" y="703" font-size="11.5" fill="#2B3440" font-weight="500">recurso_id</text>
+<text x="849" y="703" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">integer</text>
+<text x="511" y="725" font-size="8.6" font-weight="700" fill="#9A6B3A" font-family="DejaVu Sans Mono, Consolas, monospace">FK</text>
+<text x="558" y="725" font-size="11.5" fill="#2B3440" font-weight="500">prestatario_id</text>
+<text x="849" y="725" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">integer</text>
+<text x="511" y="747" font-size="8.6" font-weight="700" fill="#9A6B3A" font-family="DejaVu Sans Mono, Consolas, monospace">FK</text>
+<text x="558" y="747" font-size="11.5" fill="#2B3440" font-weight="500">registrado_por_id</text>
+<text x="849" y="747" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">integer</text>
+<text x="511" y="769" font-size="8.6" font-weight="700" fill="#9A6B3A" font-family="DejaVu Sans Mono, Consolas, monospace">FK</text>
+<text x="558" y="769" font-size="11.5" fill="#7B8794" font-weight="400">reserva_id</text>
+<text x="849" y="769" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">integer</text>
+<line x1="501" y1="783.0" x2="859" y2="783.0" stroke="#C9D3E0" stroke-width="1"/>
+<text x="558" y="805" font-size="11.5" fill="#2B3440" font-weight="500">fecha_entrega</text>
+<text x="849" y="805" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">timestamptz</text>
+<text x="558" y="827" font-size="11.5" fill="#2B3440" font-weight="500">fecha_limite</text>
+<text x="849" y="827" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">timestamptz</text>
+<text x="558" y="849" font-size="11.5" fill="#7B8794" font-weight="400">fecha_devolucion</text>
+<text x="849" y="849" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">timestamptz</text>
+<text x="558" y="871" font-size="11.5" fill="#2B3440" font-weight="500">estado</text>
+<text x="849" y="871" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">estado_prestamo</text>
+<text x="558" y="893" font-size="11.5" fill="#2B3440" font-weight="500">tipo_prestamo</text>
+<text x="849" y="893" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">tipo_prestamo</text>
+<text x="558" y="915" font-size="11.5" fill="#2B3440" font-weight="500">modalidad_uso</text>
+<text x="849" y="915" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">modalidad_uso</text>
+<text x="558" y="937" font-size="11.5" fill="#7B8794" font-weight="400">condicion_entrega</text>
+<text x="849" y="937" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">text</text>
+<text x="558" y="959" font-size="11.5" fill="#7B8794" font-weight="400">condicion_devolucion</text>
+<text x="849" y="959" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">text</text>
+<g filter="url(#sh)">
+<rect x="1000" y="132" width="360" height="402" rx="7" fill="#FFFFFF" stroke="#3C4858" stroke-width="1.2"/>
+</g>
+<path d="M1000 168 V139 a7 7 0 0 1 7 -7 H1353 a7 7 0 0 1 7 7 V168 Z" fill="#3F7A6A"/>
+<text x="1012" y="156" font-size="14.5" font-weight="700" fill="#FFFFFF" font-family="DejaVu Sans Mono, Consolas, monospace">recurso</text>
+<text x="1011" y="191" font-size="8.6" font-weight="700" fill="#3F7A6A" font-family="DejaVu Sans Mono, Consolas, monospace">PK</text>
+<text x="1058" y="191" font-size="11.5" fill="#2B3440" font-weight="600">id</text>
+<text x="1349" y="191" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">integer</text>
+<text x="1011" y="213" font-size="8.6" font-weight="700" fill="#3F7A6A" font-family="DejaVu Sans Mono, Consolas, monospace">UK</text>
+<text x="1058" y="213" font-size="11.5" fill="#2B3440" font-weight="500">codigo</text>
+<text x="1349" y="213" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">varchar(30)</text>
+<text x="1058" y="235" font-size="11.5" fill="#2B3440" font-weight="500">nombre</text>
+<text x="1349" y="235" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">varchar(120)</text>
+<text x="1058" y="257" font-size="11.5" fill="#2B3440" font-weight="500">estado</text>
+<text x="1349" y="257" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">estado_recurso</text>
+<text x="1058" y="279" font-size="11.5" fill="#2B3440" font-weight="500">gestor</text>
+<text x="1349" y="279" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">gestor</text>
+<text x="1058" y="301" font-size="11.5" fill="#2B3440" font-weight="500">tipo_recurso</text>
+<text x="1349" y="301" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">tipo_recurso</text>
+<text x="1058" y="323" font-size="11.5" fill="#7B8794" font-weight="400">descripcion</text>
+<text x="1349" y="323" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">text</text>
+<text x="1058" y="345" font-size="11.5" fill="#7B8794" font-weight="400">ubicacion</text>
+<text x="1349" y="345" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">varchar(120)</text>
+<line x1="1001" y1="359.0" x2="1359" y2="359.0" stroke="#C9D3E0" stroke-width="1"/>
+<rect x="1014" y="352.5" width="66.0" height="13" rx="6.5" fill="#EBF5F1"/>
+<text x="1020" y="362.6" font-size="8.8" fill="#3F7A6A" font-weight="600">solo LIBRO</text>
+<text x="1058" y="381" font-size="11.5" fill="#7B8794" font-weight="400">isbn</text>
+<text x="1349" y="381" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">varchar(20)</text>
+<text x="1058" y="403" font-size="11.5" fill="#7B8794" font-weight="400">autor</text>
+<text x="1349" y="403" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">varchar(120)</text>
+<text x="1058" y="425" font-size="11.5" fill="#7B8794" font-weight="400">categoria</text>
+<text x="1349" y="425" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">varchar(60)</text>
+<line x1="1001" y1="439.0" x2="1359" y2="439.0" stroke="#C9D3E0" stroke-width="1"/>
+<rect x="1014" y="432.5" width="87.60000000000001" height="13" rx="6.5" fill="#EBF5F1"/>
+<text x="1020" y="442.6" font-size="8.8" fill="#3F7A6A" font-weight="600">solo DEPORTIVO</text>
+<text x="1058" y="461" font-size="11.5" fill="#7B8794" font-weight="400">tipo_deportivo</text>
+<text x="1349" y="461" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">varchar(60)</text>
+<line x1="1001" y1="475.0" x2="1359" y2="475.0" stroke="#C9D3E0" stroke-width="1"/>
+<rect x="1014" y="468.5" width="87.60000000000001" height="13" rx="6.5" fill="#EBF5F1"/>
+<text x="1020" y="478.6" font-size="8.8" fill="#3F7A6A" font-weight="600">solo ACADEMICO</text>
+<text x="1058" y="497" font-size="11.5" fill="#7B8794" font-weight="400">codigo_patrimonial</text>
+<text x="1349" y="497" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">varchar(60)</text>
+<text x="1058" y="519" font-size="11.5" fill="#7B8794" font-weight="400">requiere_aval</text>
+<text x="1349" y="519" font-size="10" fill="#7B8794" text-anchor="end" font-family="DejaVu Sans Mono, Consolas, monospace">boolean</text>
+<path d="M210 338 L210 392" fill="none" stroke="#56657A" stroke-width="1.5" stroke-linejoin="round"/>
+<line x1="203" y1="349" x2="217" y2="349" stroke="#56657A" stroke-width="1.6"/>
+<line x1="210" y1="379" x2="203" y2="392" stroke="#56657A" stroke-width="1.6"/>
+<line x1="210" y1="379" x2="210" y2="392" stroke="#56657A" stroke-width="1.6"/>
+<line x1="210" y1="379" x2="217" y2="392" stroke="#56657A" stroke-width="1.6"/>
+<text x="222" y="360" font-size="10.2" fill="#56657A" text-anchor="start">tiene rol</text>
+<text x="222" y="373" font-size="10.2" fill="#56657A" text-anchor="start">ON DELETE CASCADE</text>
+<path d="M360 205 L500 205" fill="none" stroke="#56657A" stroke-width="1.5" stroke-linejoin="round"/>
+<line x1="371" y1="198" x2="371" y2="212" stroke="#56657A" stroke-width="1.6"/>
+<line x1="487" y1="205" x2="500" y2="198" stroke="#56657A" stroke-width="1.6"/>
+<line x1="487" y1="205" x2="500" y2="205" stroke="#56657A" stroke-width="1.6"/>
+<line x1="487" y1="205" x2="500" y2="212" stroke="#56657A" stroke-width="1.6"/>
+<text x="430" y="197" font-size="10.2" fill="#56657A" text-anchor="middle">solicita</text>
+<path d="M360 288 L432 288 L432 690 L500 690" fill="none" stroke="#56657A" stroke-width="1.5" stroke-linejoin="round"/>
+<line x1="371" y1="281" x2="371" y2="295" stroke="#56657A" stroke-width="1.6"/>
+<line x1="487" y1="690" x2="500" y2="683" stroke="#56657A" stroke-width="1.6"/>
+<line x1="487" y1="690" x2="500" y2="690" stroke="#56657A" stroke-width="1.6"/>
+<line x1="487" y1="690" x2="500" y2="697" stroke="#56657A" stroke-width="1.6"/>
+<text x="438" y="470" font-size="10.2" fill="#56657A" text-anchor="start">recibe</text>
+<text x="438" y="483" font-size="10.2" fill="#56657A" text-anchor="start">prestatario_id</text>
+<path d="M360 312 L400 312 L400 740 L500 740" fill="none" stroke="#56657A" stroke-width="1.5" stroke-linejoin="round"/>
+<line x1="371" y1="305" x2="371" y2="319" stroke="#56657A" stroke-width="1.6"/>
+<line x1="487" y1="740" x2="500" y2="733" stroke="#56657A" stroke-width="1.6"/>
+<line x1="487" y1="740" x2="500" y2="740" stroke="#56657A" stroke-width="1.6"/>
+<line x1="487" y1="740" x2="500" y2="747" stroke="#56657A" stroke-width="1.6"/>
+<text x="394" y="560" font-size="10.2" fill="#56657A" text-anchor="end">registra</text>
+<text x="394" y="573" font-size="10.2" fill="#56657A" text-anchor="end">registrado_por_id</text>
+<path d="M1000 205 L860 205" fill="none" stroke="#56657A" stroke-width="1.5" stroke-linejoin="round"/>
+<line x1="989" y1="198" x2="989" y2="212" stroke="#56657A" stroke-width="1.6"/>
+<line x1="873" y1="205" x2="860" y2="198" stroke="#56657A" stroke-width="1.6"/>
+<line x1="873" y1="205" x2="860" y2="205" stroke="#56657A" stroke-width="1.6"/>
+<line x1="873" y1="205" x2="860" y2="212" stroke="#56657A" stroke-width="1.6"/>
+<text x="930" y="197" font-size="10.2" fill="#56657A" text-anchor="middle">se reserva</text>
+<path d="M1000 452 L932 452 L932 676 L860 676" fill="none" stroke="#56657A" stroke-width="1.5" stroke-linejoin="round"/>
+<line x1="989" y1="445" x2="989" y2="459" stroke="#56657A" stroke-width="1.6"/>
+<line x1="873" y1="676" x2="860" y2="669" stroke="#56657A" stroke-width="1.6"/>
+<line x1="873" y1="676" x2="860" y2="676" stroke="#56657A" stroke-width="1.6"/>
+<line x1="873" y1="676" x2="860" y2="683" stroke="#56657A" stroke-width="1.6"/>
+<text x="926" y="560" font-size="10.2" fill="#56657A" text-anchor="end">se presta</text>
+<path d="M680 360 L680 622" fill="none" stroke="#56657A" stroke-width="1.5" stroke-dasharray="5 4" stroke-linejoin="round"/>
+<circle cx="680" cy="380" r="4.2" fill="#FFFFFF" stroke="#56657A" stroke-width="1.6"/>
+<line x1="673" y1="371" x2="687" y2="371" stroke="#56657A" stroke-width="1.6"/>
+<line x1="680" y1="609" x2="673" y2="622" stroke="#56657A" stroke-width="1.6"/>
+<line x1="680" y1="609" x2="680" y2="622" stroke="#56657A" stroke-width="1.6"/>
+<line x1="680" y1="609" x2="687" y2="622" stroke="#56657A" stroke-width="1.6"/>
+<text x="692" y="470" font-size="10.2" fill="#56657A" text-anchor="start">se concreta en</text>
+<text x="692" y="483" font-size="10.2" fill="#56657A" text-anchor="start">(reserva_id es opcional)</text>
+<path d="M500 838 L360 838" fill="none" stroke="#56657A" stroke-width="1.5" stroke-linejoin="round"/>
+<line x1="489" y1="831" x2="489" y2="845" stroke="#56657A" stroke-width="1.6"/>
+<circle cx="380" cy="838" r="4.2" fill="#FFFFFF" stroke="#56657A" stroke-width="1.6"/>
+<line x1="371" y1="831" x2="371" y2="845" stroke="#56657A" stroke-width="1.6"/>
+<text x="430" y="822" font-size="10.2" fill="#56657A" text-anchor="middle">respaldado por</text>
+<text x="430" y="835" font-size="10.2" fill="#56657A" text-anchor="middle">1:1 · CASCADE</text>
+<rect x="1000" y="560" width="360" height="186" rx="7" fill="#F7F9FC" stroke="#C9D3E0" stroke-width="1"/>
+<text x="1014" y="582" font-size="12" font-weight="700" fill="#2B3440">Notación</text>
+<text x="1016" y="602" font-size="8.6" font-weight="700" fill="#3F7A6A" font-family="DejaVu Sans Mono, Consolas, monospace">PK</text>
+<text x="1050" y="602" font-size="10.6" fill="#2B3440">clave primaria</text>
+<text x="1016" y="621" font-size="8.6" font-weight="700" fill="#3F7A6A" font-family="DejaVu Sans Mono, Consolas, monospace">FK</text>
+<text x="1050" y="621" font-size="10.6" fill="#2B3440">clave foránea</text>
+<text x="1016" y="640" font-size="8.6" font-weight="700" fill="#3F7A6A" font-family="DejaVu Sans Mono, Consolas, monospace">UK</text>
+<text x="1050" y="640" font-size="10.6" fill="#2B3440">restricción unique</text>
+<text x="1016" y="659" font-size="10.6" fill="#7B8794">columna en gris = acepta NULL</text>
+<line x1="1016" y1="680" x2="1062" y2="680" stroke="#56657A" stroke-width="1.5"/>
+<line x1="1051" y1="673" x2="1051" y2="687" stroke="#56657A" stroke-width="1.6"/>
+<text x="1086" y="684" font-size="10.6" fill="#2B3440">exactamente uno</text>
+<line x1="1016" y1="702" x2="1062" y2="702" stroke="#56657A" stroke-width="1.5"/>
+<line x1="1049" y1="702" x2="1062" y2="695" stroke="#56657A" stroke-width="1.6"/>
+<line x1="1049" y1="702" x2="1062" y2="702" stroke="#56657A" stroke-width="1.6"/>
+<line x1="1049" y1="702" x2="1062" y2="709" stroke="#56657A" stroke-width="1.6"/>
+<text x="1086" y="706" font-size="10.6" fill="#2B3440">cero o muchos</text>
+<line x1="1016" y1="724" x2="1062" y2="724" stroke="#56657A" stroke-width="1.5"/>
+<circle cx="1042" cy="724" r="4.2" fill="#FFFFFF" stroke="#56657A" stroke-width="1.6"/>
+<line x1="1051" y1="717" x2="1051" y2="731" stroke="#56657A" stroke-width="1.6"/>
+<text x="1086" y="728" font-size="10.6" fill="#2B3440">cero o uno</text>
+<rect x="60" y="1000" width="800" height="270" rx="7" fill="#F7F9FC" stroke="#C9D3E0" stroke-width="1"/>
+<text x="74" y="1022" font-size="12" font-weight="700" fill="#2B3440">Tipos enum de PostgreSQL</text>
+<text x="76" y="1046" font-size="10.4" font-weight="700" fill="#4A6FA5" font-family="DejaVu Sans Mono, Consolas, monospace">rol</text>
+<text x="250" y="1046" font-size="10.2" fill="#2B3440" font-family="DejaVu Sans Mono, Consolas, monospace">ESTUDIANTE · DOCENTE · CUSTODIO_CE · CUSTODIO_INFRA</text>
+<text x="250" y="1060" font-size="10.2" fill="#2B3440" font-family="DejaVu Sans Mono, Consolas, monospace">DIRECCION_ESCUELA · ADMINISTRADOR_SISTEMA</text>
+<text x="76" y="1088" font-size="10.4" font-weight="700" fill="#4A6FA5" font-family="DejaVu Sans Mono, Consolas, monospace">tipo_recurso</text>
+<text x="250" y="1088" font-size="10.2" fill="#2B3440" font-family="DejaVu Sans Mono, Consolas, monospace">LIBRO · DEPORTIVO · ACADEMICO</text>
+<text x="76" y="1116" font-size="10.4" font-weight="700" fill="#4A6FA5" font-family="DejaVu Sans Mono, Consolas, monospace">gestor</text>
+<text x="250" y="1116" font-size="10.2" fill="#2B3440" font-family="DejaVu Sans Mono, Consolas, monospace">CENTRO_ESTUDIANTES · INFRAESTRUCTURA</text>
+<text x="76" y="1144" font-size="10.4" font-weight="700" fill="#4A6FA5" font-family="DejaVu Sans Mono, Consolas, monospace">estado_recurso</text>
+<text x="250" y="1144" font-size="10.2" fill="#2B3440" font-family="DejaVu Sans Mono, Consolas, monospace">DISPONIBLE · RESERVADO · PRESTADO · MANTENIMIENTO</text>
+<text x="76" y="1172" font-size="10.4" font-weight="700" fill="#4A6FA5" font-family="DejaVu Sans Mono, Consolas, monospace">estado_reserva</text>
+<text x="250" y="1172" font-size="10.2" fill="#2B3440" font-family="DejaVu Sans Mono, Consolas, monospace">PENDIENTE · CONFIRMADA · CANCELADA · VENCIDA</text>
+<text x="76" y="1200" font-size="10.4" font-weight="700" fill="#4A6FA5" font-family="DejaVu Sans Mono, Consolas, monospace">estado_prestamo</text>
+<text x="250" y="1200" font-size="10.2" fill="#2B3440" font-family="DejaVu Sans Mono, Consolas, monospace">ACTIVO · DEVUELTO · ATRASADO</text>
+<text x="76" y="1228" font-size="10.4" font-weight="700" fill="#4A6FA5" font-family="DejaVu Sans Mono, Consolas, monospace">tipo_prestamo</text>
+<text x="250" y="1228" font-size="10.2" fill="#2B3440" font-family="DejaVu Sans Mono, Consolas, monospace">SIMPLE · POR_CURSO · EXCEPCIONAL</text>
+<text x="76" y="1256" font-size="10.4" font-weight="700" fill="#4A6FA5" font-family="DejaVu Sans Mono, Consolas, monospace">modalidad_uso</text>
+<text x="250" y="1256" font-size="10.2" fill="#2B3440" font-family="DejaVu Sans Mono, Consolas, monospace">EN_SITIO · RETIRO_TEMPORAL</text>
+<rect x="900" y="1000" width="460" height="270" rx="7" fill="#F7F9FC" stroke="#C9D3E0" stroke-width="1"/>
+<text x="914" y="1022" font-size="12" font-weight="700" fill="#2B3440">Restricciones CHECK</text>
+<text x="916" y="1046" font-size="10.6" font-weight="700" fill="#3F7A6A" font-family="DejaVu Sans Mono, Consolas, monospace">recurso.chk_gestor_tipo</text>
+<text x="932" y="1066" font-size="10.2" fill="#2B3440" font-family="DejaVu Sans Mono, Consolas, monospace">ACADEMICO  →  gestor = INFRAESTRUCTURA</text>
+<text x="932" y="1081" font-size="10.2" fill="#2B3440" font-family="DejaVu Sans Mono, Consolas, monospace">LIBRO | DEPORTIVO  →  gestor = CENTRO_ESTUDIANTES</text>
+<text x="916" y="1116" font-size="10.4" fill="#7B8794">El tipo de recurso determina qué área lo gestiona.</text>
+<text x="916" y="1156" font-size="10.6" font-weight="700" fill="#9A6B3A" font-family="DejaVu Sans Mono, Consolas, monospace">prestamo.chk_registrador_distinto</text>
+<text x="932" y="1176" font-size="10.2" fill="#2B3440" font-family="DejaVu Sans Mono, Consolas, monospace">registrado_por_id &lt;&gt; prestatario_id</text>
+<text x="916" y="1200" font-size="10.4" fill="#7B8794">Nadie puede registrar su propio préstamo.</text>
+<text x="916" y="1238" font-size="10.4" fill="#7B8794">recurso usa herencia de tabla única: las columnas</text>
+<text x="916" y="1252" font-size="10.4" fill="#7B8794">por tipo quedan en NULL cuando no aplican.</text>
+</svg>

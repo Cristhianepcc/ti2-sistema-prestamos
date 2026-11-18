@@ -55,7 +55,6 @@ USUARIOS = [
     ("20200002", "Lucía Mamani Torres", "lucia@unsa.edu.pe", [Rol.DOCENTE]),
     ("20200003", "Pedro Huamán Salas", "pedro@unsa.edu.pe", [Rol.CUSTODIO_CE]),
     ("20200004", "Rosa Ccama Apaza", "rosa@unsa.edu.pe", [Rol.CUSTODIO_INFRA]),
-    ("20200005", "Elena Vargas Pinto", "elena@unsa.edu.pe", [Rol.DIRECCION_ESCUELA]),
     ("20200006", "Iván Choque Flores", "ivan@unsa.edu.pe", [Rol.ADMINISTRADOR_SISTEMA]),
     ("20200007", "Marta Quispe León", "marta@unsa.edu.pe", [Rol.DOCENTE, Rol.CUSTODIO_CE]),
 ]

@@ -51,7 +51,7 @@ El dominio se organiza en subdominios:
 ### Roles
 
 `ESTUDIANTE`, `DOCENTE`, `CUSTODIO_CE`, `CUSTODIO_INFRA`,
-`DIRECCION_ESCUELA`, `ADMINISTRADOR_SISTEMA`.
+`ADMINISTRADOR_SISTEMA`.
 
 - **Solicitar:** cualquier rol, único requisito no tener sanción activa. Toda solicitud se
   hace **desde la plataforma**, incluso para préstamos SIMPLE (ya no hay registro directo en
@@ -61,8 +61,7 @@ El dominio se organiza en subdominios:
     y registra la entrega al aceptar.
   - `CUSTODIO_INFRA` → aprueba **POR_CURSO** y **EXCEPCIONAL**.
   - `DOCENTE` → avala solicitudes **POR_CURSO** y **EXCEPCIONAL**.
-  - `DIRECCION_ESCUELA` → autoriza **EXCEPCIONAL**.
-  - `ADMINISTRADOR_SISTEMA` → rol técnico; gestiona cuentas y permisos, **no** aprueba préstamos (RF7).
+  - `ADMINISTRADOR_SISTEMA` → autoriza **EXCEPCIONAL**, ve reportes y gestiona cuentas y permisos (RF7).
 - Un mismo usuario puede tener varios roles a la vez.
 - Al aceptar o rechazar una solicitud, el solicitante recibe una **notificación dentro de la
   plataforma** (sin correo ni push) con el periodo para presentarse a recoger el recurso.
@@ -72,7 +71,7 @@ El dominio se organiza en subdominios:
 - **SIMPLE:** cualquier persona solicita; `CUSTODIO_CE` acepta o rechaza manualmente
   (sin sanción + recurso disponible) y registra al aceptar.
 - **POR_CURSO:** solicita → avala `DOCENTE` → acepta y registra `CUSTODIO_INFRA`.
-- **EXCEPCIONAL:** solicita → avala `DOCENTE` → autoriza `DIRECCION_ESCUELA` → acepta y
+- **EXCEPCIONAL:** solicita → avala `DOCENTE` → autoriza `ADMINISTRADOR_SISTEMA` → acepta y
   registra `CUSTODIO_INFRA` (retiro temporal fuera de la Escuela).
 
 **Invariante:** `registradoPorId ≠ prestatarioId` — un custodio no puede autoregistrarse un préstamo.
@@ -151,7 +150,6 @@ en distintos estados. La contraseña de todos es `prestamos123`.
 | `lucia@unsa.edu.pe` | DOCENTE |
 | `pedro@unsa.edu.pe` | CUSTODIO_CE |
 | `rosa@unsa.edu.pe` | CUSTODIO_INFRA |
-| `elena@unsa.edu.pe` | DIRECCION_ESCUELA |
 | `ivan@unsa.edu.pe` | ADMINISTRADOR_SISTEMA |
 | `marta@unsa.edu.pe` | DOCENTE + CUSTODIO_CE |
 

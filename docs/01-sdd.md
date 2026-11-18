@@ -101,7 +101,7 @@ Modelo relacional derivado del diccionario de datos del doc oficial (§4). La he
 ### 3.1 Enumeraciones (tipos Postgres)
 | Enum | Valores |
 |---|---|
-| `rol` | ESTUDIANTE · DOCENTE · CUSTODIO_CE · CUSTODIO_INFRA · DIRECCION_ESCUELA · ADMINISTRADOR_SISTEMA |
+| `rol` | ESTUDIANTE · DOCENTE · CUSTODIO_CE · CUSTODIO_INFRA · ADMINISTRADOR_SISTEMA |
 | `gestor` | CENTRO_ESTUDIANTES · INFRAESTRUCTURA |
 | `tipo_recurso` | LIBRO · DEPORTIVO · ACADEMICO |
 | `estado_recurso` | DISPONIBLE · RESERVADO · PRESTADO · MANTENIMIENTO |
@@ -381,9 +381,9 @@ de esquema e integración posterior. El bloqueo por sanciones queda pendiente de
 |---|---|---|---|
 | POST | `/api/solicitudes` | autenticado (sin sanción) | Crear solicitud (SIMPLE, POR_CURSO o EXCEPCIONAL) |
 | GET | `/api/solicitudes?mias=true` | autenticado | Mis solicitudes |
-| GET | `/api/solicitudes?pendientes=true` | DOCENTE / DIRECCION_ESCUELA / custodios | Bandeja de lo que el rol puede resolver ahora |
+| GET | `/api/solicitudes?pendientes=true` | DOCENTE / ADMINISTRADOR_SISTEMA / custodios | Bandeja de lo que el rol puede resolver ahora |
 | POST | `/api/solicitudes/{id}/avalar` | DOCENTE | Avalar (solo POR_CURSO/EXCEPCIONAL) |
-| POST | `/api/solicitudes/{id}/autorizar` | DIRECCION_ESCUELA | Autorizar (solo EXCEPCIONAL) |
+| POST | `/api/solicitudes/{id}/autorizar` | ADMINISTRADOR_SISTEMA | Autorizar (solo EXCEPCIONAL) |
 | POST | `/api/solicitudes/{id}/aceptar` | CUSTODIO_CE / CUSTODIO_INFRA (según `gestor` del recurso) | Acepta y crea el préstamo (llama internamente a `POST /api/prestamos`) |
 | POST | `/api/solicitudes/{id}/rechazar` | quien tenga el paso pendiente (docente, dirección o custodio) | Rechaza |
 
@@ -404,8 +404,8 @@ de esquema e integración posterior. El bloqueo por sanciones queda pendiente de
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
 | GET | `/api/historial?usuario_id=` | autenticado (propio) / dirección | Historial de préstamos |
-| GET | `/api/reportes/inventario` | DIRECCION_ESCUELA | Reporte de inventario |
-| GET | `/api/reportes/prestamos` | DIRECCION_ESCUELA | Reporte de préstamos |
+| GET | `/api/reportes/inventario` | ADMINISTRADOR_SISTEMA | Reporte de inventario |
+| GET | `/api/reportes/prestamos` | ADMINISTRADOR_SISTEMA | Reporte de préstamos |
 
 ---
 

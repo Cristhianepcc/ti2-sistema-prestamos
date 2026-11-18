@@ -42,7 +42,7 @@ function itemsNav() {
     ["mis-solicitudes.html", "misSolicitudes", "Mis Solicitudes"],
   ];
   if (
-    hasRole("CUSTODIO_CE", "CUSTODIO_INFRA", "DOCENTE", "DIRECCION_ESCUELA")
+    hasRole("CUSTODIO_CE", "CUSTODIO_INFRA", "DOCENTE", "ADMINISTRADOR_SISTEMA")
   ) {
     items.push(["solicitudes.html", "solicitudes", "Bandeja de Solicitudes"]);
   }
@@ -56,7 +56,7 @@ function itemsNav() {
     // Alta y consulta del catálogo que administra cada custodio (RF1).
     items.push(["inventario.html", "inventario", "Inventario"]);
   }
-  if (hasRole("DIRECCION_ESCUELA")) {
+  if (hasRole("ADMINISTRADOR_SISTEMA")) {
     items.push(["reportes.html", "reportes", "Reportes"]);
   }
   if (hasRole("ADMINISTRADOR_SISTEMA")) {

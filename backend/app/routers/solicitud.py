@@ -81,7 +81,7 @@ def listar(
     """Devuelve solicitudes propias o las que esperan un rol del usuario."""
     roles_aprobadores = {
         Rol.DOCENTE,
-        Rol.DIRECCION_ESCUELA,
+        Rol.ADMINISTRADOR_SISTEMA,
         Rol.CUSTODIO_CE,
         Rol.CUSTODIO_INFRA,
     }
@@ -135,7 +135,7 @@ def avalar(
 @router.post(
     "/{solicitud_id}/autorizar",
     response_model=SolicitudPublica,
-    dependencies=[Depends(require_role(Rol.DIRECCION_ESCUELA))],
+    dependencies=[Depends(require_role(Rol.ADMINISTRADOR_SISTEMA))],
 )
 def autorizar(
     solicitud_id: int,
@@ -192,7 +192,7 @@ def aceptar(
         Depends(
             require_role(
                 Rol.DOCENTE,
-                Rol.DIRECCION_ESCUELA,
+                Rol.ADMINISTRADOR_SISTEMA,
                 Rol.CUSTODIO_CE,
                 Rol.CUSTODIO_INFRA,
             )

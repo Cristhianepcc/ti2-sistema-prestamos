@@ -1,0 +1,156 @@
+@startuml modelo-bbdd-grupo8
+' ---------------------------------------------------------------------------
+' Modelo fisico de base de datos — Sistema de Prestamos (Grupo 8)
+' Generado desde el esquema real de PostgreSQL 16 (docker compose, servicio db).
+' Complementa a docs/modelo-dominio.puml: aquel describe las clases del
+' dominio, este describe las tablas, columnas, tipos y claves reales.
+' Pegar en https://www.planttext.com/
+' ---------------------------------------------------------------------------
+
+title Modelo de base de datos — Sistema de Prestamos de Recursos (Grupo 8)
+
+hide circle
+skinparam shadowing false
+skinparam linetype ortho
+skinparam entity {
+  BackgroundColor #FEFEFE
+  BorderColor #3C4858
+  FontSize 12
+}
+skinparam ArrowColor #3C4858
+skinparam note {
+  BackgroundColor #EEF4FF
+  BorderColor #4A6FA5
+}
+
+' =========================== Identidad y Roles ============================
+
+entity "usuario" as usuario {
+  * **id** : integer <<PK>>
+  --
+  * codigo : varchar(20) <<UK>>
+  * nombres : varchar(120)
+  * email : varchar(120) <<UK>>
+  * password_hash : varchar(255)
+  * activo : boolean
+  * created_at : timestamptz = now()
+}
+
+entity "usuario_rol" as usuario_rol {
+  * **usuario_id** : integer <<PK, FK>>
+  * **rol** : rol <<PK>>
+}
+
+' ================================ Catalogo ================================
+
+entity "recurso" as recurso {
+  * **id** : integer <<PK>>
+  --
+  * codigo : varchar(30) <<UK>>
+  * nombre : varchar(120)
+  * estado : estado_recurso
+  * gestor : gestor
+  * tipo_recurso : tipo_recurso
+  descripcion : text
+  ubicacion : varchar(120)
+  .. solo LIBRO ..
+  isbn : varchar(20)
+  autor : varchar(120)
+  categoria : varchar(60)
+  .. solo DEPORTIVO ..
+  tipo_deportivo : varchar(60)
+  .. solo ACADEMICO ..
+  codigo_patrimonial : varchar(60)
+  requiere_aval : boolean
+}
+
+' ========================== Reservas y Prestamos ==========================
+
+entity "reserva" as reserva {
+  * **id** : integer <<PK>>
+  --
+  * usuario_id : integer <<FK>>
+  * recurso_id : integer <<FK>>
+  * fecha : date
+  * franja : varchar(30)
+  * estado : estado_reserva = PENDIENTE
+  * prioridad : integer = 0
+  * created_at : timestamptz = now()
+}
+
+entity "prestamo" as prestamo {
+  * **id** : integer <<PK>>
+  --
+  * recurso_id : integer <<FK>>
+  * prestatario_id : integer <<FK>>
+  * registrado_por_id : integer <<FK>>
+  reserva_id : integer <<FK>>
+  --
+  * fecha_entrega : timestamptz = now()
+  * fecha_limite : timestamptz
+  fecha_devolucion : timestamptz
+  * estado : estado_prestamo = ACTIVO
+  * tipo_prestamo : tipo_prestamo
+  * modalidad_uso : modalidad_uso
+  condicion_entrega : text
+  condicion_devolucion : text
+}
+
+entity "garantia" as garantia {
+  * **id** : integer <<PK>>
+  --
+  * prestamo_id : integer <<FK, UK>>
+  * tipo : varchar(60)
+  * valor : numeric(10,2) = 0
+  * devuelta : boolean = false
+}
+
+' ============================== Relaciones ================================
+
+usuario ||--o{ usuario_rol : "tiene rol\n(ON DELETE CASCADE)"
+usuario ||--o{ reserva : "solicita"
+usuario ||--o{ prestamo : "prestatario_id\n(recibe)"
+usuario ||--o{ prestamo : "registrado_por_id\n(registra)"
+
+recurso ||--o{ reserva : "se reserva"
+recurso ||--o{ prestamo : "se presta"
+
+reserva |o--o{ prestamo : "se concreta en"
+prestamo ||--o| garantia : "respaldado por\n(1:1, ON DELETE CASCADE)"
+
+' ============================== Restricciones =============================
+
+note bottom of recurso
+  **CHECK chk_gestor_tipo**
+  ACADEMICO  -> gestor = INFRAESTRUCTURA
+  LIBRO / DEPORTIVO -> gestor = CENTRO_ESTUDIANTES
+end note
+
+note bottom of prestamo
+  **CHECK chk_registrador_distinto**
+  registrado_por_id <> prestatario_id
+  (nadie se registra su propio prestamo)
+end note
+
+note as N_ENUMS
+  **Tipos enum de PostgreSQL**
+  ---
+  **rol**: ESTUDIANTE, DOCENTE, CUSTODIO_CE,
+  CUSTODIO_INFRA,
+  ADMINISTRADOR_SISTEMA
+  **tipo_recurso**: LIBRO, DEPORTIVO, ACADEMICO
+  **gestor**: CENTRO_ESTUDIANTES, INFRAESTRUCTURA
+  **estado_recurso**: DISPONIBLE, RESERVADO,
+  PRESTADO, MANTENIMIENTO
+  **estado_reserva**: PENDIENTE, CONFIRMADA,
+  CANCELADA, VENCIDA
+  **estado_prestamo**: ACTIVO, DEVUELTO, ATRASADO
+  **tipo_prestamo**: SIMPLE, POR_CURSO, EXCEPCIONAL
+  **modalidad_uso**: EN_SITIO, RETIRO_TEMPORAL
+end note
+
+legend bottom
+  * = NOT NULL   |   <<PK>> clave primaria   |   <<FK>> clave foranea   |   <<UK>> unique
+endlegend
+
+@enduml

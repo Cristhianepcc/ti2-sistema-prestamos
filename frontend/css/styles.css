@@ -1343,3 +1343,59 @@ td .sub {
     grid-template-columns: minmax(70px, 1fr) 1.4fr auto;
   }
 }
+
+/* ---- impresión / exportar a PDF (reportes) ----
+   Sin librería nueva: "Exportar PDF" dispara window.print() y el navegador
+   ofrece "Guardar como PDF". .no-imprimir oculta controles que no sirven en
+   papel (sidebar, filtros, botones); .solo-imprimir muestra en su lugar el
+   periodo/fecha de generación como texto fijo. */
+
+.solo-imprimir {
+  display: none;
+}
+
+@media print {
+  .no-imprimir,
+  .app-sidebar {
+    display: none !important;
+  }
+
+  .solo-imprimir {
+    display: block;
+  }
+
+  .app {
+    display: block;
+  }
+
+  .app-main {
+    padding: 0;
+    background: #fff;
+  }
+
+  .kpi-grid,
+  .stat-row,
+  .two-col {
+    break-inside: avoid;
+  }
+
+  .kpi-card,
+  .stat,
+  .table-wrap,
+  .chart-donut,
+  .chart-linea,
+  .chart-barras,
+  .mini-row,
+  tr {
+    break-inside: avoid;
+  }
+
+  .block-title {
+    break-after: avoid;
+  }
+
+  a[href] {
+    color: inherit;
+    text-decoration: none;
+  }
+}

@@ -12,8 +12,12 @@
         <aside class="app-sidebar" id="app-sidebar"></aside>
 
         <div class="app-main">
-            <h2 class="page-title">Reportes</h2>
+            <div class="page-head">
+                <h2 class="page-title">Reportes</h2>
+                <button type="button" class="btn btn-ghost no-imprimir" id="btn-exportar-pdf">Exportar PDF</button>
+            </div>
             <p class="hint">Vista de solo lectura del sistema de préstamos (RF6).</p>
+            <p class="hint solo-imprimir" id="fecha-exportacion"></p>
 
             <div id="kpi-grid" class="kpi-grid"></div>
 
@@ -51,13 +55,13 @@
             </div>
 
             <div class="block-title" style="margin-top:28px">Actividad de préstamos</div>
-            <div class="filters" id="periodos-rapidos">
+            <div class="filters no-imprimir" id="periodos-rapidos">
                 <button type="button" class="filter" data-periodo="7d">Últimos 7 días</button>
                 <button type="button" class="filter" data-periodo="30d">Últimos 30 días</button>
                 <button type="button" class="filter" data-periodo="semestre">Este semestre</button>
                 <button type="button" class="filter" data-periodo="anio">Este año</button>
             </div>
-            <div class="toolbar">
+            <div class="toolbar no-imprimir">
                 <label class="field">Desde
                     <input type="date" id="filtro-desde">
                 </label>
@@ -67,6 +71,7 @@
                 <button type="button" class="btn btn-ghost btn-sm" id="btn-aplicar-filtro">Aplicar</button>
                 <button type="button" class="btn btn-ghost btn-sm" id="btn-limpiar-filtro">Limpiar</button>
             </div>
+            <p class="hint solo-imprimir" id="periodo-impreso"></p>
             <div id="prestamos-stats" class="stat-row"></div>
             <div id="evolucion-chart"></div>
 
@@ -92,7 +97,7 @@
                             <th>Prestatario</th>
                             <th>Vence</th>
                             <th>Días de atraso</th>
-                            <th></th>
+                            <th class="no-imprimir"></th>
                         </tr>
                     </thead>
                     <tbody id="atrasados-tabla"></tbody>

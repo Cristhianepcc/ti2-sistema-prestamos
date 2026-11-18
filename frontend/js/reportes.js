@@ -165,6 +165,7 @@ const atrasadosTabla = document.getElementById("atrasados-tabla");
 const atrasadosNota = document.getElementById("atrasados-nota");
 const filtroDesde = document.getElementById("filtro-desde");
 const filtroHasta = document.getElementById("filtro-hasta");
+const periodoImpreso = document.getElementById("periodo-impreso");
 
 // El reporte de préstamos es retrospectivo (fecha_entrega nunca es futura),
 // así que no tiene sentido dejar elegir un rango que no puede tener datos.
@@ -194,7 +195,7 @@ function filaAtrasado(item) {
     <td>${esc(item.prestatario.nombres)} <span class="hint">${esc(item.prestatario.codigo)}</span></td>
     <td>${esc(formatearFecha(item.fecha_limite))}</td>
     <td><span class="badge danger">${esc(item.dias_atraso)} días</span></td>
-    <td><a class="btn btn-ghost btn-sm" href="historial.html?usuario_id=${esc(item.prestatario.id)}">Ver historial</a></td>
+    <td class="no-imprimir"><a class="btn btn-ghost btn-sm" href="historial.html?usuario_id=${esc(item.prestatario.id)}">Ver historial</a></td>
   </tr>`;
 }
 
@@ -217,6 +218,13 @@ async function cargarPrestamos() {
       api.get(`/reportes/prestamos${query}`),
       api.get(`/reportes/prestamos/evolucion${query}`).catch(() => null),
     ]);
+
+    // Texto que solo se ve al imprimir/exportar (ver .solo-imprimir en
+    // styles.css): dentro del PDF, el filtro desde/hasta ya no está visible
+    // como input, así que el periodo exacto queda escrito en el documento.
+    periodoImpreso.textContent = evolucion
+      ? `Periodo mostrado: ${formatearFecha(evolucion.periodo.desde)} – ${formatearFecha(evolucion.periodo.hasta)}`
+      : "";
 
     prestamosStats.innerHTML = [
       statHTML(r.total_prestamos, "Préstamos registrados"),
@@ -292,6 +300,16 @@ document.getElementById("periodos-rapidos").addEventListener("click", (evento) =
   const boton = evento.target.closest("[data-periodo]");
   if (boton) aplicarPeriodoRapido(boton.dataset.periodo);
 });
+
+// --- Exportar PDF --------------------------------------------------------------
+
+// Sin librería nueva: se apoya en "Imprimir > Guardar como PDF" del
+// navegador, con la hoja de estilos @media print (.no-imprimir/.solo-imprimir
+// en styles.css) que oculta sidebar/filtros/botones y muestra en su lugar el
+// periodo y la fecha de generación como texto fijo.
+document.getElementById("fecha-exportacion").textContent =
+  `Reporte generado el ${new Date().toLocaleString("es-PE", { dateStyle: "long", timeStyle: "short" })}`;
+document.getElementById("btn-exportar-pdf").addEventListener("click", () => window.print());
 
 document.getElementById("btn-aplicar-filtro").addEventListener("click", cargarPrestamos);
 document.getElementById("btn-limpiar-filtro").addEventListener("click", () => {

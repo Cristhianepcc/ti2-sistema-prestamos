@@ -12,6 +12,7 @@ from .routers import (
     notificacion,
     prestamo,
     recurso,
+    reporte,
     reserva,
     solicitud,
     usuarios,
@@ -48,6 +49,7 @@ app.include_router(prestamo.router, prefix="/api")
 app.include_router(usuarios.router, prefix="/api")
 app.include_router(solicitud.router, prefix="/api")
 app.include_router(notificacion.router, prefix="/api")
+app.include_router(reporte.router, prefix="/api")
 
 
 @app.get("/")

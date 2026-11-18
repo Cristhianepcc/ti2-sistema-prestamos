@@ -32,28 +32,26 @@ const ICONOS = {
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>',
 };
 
-// La navegación depende del rol (ver artefacto "Wireframes Préstamos" ·
-// NAV): quien presta/reserva para sí mismo (Estudiante, Docente) ve
-// Mis Reservas/Mis Préstamos; un Custodio solo gestiona su Panel Custodio;
-// Dirección de Escuela ve Reportes (RF6); Usuarios y Roles (RF7) queda
-// reservado al Administrador del Sistema. Un usuario con varios roles ve la unión.
+// La navegación depende del rol (ver artefacto "Wireframes Préstamos" · NAV),
+// pero "cualquier rol puede solicitar/reservar para sí mismo" (docs/00, §4) es
+// una regla real del backend y del catálogo (catalogo.js no filtra por rol los
+// botones Solicitar/Reservar) — así que Mis Solicitudes, Mis Reservas, Mis
+// Préstamos e Historial son universales, incluso para custodios y admin, que
+// además gestionan su Panel Custodio o Reportes. Un usuario con varios roles
+// ve la unión.
 function itemsNav() {
   const items = [
     ["inicio.html", "inicio", "Inicio"],
     ["catalogo.html", "catalogo", "Catálogo"],
     ["mis-solicitudes.html", "misSolicitudes", "Mis Solicitudes"],
-    // Cualquier rol puede solicitar un préstamo, así que cualquiera tiene
-    // historial propio que consultar (RF6). El admin además ve el de otros.
+    ["mis-reservas.html", "reservas", "Mis Reservas"],
+    ["mis-prestamos.html", "prestamos", "Mis Préstamos"],
     ["historial.html", "historial", "Historial"],
   ];
   if (
     hasRole("CUSTODIO_CE", "CUSTODIO_INFRA", "DOCENTE", "ADMINISTRADOR_SISTEMA")
   ) {
     items.push(["solicitudes.html", "solicitudes", "Bandeja de Solicitudes"]);
-  }
-  if (hasRole("ESTUDIANTE", "DOCENTE")) {
-    items.push(["mis-reservas.html", "reservas", "Mis Reservas"]);
-    items.push(["mis-prestamos.html", "prestamos", "Mis Préstamos"]);
   }
   if (hasRole("CUSTODIO_CE", "CUSTODIO_INFRA")) {
     // Los custodios gestionan inventario, entregas y devoluciones.

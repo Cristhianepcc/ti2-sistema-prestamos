@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial</title>
+    <link href="css/styles.css" rel="stylesheet">
+</head>
+<body>
+
+    <div class="app">
+        <aside class="app-sidebar" id="app-sidebar"></aside>
+
+        <div class="app-main">
+            <h2 class="page-title">Historial de Préstamos</h2>
+            <p class="hint" id="historial-subtitulo"></p>
+
+            <div class="toolbar">
+                <label class="field" id="campo-usuario-id" hidden>ID de usuario (opcional)
+                    <input type="number" id="historial-usuario-id" min="1" placeholder="Vacío = tu propio historial">
+                </label>
+                <label class="field">Estado
+                    <select id="historial-estado">
+                        <option value="">Todos</option>
+                        <option value="ACTIVO">Activo</option>
+                        <option value="ATRASADO">Atrasado</option>
+                        <option value="DEVUELTO">Devuelto</option>
+                    </select>
+                </label>
+                <button type="button" class="btn btn-ghost btn-sm" id="btn-buscar-historial">Buscar</button>
+            </div>
+            <div id="mensaje-historial" aria-live="polite"></div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Recurso</th>
+                            <th>Tipo</th>
+                            <th>Entregado</th>
+                            <th>Vence</th>
+                            <th>Estado</th>
+                            <th>Días de atraso</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historial-tabla"></tbody>
+                </table>
+            </div>
+            <div class="toolbar" style="justify-content:space-between">
+                <span class="hint" id="historial-paginacion"></span>
+                <div class="filters">
+                    <button type="button" class="btn btn-ghost btn-sm" id="btn-historial-anterior">‹ Anterior</button>
+                    <button type="button" class="btn btn-ghost btn-sm" id="btn-historial-siguiente">Siguiente ›</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/render.js"></script>
+    <script src="js/shell.js"></script>
+    <script src="js/historial.js"></script>
+</body>
+</html>

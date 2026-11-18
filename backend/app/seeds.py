@@ -268,6 +268,12 @@ def _sembrar_prestamos(db: Session) -> int:
         )
         if existe is not None:
             continue
+        # Defensivo: en un entorno ya usado a mano (demo, pruebas manuales) el
+        # recurso puede estar PRESTADO/RESERVADO sin que haya un Prestamo de
+        # ejemplo que lo explique. crear_solicitud fallaría con ConflictoSolicitud;
+        # mejor omitir este ejemplo que romper toda la carga de datos.
+        if not recurso.disponible:
+            continue
 
         solicitud = db.scalar(
             select(Solicitud).where(

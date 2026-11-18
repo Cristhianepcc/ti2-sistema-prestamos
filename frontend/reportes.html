@@ -13,13 +13,103 @@
 
         <div class="app-main">
             <h2 class="page-title">Reportes</h2>
+            <p class="hint">Vista de solo lectura del inventario y los préstamos del sistema (RF6).</p>
 
-            <div class="form-card">
-                <p class="nota-futura">
-                    El reporte de inventario y actividad del sistema (RF6) llega en una
-                    próxima entrega. Por ahora, el resumen por tipo de recurso está
-                    disponible en el panel de Inicio.
-                </p>
+            <div class="block-title">Inventario</div>
+            <div id="inventario-stats" class="stat-row"></div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Disponible</th>
+                            <th>Reservado</th>
+                            <th>Prestado</th>
+                            <th>Mantenimiento</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventario-tabla"></tbody>
+                </table>
+            </div>
+
+            <div class="block-title" style="margin-top:28px">Préstamos</div>
+            <div class="toolbar">
+                <label class="field">Desde
+                    <input type="date" id="filtro-desde">
+                </label>
+                <label class="field">Hasta
+                    <input type="date" id="filtro-hasta">
+                </label>
+                <button type="button" class="btn btn-ghost btn-sm" id="btn-aplicar-filtro">Aplicar</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="btn-limpiar-filtro">Limpiar</button>
+            </div>
+            <div id="prestamos-stats" class="stat-row"></div>
+
+            <div class="two-col">
+                <div>
+                    <div class="block-title">Más prestados<span>en el periodo</span></div>
+                    <div id="mas-prestados"></div>
+                </div>
+                <div>
+                    <div class="block-title">Garantías retenidas</div>
+                    <div id="garantias"></div>
+                </div>
+            </div>
+
+            <div class="block-title" style="margin-top:22px">Préstamos atrasados<span>foto actual, no depende del periodo</span></div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Recurso</th>
+                            <th>Prestatario</th>
+                            <th>Vence</th>
+                            <th>Días de atraso</th>
+                        </tr>
+                    </thead>
+                    <tbody id="atrasados-tabla"></tbody>
+                </table>
+            </div>
+            <p class="hint" id="atrasados-nota"></p>
+
+            <div class="block-title" style="margin-top:28px">Historial por usuario</div>
+            <p class="hint">Consulta el historial de préstamos de cualquier usuario por su ID.</p>
+            <div class="toolbar">
+                <label class="field">ID de usuario
+                    <input type="number" id="historial-usuario-id" min="1" placeholder="Ej. 1">
+                </label>
+                <label class="field">Estado
+                    <select id="historial-estado">
+                        <option value="">Todos</option>
+                        <option value="ACTIVO">Activo</option>
+                        <option value="ATRASADO">Atrasado</option>
+                        <option value="DEVUELTO">Devuelto</option>
+                    </select>
+                </label>
+                <button type="button" class="btn btn-ghost btn-sm" id="btn-buscar-historial">Buscar</button>
+            </div>
+            <div id="mensaje-historial" aria-live="polite"></div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Recurso</th>
+                            <th>Tipo</th>
+                            <th>Entregado</th>
+                            <th>Vence</th>
+                            <th>Estado</th>
+                            <th>Días de atraso</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historial-tabla"></tbody>
+                </table>
+            </div>
+            <div class="toolbar" style="justify-content:space-between">
+                <span class="hint" id="historial-paginacion"></span>
+                <div class="filters">
+                    <button type="button" class="btn btn-ghost btn-sm" id="btn-historial-anterior">‹ Anterior</button>
+                    <button type="button" class="btn btn-ghost btn-sm" id="btn-historial-siguiente">Siguiente ›</button>
+                </div>
             </div>
         </div>
     </div>

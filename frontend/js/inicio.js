@@ -197,21 +197,21 @@ function panelCustodio(rol, prestamosActivos, solicitudesPendientes) {
   });
 }
 
-function panelDireccion(recursos, solicitudesPendientes) {
+async function panelDireccion(recursos, solicitudesPendientes) {
   const conteos = {};
   for (const r of recursos) conteos[r.tipo_recurso] = (conteos[r.tipo_recurso] || 0) + 1;
   const porAutorizar = solicitudesPendientes.filter(
     (s) => s.estado === "AVALADA" && s.tipo_solicitud === "EXCEPCIONAL"
   );
+  // GET /prestamos?estado=ACTIVO es solo para custodios (403 para este rol);
+  // el conteo de todo el sistema viene de GET /reportes/resumen (RF6).
+  const resumen = await api.get("/reportes/resumen").catch(() => null);
 
   return panelRol({
     titulo: "Inicio — Administrador del sistema",
-    descripcion: "Autoriza solo las solicitudes EXCEPCIONAL ya avaladas por un docente. También es el único con vista de reportes de todo el sistema (RF6, próxima entrega).",
+    descripcion: "Autoriza solo las solicitudes EXCEPCIONAL ya avaladas por un docente. También es el único con vista de reportes de todo el sistema (RF6).",
     stats: [
-      // GET /prestamos?estado=ACTIVO es solo para custodios (403 para este
-      // rol) — un reporte "préstamos activos (sistema)" para el Administrador
-      // necesita un endpoint propio de RF6, que todavía no existe.
-      { n: "—", l: "Préstamos activos (sistema, RF6)" },
+      { n: resumen ? resumen.prestamos_activos : "—", l: "Préstamos activos (sistema)" },
       { n: "—", l: "Sanciones activas (RF5)" },
       { n: porAutorizar.length, l: "Por autorizar · excepcional" },
     ],
@@ -344,7 +344,7 @@ async function cargarInicio() {
   if (hasRole("CUSTODIO_INFRA"))
     paneles.push(panelCustodio("CUSTODIO_INFRA", prestamosActivos, solicitudesPendientes));
   if (hasRole("ADMINISTRADOR_SISTEMA"))
-    paneles.push(panelDireccion(recursos, solicitudesPendientes));
+    paneles.push(await panelDireccion(recursos, solicitudesPendientes));
   if (hasRole("DOCENTE")) paneles.push(panelDocente(solicitudesPendientes));
   if (hasRole("ADMINISTRADOR_SISTEMA")) paneles.push(await panelAdministrador());
 

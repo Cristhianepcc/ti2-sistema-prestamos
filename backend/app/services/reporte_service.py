@@ -24,6 +24,7 @@ from ..models.enums import (
 from ..models.prestamo import Garantia, Prestamo
 from ..models.recurso import Recurso
 from ..models.usuario import Usuario, UsuarioRol
+from .invariantes import ZONA_LIMA
 
 
 class ReporteError(Exception):
@@ -46,8 +47,22 @@ def _en_utc(valor: datetime) -> datetime:
     return valor if valor.tzinfo is not None else valor.replace(tzinfo=timezone.utc)
 
 
+def _dia_lima(fecha: datetime) -> date:
+    """Fecha calendario en hora de Arequipa (UTC-5), no UTC.
+
+    `fecha` puede caer en el día UTC siguiente/anterior al día real en
+    Arequipa (ej. 20:00 en Arequipa es ya 01:00 UTC del día siguiente); todo
+    lo que agrupe o compare por "día" acá debe pasar por esta función, no por
+    `.date()` directo sobre un datetime en UTC.
+    """
+    return _en_utc(fecha).astimezone(ZONA_LIMA).date()
+
+
 def _inicio_del_dia(dia: date) -> datetime:
-    return datetime.combine(dia, time.min, tzinfo=timezone.utc)
+    """Medianoche de `dia` en Arequipa, no en UTC (son 5 horas de diferencia):
+    así `desde`/`hasta` representan días de calendario reales, no un corte
+    corrido a las 19:00 del día anterior."""
+    return datetime.combine(dia, time.min, tzinfo=ZONA_LIMA)
 
 
 def _condicion_atrasado(ahora: datetime):
@@ -117,17 +132,31 @@ def listar_historial(
     limite: int = 20,
     offset: int = 0,
 ) -> dict:
-    """Historial de préstamos de un usuario, el más reciente primero."""
+    """Historial de préstamos de un usuario, el más reciente primero.
+
+    `estado` usa la misma regla única de "atrasado" que el resto de Reportes
+    (`_condicion_atrasado`): filtrar por `ATRASADO` también trae los que
+    siguen guardados como `ACTIVO` en BD pero ya vencieron (nada invoca
+    `marcar_prestamos_atrasados()` todavía), y filtrar por `ACTIVO` los
+    excluye. Sin esto, un préstamo vencido podía aparecer como "Activo" en
+    Historial y no salir al filtrar "Atrasado", aunque su `dias_atraso` ya
+    fuera positivo.
+    """
     if db.get(Usuario, usuario_id) is None:
         raise UsuarioNoEncontrado("Usuario no encontrado")
 
+    ahora = _ahora()
     filtros = [Prestamo.prestatario_id == usuario_id]
-    if estado is not None:
+    if estado == EstadoPrestamo.ATRASADO:
+        filtros.append(_condicion_atrasado(ahora))
+    elif estado == EstadoPrestamo.ACTIVO:
+        filtros.append(Prestamo.estado == EstadoPrestamo.ACTIVO)
+        filtros.append(Prestamo.fecha_limite >= ahora)
+    elif estado is not None:
         filtros.append(Prestamo.estado == estado)
 
     total = db.scalar(select(func.count()).select_from(Prestamo).where(*filtros)) or 0
 
-    ahora = _ahora()
     prestamos = db.scalars(
         select(Prestamo)
         .where(*filtros)
@@ -148,7 +177,11 @@ def listar_historial(
             },
             "tipo_prestamo": p.tipo_prestamo,
             "modalidad_uso": p.modalidad_uso,
-            "estado": p.estado,
+            "estado": (
+                EstadoPrestamo.ATRASADO
+                if p.estado == EstadoPrestamo.ACTIVO and _en_utc(p.fecha_limite) < ahora
+                else p.estado
+            ),
             "fecha_entrega": p.fecha_entrega,
             "fecha_limite": p.fecha_limite,
             "fecha_devolucion": p.fecha_devolucion,
@@ -379,7 +412,7 @@ def evolucion_prestamos(db: Session, *, desde: date | None = None, hasta: date |
     granularidad = "dia" if dias_en_rango <= 62 else "mes"
 
     def _bucket(fecha: datetime) -> date:
-        fecha = _en_utc(fecha).date()
+        fecha = _dia_lima(fecha)
         return fecha if granularidad == "dia" else fecha.replace(day=1)
 
     # Un préstamo puede aparecer en `filas` por su entrega, por su devolución,
@@ -391,11 +424,11 @@ def evolucion_prestamos(db: Session, *, desde: date | None = None, hasta: date |
     prestamos_por_bucket: dict[date, int] = defaultdict(int)
     devoluciones_por_bucket: dict[date, int] = defaultdict(int)
     for fecha_entrega, fecha_devolucion in filas:
-        fecha_entrega_dia = _en_utc(fecha_entrega).date()
+        fecha_entrega_dia = _dia_lima(fecha_entrega)
         if desde <= fecha_entrega_dia <= hasta:
             prestamos_por_bucket[_bucket(fecha_entrega)] += 1
         if fecha_devolucion is not None:
-            fecha_devolucion_dia = _en_utc(fecha_devolucion).date()
+            fecha_devolucion_dia = _dia_lima(fecha_devolucion)
             if desde <= fecha_devolucion_dia <= hasta:
                 devoluciones_por_bucket[_bucket(fecha_devolucion)] += 1
 

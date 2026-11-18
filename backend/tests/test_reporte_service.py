@@ -1,5 +1,5 @@
 """Tests de reporte_service (RF6, nivel 1). Ver docs/plan-reportes-rf6.md."""
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -18,6 +18,8 @@ from app.models import (
 from app.services.reporte_service import (
     RangoInvalido,
     UsuarioNoEncontrado,
+    _dia_lima,
+    _inicio_del_dia,
     evolucion_prestamos,
     listar_historial,
     reporte_inventario,
@@ -197,10 +199,39 @@ def test_activo_sin_vencer_no_se_cuenta_como_atrasado(db_session):
     assert resumen["prestamos_atrasados"] == 0
 
 
+# --- Límite de "día": Arequipa (UTC-5), no UTC --------------------------------
+#
+# Importante para quien toque esto: SQLite descarta el offset de timezone al
+# guardar un DateTime(timezone=True) (confirmado con una prueba directa:
+# '2026-11-13 00:00:00+00' y '2026-11-13 00:00:00-05' se guardan y se
+# COMPARAN igual en SQLite, como si fueran el mismo instante — en PostgreSQL
+# NO son el mismo instante, hay 5 horas de diferencia real). Por eso un test
+# que arma un filtro de fecha y corre una consulta contra `db_session`
+# (SQLite) no puede detectar un bug de offset: pasa igual con el offset bien
+# o mal puesto. Estos dos tests prueban las funciones puras directamente, sin
+# pasar por una consulta, que es el único nivel donde SQLite no puede mentir.
+
+
+def test_inicio_del_dia_es_medianoche_de_arequipa_no_de_utc():
+    inicio = _inicio_del_dia(date(2026, 11, 13))
+    # Medianoche en Arequipa (UTC-5) es las 05:00 UTC, no las 00:00 UTC.
+    assert inicio == datetime(2026, 11, 13, 5, 0, tzinfo=timezone.utc)
+
+
+def test_dia_lima_no_confunde_el_dia_utc_con_el_dia_de_arequipa():
+    # Las 20:00 en Arequipa del 17 de noviembre ya son las 01:00 UTC del 18.
+    instante = datetime(2026, 11, 18, 1, 0, tzinfo=timezone.utc)
+    assert _dia_lima(instante) == date(2026, 11, 17)
+
+
 # --- Filtro de rango ----------------------------------------------------------
 
 
 def test_filtro_rango_es_inclusive_y_cubre_todo_el_dia_final(db_session):
+    # Nota: por la limitación de SQLite descrita arriba, este test no puede
+    # detectar un corrimiento de huso horario en el límite — solo confirma
+    # que el rango es inclusivo en términos generales. El límite real
+    # (Arequipa vs. UTC) lo prueban test_inicio_del_dia_* y test_dia_lima_*.
     prestatario = crear_usuario(db_session, "RANGO-USR")
     registrador = crear_usuario(db_session, "RANGO-REG")
     recurso = crear_recurso(db_session, TipoRecurso.LIBRO, "RANGO")

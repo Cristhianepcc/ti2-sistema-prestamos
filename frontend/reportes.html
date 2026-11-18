@@ -71,46 +71,8 @@
                 </table>
             </div>
             <p class="hint" id="atrasados-nota"></p>
-
-            <div class="block-title" style="margin-top:28px">Historial por usuario</div>
-            <p class="hint">Consulta el historial de préstamos de cualquier usuario por su ID.</p>
-            <div class="toolbar">
-                <label class="field">ID de usuario
-                    <input type="number" id="historial-usuario-id" min="1" placeholder="Ej. 1">
-                </label>
-                <label class="field">Estado
-                    <select id="historial-estado">
-                        <option value="">Todos</option>
-                        <option value="ACTIVO">Activo</option>
-                        <option value="ATRASADO">Atrasado</option>
-                        <option value="DEVUELTO">Devuelto</option>
-                    </select>
-                </label>
-                <button type="button" class="btn btn-ghost btn-sm" id="btn-buscar-historial">Buscar</button>
-            </div>
-            <div id="mensaje-historial" aria-live="polite"></div>
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Recurso</th>
-                            <th>Tipo</th>
-                            <th>Entregado</th>
-                            <th>Vence</th>
-                            <th>Estado</th>
-                            <th>Días de atraso</th>
-                        </tr>
-                    </thead>
-                    <tbody id="historial-tabla"></tbody>
-                </table>
-            </div>
-            <div class="toolbar" style="justify-content:space-between">
-                <span class="hint" id="historial-paginacion"></span>
-                <div class="filters">
-                    <button type="button" class="btn btn-ghost btn-sm" id="btn-historial-anterior">‹ Anterior</button>
-                    <button type="button" class="btn btn-ghost btn-sm" id="btn-historial-siguiente">Siguiente ›</button>
-                </div>
-            </div>
+            <p class="hint">¿Buscás el historial de préstamos de un usuario puntual? Mirá
+                <a href="historial.html">Historial</a> en el menú.</p>
         </div>
     </div>
 

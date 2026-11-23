@@ -117,6 +117,12 @@ def _recursos() -> list[Recurso]:
             ubicacion="Sala de estudiantes", gestor=Gestor.CENTRO_ESTUDIANTES,
             estado=EstadoRecurso.MANTENIMIENTO, tipo_deportivo="Ajedrez",
         ),
+        ImplementoDeportivo(
+            codigo="DEP-004", nombre="Red de vóley",
+            descripcion="Dada de baja: se reportó perdida en una devolución anterior",
+            ubicacion="Depósito CE", gestor=Gestor.CENTRO_ESTUDIANTES,
+            estado=EstadoRecurso.BAJA, tipo_deportivo="Vóley",
+        ),
         # Implementos académicos — Infraestructura
         ImplementoAcademico(
             codigo="ACA-001", nombre="Proyector Epson X05",

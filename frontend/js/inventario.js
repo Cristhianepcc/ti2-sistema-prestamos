@@ -65,15 +65,25 @@ function detalleSubtipo(r) {
     return r.codigo_patrimonial || "";
 }
 
+// "Dar de baja" no tiene sentido si ya está de baja, ni mientras está
+// prestado (se actualiza solo al devolverlo, ver routers/recurso.py).
 function filaRecurso(r) {
     const detalle = detalleSubtipo(r);
     const sub = detalle ? `<div class="sub">${esc(detalle)}</div>` : "";
+    const btnBaja =
+        r.estado !== "BAJA" && r.estado !== "PRESTADO"
+            ? `<button type="button" class="btn btn-danger-ghost btn-sm btn-dar-baja" data-id="${esc(r.id)}">Dar de baja</button>`
+            : "";
     return `<tr>
         <td><b>${esc(r.codigo)}</b></td>
         <td>${esc(r.nombre)}${sub}</td>
         <td>${esc(ETIQUETA_TIPO[r.tipo_recurso] || r.tipo_recurso)}</td>
         <td>${esc(r.ubicacion || "—")}</td>
         <td>${badgeEstado(r.estado)}</td>
+        <td><div class="acciones-tabla">
+            <button type="button" class="btn btn-ghost btn-sm btn-editar" data-id="${esc(r.id)}">Editar</button>
+            ${btnBaja}
+        </div></td>
     </tr>`;
 }
 
@@ -81,7 +91,8 @@ function pintarResumen(propios) {
     const porEstado = (estado) => propios.filter((r) => r.estado === estado).length;
     resumen.textContent =
         `${propios.length} recursos · ${porEstado("DISPONIBLE")} disponibles · ` +
-        `${porEstado("PRESTADO")} prestados · ${porEstado("MANTENIMIENTO")} en mantenimiento`;
+        `${porEstado("PRESTADO")} prestados · ${porEstado("MANTENIMIENTO")} en mantenimiento · ` +
+        `${porEstado("BAJA")} de baja`;
 }
 
 function pintarInventario() {
@@ -95,11 +106,11 @@ function pintarInventario() {
             r.codigo.toLowerCase().includes(texto)
     );
 
-    renderList(tabla, filtrados, filaRecurso, "No hay recursos que coincidan.", 5);
+    renderList(tabla, filtrados, filaRecurso, "No hay recursos que coincidan.", 6);
 }
 
 async function cargarInventario() {
-    showLoading(tabla, 5);
+    showLoading(tabla, 6);
     try {
         // Se pide el catálogo completo y se filtra por gestor en el cliente: la
         // API no tiene filtro por gestor todavía (routers/recurso.py acepta
@@ -107,7 +118,7 @@ async function cargarInventario() {
         recursos = await api.get("/recursos");
         pintarInventario();
     } catch (e) {
-        showError(tabla, e.message, 5);
+        showError(tabla, e.message, 6);
     }
 }
 
@@ -115,17 +126,20 @@ inputBuscador.addEventListener("input", pintarInventario);
 
 // --- Alta de un recurso -----------------------------------------------------
 
-function camposTipoHTML(tipo) {
+// `valores`: para precargar el formulario de edición con los datos actuales
+// del recurso (vacío al dar de alta, donde no hay nada que precargar).
+function camposTipoHTML(tipo, valores = {}) {
     return CAMPOS_POR_TIPO[tipo]
         .map((c) => {
             if (c.tipo === "checkbox") {
+                const marcado = valores[c.name] ? "checked" : "";
                 return `<label class="field field-check">
-                    <input type="checkbox" name="${c.name}" value="true">
+                    <input type="checkbox" name="${c.name}" value="true" ${marcado}>
                     <span>${esc(c.label)}</span>
                 </label>`;
             }
             return `<label class="field">${esc(c.label)}
-                <input type="text" name="${c.name}" placeholder="${esc(c.placeholder || "")}">
+                <input type="text" name="${c.name}" placeholder="${esc(c.placeholder || "")}" value="${esc(valores[c.name] ?? "")}">
             </label>`;
         })
         .join("");
@@ -183,6 +197,84 @@ function abrirModalNuevo() {
 
 document.getElementById("btn-nuevo").addEventListener("click", abrirModalNuevo);
 
+// --- Edición y baja de un recurso --------------------------------------------
+
+// Transiciones manuales válidas (routers/recurso.py, schemas/recurso.py
+// RecursoUpdate): PRESTADO/RESERVADO los asigna el sistema solo, nunca este
+// formulario.
+const ESTADOS_EDITABLES = ["DISPONIBLE", "MANTENIMIENTO", "BAJA"];
+
+function estadoSelectHTML(r) {
+    if (r.estado === "PRESTADO") {
+        // Sin campo `estado` en el form: si se mandara igual, el backend lo
+        // rechaza con 409 porque el recurso está prestado.
+        return `<p class="hint">Está prestado: el estado se actualiza solo al registrar la devolución.</p>`;
+    }
+    const opciones = ESTADOS_EDITABLES.map(
+        (e) =>
+            `<option value="${e}" ${e === r.estado ? "selected" : ""}>${esc(
+                ETIQUETA_ESTADO[e]?.texto || e
+            )}</option>`
+    ).join("");
+    return `<label class="field">Estado
+        <select name="estado">${opciones}</select>
+    </label>`;
+}
+
+function abrirModalEditar(r) {
+    openModal(
+        `Editar · ${r.nombre}`,
+        `<form data-accion="editar" data-id="${esc(r.id)}">
+            <div class="fila">
+                <label class="field">Código
+                    <input type="text" name="codigo" maxlength="30" value="${esc(r.codigo)}" required>
+                </label>
+                <label class="field">Ubicación
+                    <input type="text" name="ubicacion" maxlength="120" value="${esc(r.ubicacion || "")}">
+                </label>
+            </div>
+            <label class="field">Nombre
+                <input type="text" name="nombre" maxlength="120" value="${esc(r.nombre)}" required>
+            </label>
+            <label class="field">Descripción
+                <textarea name="descripcion" rows="2">${esc(r.descripcion || "")}</textarea>
+            </label>
+            <div id="campos-tipo">${camposTipoHTML(r.tipo_recurso, r)}</div>
+            ${estadoSelectHTML(r)}
+            <div class="alert-danger form-error-msg" hidden></div>
+            <div class="acciones">
+                <button type="button" class="btn btn-ghost btn-sm" data-cerrar-modal>Cancelar</button>
+                <button type="submit" class="btn btn-primary btn-sm">Guardar cambios</button>
+            </div>
+        </form>`
+    );
+}
+
+tabla.addEventListener("click", (evento) => {
+    const btnEditar = evento.target.closest(".btn-editar");
+    if (btnEditar) {
+        const recurso = recursos.find((r) => r.id === Number(btnEditar.dataset.id));
+        if (recurso) abrirModalEditar(recurso);
+        return;
+    }
+
+    const btnBaja = evento.target.closest(".btn-dar-baja");
+    if (btnBaja) darDeBaja(btnBaja);
+});
+
+async function darDeBaja(boton) {
+    if (!confirm("¿Dar de baja este recurso? Deja de estar disponible para prestarse.")) return;
+
+    setBusy(boton, true, "Dando de baja…");
+    try {
+        await api.put(`/recursos/${boton.dataset.id}`, { estado: "BAJA" });
+        await cargarInventario();
+    } catch (e) {
+        alert(e.message);
+        setBusy(boton, false);
+    }
+}
+
 // --- Interacción dentro del modal -------------------------------------------
 
 document.addEventListener("click", (evento) => {
@@ -205,6 +297,7 @@ document.addEventListener("submit", (evento) => {
     if (!form) return;
     evento.preventDefault();
     if (form.dataset.accion === "crear") crearRecurso(form);
+    if (form.dataset.accion === "editar") editarRecurso(form);
 });
 
 function payloadDesdeForm(datos, tipo) {
@@ -237,10 +330,10 @@ async function crearRecurso(form) {
     const tipo = datos.tipo_recurso;
     const codigo = datos.codigo.trim();
 
-    // `codigo` es UNIQUE en la base y el backend no atrapa el error de
-    // integridad, así que un duplicado sale como 500 y no como 409. Se avisa
-    // antes de enviar, comparando contra el catálogo completo (no solo el
-    // propio: el código es único entre todos los recursos).
+    // `codigo` es UNIQUE en la base; el backend ya devuelve 409 si se manda un
+    // duplicado, pero se avisa antes de enviar para no gastar el round-trip
+    // (comparando contra el catálogo completo, no solo el propio: el código es
+    // único entre todos los recursos).
     if (recursos.some((r) => r.codigo.toLowerCase() === codigo.toLowerCase())) {
         return showFormError(errorDiv, `Ya existe un recurso con el código ${codigo}.`);
     }
@@ -250,6 +343,53 @@ async function crearRecurso(form) {
 
     try {
         await api.post("/recursos", payloadDesdeForm(datos, tipo));
+        closeModal();
+        await cargarInventario();
+    } catch (e) {
+        showFormError(errorDiv, e.message);
+        setBusy(boton, false);
+    }
+}
+
+// --- Edición: envío del formulario -------------------------------------------
+
+// A diferencia de `payloadDesdeForm` (alta), acá un campo vacío es
+// intencional: se manda `null` para poder borrar un dato que ya estaba.
+function payloadEdicionDesdeForm(datos, tipo) {
+    const payload = {
+        codigo: datos.codigo.trim(),
+        nombre: datos.nombre.trim(),
+        ubicacion: datos.ubicacion.trim() || null,
+        descripcion: datos.descripcion.trim() || null,
+    };
+
+    // `estado` no viene en el form si el recurso está prestado (ver
+    // estadoSelectHTML), así que no se manda nada y el backend no lo toca.
+    if (datos.estado) payload.estado = datos.estado;
+
+    CAMPOS_POR_TIPO[tipo].forEach((c) => {
+        if (c.tipo === "checkbox") {
+            payload[c.name] = datos[c.name] === "true";
+        } else {
+            payload[c.name] = (datos[c.name] || "").trim() || null;
+        }
+    });
+
+    return payload;
+}
+
+async function editarRecurso(form) {
+    const datos = formValues(form);
+    const boton = form.querySelector('button[type="submit"]');
+    const errorDiv = form.querySelector(".form-error-msg");
+    const id = form.dataset.id;
+    const recurso = recursos.find((r) => r.id === Number(id));
+
+    setBusy(boton, true, "Guardando…");
+    showFormError(errorDiv, "");
+
+    try {
+        await api.put(`/recursos/${id}`, payloadEdicionDesdeForm(datos, recurso.tipo_recurso));
         closeModal();
         await cargarInventario();
     } catch (e) {

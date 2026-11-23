@@ -85,6 +85,7 @@ const ETIQUETA_ESTADO = {
   RESERVADO: { texto: "Reservado", color: "warn" },
   PRESTADO: { texto: "Prestado", color: "neutral" },
   MANTENIMIENTO: { texto: "En mantenimiento", color: "danger" },
+  BAJA: { texto: "Dado de baja", color: "neutral" },
 };
 
 // Estados de una RESERVA (no confundir con ETIQUETA_ESTADO, que es del recurso).

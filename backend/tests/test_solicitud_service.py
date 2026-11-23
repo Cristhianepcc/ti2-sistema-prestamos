@@ -254,7 +254,7 @@ def test_devolucion_perdida_saca_recurso_de_disponibilidad(db_session):
 
     registrar_devolucion(db_session, prestamo_id=prestamo.id, perdido=True)
 
-    assert recurso.estado == EstadoRecurso.MANTENIMIENTO
+    assert recurso.estado == EstadoRecurso.BAJA
     assert not recurso.disponible
 
 

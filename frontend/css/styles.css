@@ -871,11 +871,16 @@ td .sub {
 }
 
 /* Filas que cuelgan de un .fila-grupo: mismo borde de acento que el
-   encabezado, pero mas angosto y sin fondo, para que se note que "son de ahi"
-   sin confundirse con una fila suelta (que no lleva este borde). */
+   encabezado (forma una "espina" continua hacia abajo) y un fondo tenue en
+   toda la fila, para que se note de lejos que "son de ahi" y no una fila
+   suelta (que no lleva ni borde ni fondo). */
+.fila-miembro td {
+  background: rgba(0, 60, 132, 0.045);
+}
+
 .fila-miembro td:first-child {
-  border-left: 3px solid var(--linea);
-  padding-left: 22px;
+  border-left: 4px solid var(--azul);
+  padding-left: 21px;
 }
 
 .who-cell {

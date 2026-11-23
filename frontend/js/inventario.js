@@ -88,11 +88,26 @@ function filaRecurso(r) {
 }
 
 function pintarResumen(propios) {
-    const porEstado = (estado) => propios.filter((r) => r.estado === estado).length;
+    const c = contarPorEstado(propios);
     resumen.textContent =
-        `${propios.length} recursos · ${porEstado("DISPONIBLE")} disponibles · ` +
-        `${porEstado("PRESTADO")} prestados · ${porEstado("MANTENIMIENTO")} en mantenimiento · ` +
-        `${porEstado("BAJA")} de baja`;
+        `${propios.length} recursos · ${c.DISPONIBLE} disponibles · ` +
+        `${c.PRESTADO} prestados · ${c.MANTENIMIENTO} en mantenimiento · ` +
+        `${c.BAJA} de baja`;
+}
+
+// Varias copias del mismo recurso (mismo nombre, mismo tipo) se agrupan bajo
+// una sola fila de resumen; un recurso sin más copias no lleva encabezado,
+// para no duplicar una fila "1 unidad" por cada ítem único del catálogo.
+function filaGrupo(grupo) {
+    const primero = grupo.unidades[0];
+    const c = contarPorEstado(grupo.unidades);
+    return `<tr class="fila-grupo">
+        <td colspan="6">
+            <b>${esc(primero.nombre)}</b> · ${esc(ETIQUETA_TIPO[primero.tipo_recurso] || primero.tipo_recurso)}
+            · ${grupo.unidades.length} unidades · ${c.DISPONIBLE} disponibles ·
+            ${c.PRESTADO} prestadas · ${c.MANTENIMIENTO} en mantenimiento · ${c.BAJA} de baja
+        </td>
+    </tr>`;
 }
 
 function pintarInventario() {
@@ -106,7 +121,16 @@ function pintarInventario() {
             r.codigo.toLowerCase().includes(texto)
     );
 
-    renderList(tabla, filtrados, filaRecurso, "No hay recursos que coincidan.", 6);
+    if (filtrados.length === 0) {
+        return showEmpty(tabla, "No hay recursos que coincidan.", 6);
+    }
+
+    tabla.innerHTML = agruparPorNombre(filtrados)
+        .map((grupo) =>
+            (grupo.unidades.length > 1 ? filaGrupo(grupo) : "") +
+            grupo.unidades.map(filaRecurso).join("")
+        )
+        .join("");
 }
 
 async function cargarInventario() {

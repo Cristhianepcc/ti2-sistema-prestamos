@@ -139,6 +139,39 @@ function badgeEstado(estado) {
   return `<span class="badge ${e.color}">${esc(e.texto)}</span>`;
 }
 
+// --- Agrupar recursos (RF1): varias copias del mismo recurso -----------------
+
+// Cuenta recursos por estado. Útil tanto para un resumen global como para el
+// resumen de un grupo de copias del mismo recurso.
+function contarPorEstado(lista) {
+  const conteo = { DISPONIBLE: 0, PRESTADO: 0, MANTENIMIENTO: 0, BAJA: 0 };
+  for (const r of lista) {
+    if (r.estado in conteo) conteo[r.estado] += 1;
+  }
+  return conteo;
+}
+
+// Clave de agrupamiento: mismo tipo_recurso y mismo nombre (normalizado).
+// `codigo_patrimonial` o `isbn` NO sirven de clave: identifican la unidad
+// física, no el grupo (dos copias del mismo libro tienen isbn igual pero eso
+// no es lo que las agrupa acá, es casualidad de que coincida con el nombre).
+function claveGrupo(r) {
+  return `${r.tipo_recurso}::${r.nombre.trim().toLowerCase()}`;
+}
+
+// Agrupa copias del mismo recurso. Cada fila de `Recurso` sigue siendo una
+// unidad física con su propio estado — esto solo junta visualmente las que
+// son "lo mismo".
+function agruparPorNombre(lista) {
+  const grupos = new Map();
+  for (const r of lista) {
+    const clave = claveGrupo(r);
+    if (!grupos.has(clave)) grupos.set(clave, { clave, unidades: [] });
+    grupos.get(clave).unidades.push(r);
+  }
+  return [...grupos.values()];
+}
+
 // Estados de una solicitud.
 const ETIQUETA_SOLICITUD = {
   SOLICITADA: { texto: "Solicitada", color: "warn" },

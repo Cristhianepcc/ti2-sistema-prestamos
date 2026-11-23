@@ -85,8 +85,9 @@ function filaRecurso(r, opciones = {}) {
         ? `<button type="button" class="btn btn-ghost btn-sm btn-agregar-copia" data-id="${esc(r.id)}">+ Copia</button>`
         : "";
     const clase = opciones.enGrupo ? ` class="fila-miembro"` : "";
+    const conector = opciones.enGrupo ? `<span class="conector">↳</span>` : "";
     return `<tr${clase}>
-        <td><b>${esc(r.codigo)}</b></td>
+        <td>${conector}<b>${esc(r.codigo)}</b></td>
         <td>${esc(r.nombre)}${sub}</td>
         <td>${esc(ETIQUETA_TIPO[r.tipo_recurso] || r.tipo_recurso)}</td>
         <td>${esc(r.ubicacion || "—")}</td>

@@ -870,17 +870,18 @@ td .sub {
   margin-left: 12px;
 }
 
-/* Filas que cuelgan de un .fila-grupo: mismo borde de acento que el
-   encabezado (forma una "espina" continua hacia abajo) y un fondo tenue en
-   toda la fila, para que se note de lejos que "son de ahi" y no una fila
-   suelta (que no lleva ni borde ni fondo). */
-.fila-miembro td {
-  background: rgba(0, 60, 132, 0.045);
+/* Filas que cuelgan de un .fila-grupo: el código lleva un conector "↳" en
+   vez de jugarse a un color/fondo que puede no leerse bien. Es texto, no
+   diseño: funciona igual en cualquier pantalla y no compite con el badge de
+   estado ni con los botones de acción. */
+.fila-miembro td:first-child {
+  color: var(--tinta-suave);
+  font-weight: 400;
 }
 
-.fila-miembro td:first-child {
-  border-left: 4px solid var(--azul);
-  padding-left: 21px;
+.fila-miembro .conector {
+  margin-right: 4px;
+  color: var(--gris);
 }
 
 .who-cell {

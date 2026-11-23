@@ -62,6 +62,27 @@ def test_devolucion_libera_el_recurso(db_session):
     assert recurso.estado == EstadoRecurso.DISPONIBLE
 
 
+def test_devolucion_danada_pone_el_recurso_en_mantenimiento(db_session):
+    prestatario = crear_usuario(db_session, "DANADO")
+    custodio = crear_usuario(db_session, "CUSTODIODAN")
+    recurso = crear_recurso(db_session, TipoRecurso.LIBRO, "DANADO")
+    prestamo = crear_prestamo(
+        db_session,
+        recurso_id=recurso.id,
+        prestatario_id=prestatario.id,
+        registrado_por_id=custodio.id,
+        tipo_prestamo=TipoPrestamo.SIMPLE,
+        modalidad_uso=ModalidadUso.EN_SITIO,
+        ahora=AHORA_LABORAL,
+    )
+
+    registrar_devolucion(db_session, prestamo_id=prestamo.id, danado=True)
+
+    # A diferencia de uno perdido, uno dañado puede volver tras revisión: no se
+    # da de baja, solo queda fuera de disponibilidad hasta que el custodio lo vea.
+    assert recurso.estado == EstadoRecurso.MANTENIMIENTO
+
+
 def test_no_permite_que_el_custodio_se_registre_a_si_mismo(db_session):
     usuario = crear_usuario(db_session, "MISMO")
     recurso = crear_recurso(db_session, TipoRecurso.LIBRO, "MISMO")

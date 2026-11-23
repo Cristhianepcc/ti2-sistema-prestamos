@@ -67,13 +67,19 @@ function detalleSubtipo(r) {
 
 // "Dar de baja" no tiene sentido si ya está de baja, ni mientras está
 // prestado (se actualiza solo al devolverlo, ver routers/recurso.py).
-function filaRecurso(r) {
+// `opciones.soloEnSuGrupo`: este recurso no tiene más copias (ver
+// pintarInventario), así que "+ Copia" va en su propia fila en vez de en un
+// encabezado de grupo (que no existe para un grupo de 1).
+function filaRecurso(r, opciones = {}) {
     const detalle = detalleSubtipo(r);
     const sub = detalle ? `<div class="sub">${esc(detalle)}</div>` : "";
     const btnBaja =
         r.estado !== "BAJA" && r.estado !== "PRESTADO"
             ? `<button type="button" class="btn btn-danger-ghost btn-sm btn-dar-baja" data-id="${esc(r.id)}">Dar de baja</button>`
             : "";
+    const btnCopia = opciones.soloEnSuGrupo
+        ? `<button type="button" class="btn btn-ghost btn-sm btn-agregar-copia" data-id="${esc(r.id)}">+ Copia</button>`
+        : "";
     return `<tr>
         <td><b>${esc(r.codigo)}</b></td>
         <td>${esc(r.nombre)}${sub}</td>
@@ -83,6 +89,7 @@ function filaRecurso(r) {
         <td><div class="acciones-tabla">
             <button type="button" class="btn btn-ghost btn-sm btn-editar" data-id="${esc(r.id)}">Editar</button>
             ${btnBaja}
+            ${btnCopia}
         </div></td>
     </tr>`;
 }
@@ -106,6 +113,7 @@ function filaGrupo(grupo) {
             <b>${esc(primero.nombre)}</b> · ${esc(ETIQUETA_TIPO[primero.tipo_recurso] || primero.tipo_recurso)}
             · ${grupo.unidades.length} unidades · ${c.DISPONIBLE} disponibles ·
             ${c.PRESTADO} prestadas · ${c.MANTENIMIENTO} en mantenimiento · ${c.BAJA} de baja
+            <button type="button" class="btn btn-ghost btn-sm btn-agregar-copia" data-id="${esc(primero.id)}">+ Agregar copia</button>
         </td>
     </tr>`;
 }
@@ -127,8 +135,9 @@ function pintarInventario() {
 
     tabla.innerHTML = agruparPorNombre(filtrados)
         .map((grupo) =>
-            (grupo.unidades.length > 1 ? filaGrupo(grupo) : "") +
-            grupo.unidades.map(filaRecurso).join("")
+            grupo.unidades.length > 1
+                ? filaGrupo(grupo) + grupo.unidades.map((r) => filaRecurso(r)).join("")
+                : filaRecurso(grupo.unidades[0], { soloEnSuGrupo: true })
         )
         .join("");
 }
@@ -169,6 +178,28 @@ function camposTipoHTML(tipo, valores = {}) {
         .join("");
 }
 
+// Nombres ya en uso del tipo elegido, para sugerir con un <datalist> en vez
+// de que el custodio tenga que escribir igual a mano (un typo crea un grupo
+// fantasma en vez de sumarse al que ya existe, ver render.js claveGrupo).
+function nombresExistentes(tipo) {
+    const vistos = new Set();
+    const nombres = [];
+    for (const r of recursos) {
+        if (r.tipo_recurso !== tipo) continue;
+        const clave = r.nombre.trim().toLowerCase();
+        if (vistos.has(clave)) continue;
+        vistos.add(clave);
+        nombres.push(r.nombre);
+    }
+    return nombres;
+}
+
+function datalistNombresHTML(tipo) {
+    return `<datalist id="nombres-existentes">
+        ${nombresExistentes(tipo).map((n) => `<option value="${esc(n)}"></option>`).join("")}
+    </datalist>`;
+}
+
 // Los chips solo tienen sentido si el custodio puede dar de alta más de un
 // tipo; con uno solo, el tipo va en un hidden y no se muestra nada.
 function chipsTipoHTML() {
@@ -203,13 +234,15 @@ function abrirModalNuevo() {
                 </label>
             </div>
             <label class="field">Nombre
-                <input type="text" name="nombre" maxlength="120" required>
+                <input type="text" name="nombre" maxlength="120" list="nombres-existentes" required>
             </label>
+            ${datalistNombresHTML(tiposPermitidos[0])}
             <label class="field">Descripción
                 <textarea name="descripcion" rows="2"></textarea>
             </label>
             <div id="campos-tipo">${camposTipoHTML(tiposPermitidos[0])}</div>
-            <span class="hint">Se da de alta como <b>Disponible</b>. El estado cambia solo al prestarlo o devolverlo.</span>
+            <span class="hint">Se da de alta como <b>Disponible</b>. El estado cambia solo al prestarlo o devolverlo.
+            Si el nombre coincide con uno existente, esta copia se agrupa con las demás en la lista.</span>
             <div class="alert-danger form-error-msg" hidden></div>
             <div class="acciones">
                 <button type="button" class="btn btn-ghost btn-sm" data-cerrar-modal>Cancelar</button>
@@ -274,6 +307,45 @@ function abrirModalEditar(r) {
     );
 }
 
+// Sugerencia de código para una copia nueva: no hay ningún formato validado
+// en el backend (routers/recurso.py, schemas/recurso.py), es solo un valor
+// de partida que el custodio puede editar antes de guardar.
+function sugerirCodigo(unidades) {
+    return `${unidades[0].codigo}-${unidades.length + 1}`;
+}
+
+function abrirModalAgregarCopia(unidades) {
+    const base = unidades[0];
+    openModal(
+        `Agregar copia · ${base.nombre}`,
+        `<form data-accion="crear">
+            <input type="hidden" name="tipo_recurso" value="${esc(base.tipo_recurso)}">
+            <div class="fila">
+                <label class="field">Código
+                    <input type="text" name="codigo" maxlength="30" value="${esc(sugerirCodigo(unidades))}" required>
+                </label>
+                <label class="field">Ubicación
+                    <input type="text" name="ubicacion" maxlength="120" value="${esc(base.ubicacion || "")}">
+                </label>
+            </div>
+            <label class="field">Nombre
+                <input type="text" name="nombre" maxlength="120" value="${esc(base.nombre)}" required>
+            </label>
+            <label class="field">Descripción
+                <textarea name="descripcion" rows="2">${esc(base.descripcion || "")}</textarea>
+            </label>
+            <div id="campos-tipo">${camposTipoHTML(base.tipo_recurso, base)}</div>
+            <span class="hint">Se da de alta como <b>Disponible</b>, con los mismos datos que las
+            demás copias de "${esc(base.nombre)}". Revisá el código antes de guardar.</span>
+            <div class="alert-danger form-error-msg" hidden></div>
+            <div class="acciones">
+                <button type="button" class="btn btn-ghost btn-sm" data-cerrar-modal>Cancelar</button>
+                <button type="submit" class="btn btn-primary btn-sm">Crear copia</button>
+            </div>
+        </form>`
+    );
+}
+
 tabla.addEventListener("click", (evento) => {
     const btnEditar = evento.target.closest(".btn-editar");
     if (btnEditar) {
@@ -283,7 +355,18 @@ tabla.addEventListener("click", (evento) => {
     }
 
     const btnBaja = evento.target.closest(".btn-dar-baja");
-    if (btnBaja) darDeBaja(btnBaja);
+    if (btnBaja) {
+        darDeBaja(btnBaja);
+        return;
+    }
+
+    const btnCopia = evento.target.closest(".btn-agregar-copia");
+    if (btnCopia) {
+        const base = recursos.find((r) => r.id === Number(btnCopia.dataset.id));
+        if (!base) return;
+        const clave = claveGrupo(base);
+        abrirModalAgregarCopia(recursos.filter((r) => claveGrupo(r) === clave));
+    }
 });
 
 async function darDeBaja(boton) {
@@ -314,6 +397,11 @@ document.addEventListener("click", (evento) => {
     // Cambiar el tipo cambia los campos del subtipo (un libro pide autor, un
     // deportivo pide disciplina), así que se vuelven a pintar.
     document.getElementById("campos-tipo").innerHTML = camposTipoHTML(chip.dataset.valor);
+
+    // Las sugerencias de nombre también dependen del tipo (los nombres de
+    // libros no tienen sentido como sugerencia al dar de alta un deportivo).
+    const datalistNombre = document.getElementById("nombres-existentes");
+    if (datalistNombre) datalistNombre.outerHTML = datalistNombresHTML(chip.dataset.valor);
 });
 
 document.addEventListener("submit", (evento) => {

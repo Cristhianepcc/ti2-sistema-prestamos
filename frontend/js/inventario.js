@@ -70,6 +70,10 @@ function detalleSubtipo(r) {
 // `opciones.soloEnSuGrupo`: este recurso no tiene más copias (ver
 // pintarInventario), así que "+ Copia" va en su propia fila en vez de en un
 // encabezado de grupo (que no existe para un grupo de 1).
+// `opciones.enGrupo`: lo contrario — sí tiene copias y cuelga de un
+// `filaGrupo` arriba. Marca la fila con `fila-miembro` (ver styles.css) para
+// que quede claro que pertenece a ese grupo y no es un ítem suelto más; sin
+// esto, una fila de grupo (LIB-002) y una suelta (LIB-004) se veían idénticas.
 function filaRecurso(r, opciones = {}) {
     const detalle = detalleSubtipo(r);
     const sub = detalle ? `<div class="sub">${esc(detalle)}</div>` : "";
@@ -80,7 +84,8 @@ function filaRecurso(r, opciones = {}) {
     const btnCopia = opciones.soloEnSuGrupo
         ? `<button type="button" class="btn btn-ghost btn-sm btn-agregar-copia" data-id="${esc(r.id)}">+ Copia</button>`
         : "";
-    return `<tr>
+    const clase = opciones.enGrupo ? ` class="fila-miembro"` : "";
+    return `<tr${clase}>
         <td><b>${esc(r.codigo)}</b></td>
         <td>${esc(r.nombre)}${sub}</td>
         <td>${esc(ETIQUETA_TIPO[r.tipo_recurso] || r.tipo_recurso)}</td>
@@ -136,7 +141,8 @@ function pintarInventario() {
     tabla.innerHTML = agruparPorNombre(filtrados)
         .map((grupo) =>
             grupo.unidades.length > 1
-                ? filaGrupo(grupo) + grupo.unidades.map((r) => filaRecurso(r)).join("")
+                ? filaGrupo(grupo) +
+                  grupo.unidades.map((r) => filaRecurso(r, { enGrupo: true })).join("")
                 : filaRecurso(grupo.unidades[0], { soloEnSuGrupo: true })
         )
         .join("");

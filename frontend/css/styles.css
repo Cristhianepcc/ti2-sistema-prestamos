@@ -870,6 +870,14 @@ td .sub {
   margin-left: 12px;
 }
 
+/* Filas que cuelgan de un .fila-grupo: mismo borde de acento que el
+   encabezado, pero mas angosto y sin fondo, para que se note que "son de ahi"
+   sin confundirse con una fila suelta (que no lleva este borde). */
+.fila-miembro td:first-child {
+  border-left: 3px solid var(--linea);
+  padding-left: 22px;
+}
+
 .who-cell {
   display: flex;
   align-items: center;

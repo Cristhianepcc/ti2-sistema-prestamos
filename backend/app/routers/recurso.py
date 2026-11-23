@@ -6,6 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -106,6 +107,12 @@ def crear_recurso(
         )
 
     db.add(recurso)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Ya existe un recurso con ese código"
+        ) from error
     db.refresh(recurso)
     return recurso

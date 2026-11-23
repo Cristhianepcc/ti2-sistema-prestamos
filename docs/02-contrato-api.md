@@ -309,6 +309,79 @@ Un **array** (vacío `[]` si no hay coincidencias, nunca `null` ni un 404).
 
 ---
 
+### POST `/api/recursos` — Alta
+
+Requiere rol `CUSTODIO_CE` o `CUSTODIO_INFRA`. El custodio del CE solo puede dar de alta
+`LIBRO`/`DEPORTIVO`; el de Infraestructura, solo `ACADEMICO` (misma regla que la
+constraint `chk_gestor_tipo` de la base).
+
+```jsonc
+// Request — un LIBRO. isbn/autor/categoria son del tipo LIBRO; cada tipo tiene los
+// suyos (ver la tabla de "Según tipo_recurso" más arriba).
+{
+  "codigo": "LIB-011",
+  "nombre": "Refactoring",
+  "descripcion": "Segunda edición",
+  "ubicacion": "Estante B-2",
+  "tipo_recurso": "LIBRO",
+  "isbn": "9780134757599",
+  "autor": "Martin Fowler",
+  "categoria": "Software"
+}
+```
+
+`gestor` **no** se manda: el backend lo deriva de `tipo_recurso` para que sea imposible
+violar `chk_gestor_tipo`. `estado` es opcional y por defecto `DISPONIBLE`.
+
+**Response `201`** — el recurso creado, misma forma que un item de `GET /api/recursos`.
+
+| Código | Cuándo |
+|---|---|
+| `401` | No autenticado |
+| `403` | El rol del custodio no corresponde al `tipo_recurso` pedido |
+| `409` | Ya existe un recurso con ese `codigo` |
+| `422` | Falta un campo requerido o un valor no cumple el esquema |
+
+---
+
+### PUT `/api/recursos/{id}` — Editar, cambiar estado o dar de baja
+
+Mismo control de permisos que el alta, pero evaluado contra el `gestor` del recurso que
+ya existe (no contra un `tipo_recurso` del body, que esta vez no se manda). Requiere rol
+`CUSTODIO_CE` o `CUSTODIO_INFRA`.
+
+Todos los campos del body son **opcionales**: solo se cambia lo que se manda. No existe
+`tipo_recurso` en este endpoint — cambiar el tipo no es una edición, es dar de baja y
+crear un recurso nuevo.
+
+```jsonc
+// Request — cambia solo la ubicación y pone el recurso en mantenimiento.
+{
+  "ubicacion": "Estante C-1",
+  "estado": "MANTENIMIENTO"
+}
+```
+
+`estado` solo acepta `DISPONIBLE`, `MANTENIMIENTO` o `BAJA` — las transiciones que tiene
+sentido hacer a mano. `PRESTADO` y `RESERVADO` los asigna el sistema (al prestar/devolver
+o confirmar una reserva); mandarlos aquí es `422`. Dar de baja un recurso es este mismo
+endpoint con `{ "estado": "BAJA" }` — no hay un endpoint de baja aparte ni `DELETE`: es
+baja lógica, el recurso sigue existiendo pero sale del catálogo (ver `EstadoRecurso` más
+abajo).
+
+**Response `200`** — el recurso actualizado, misma forma que un item de
+`GET /api/recursos`.
+
+| Código | Cuándo |
+|---|---|
+| `401` | No autenticado |
+| `403` | El rol del custodio no administra el `gestor` de este recurso |
+| `404` | No existe un recurso con ese `id` |
+| `409` | Ya existe otro recurso con el `codigo` nuevo, o se manda `estado` y el recurso está actualmente `PRESTADO` |
+| `422` | `estado` es `PRESTADO`/`RESERVADO`, o algún campo no cumple el esquema |
+
+---
+
 ## 4. Valores de los enums
 
 El frontend debe tratarlos como **strings exactos, en mayúsculas**. Son los que viajan
@@ -318,11 +391,16 @@ por la API; el texto bonito para el usuario se arma en el frontend.
 |---|---|
 | `Rol` | `ESTUDIANTE` · `DOCENTE` · `CUSTODIO_CE` · `CUSTODIO_INFRA` · `ADMINISTRADOR_SISTEMA` |
 | `TipoRecurso` | `LIBRO` · `DEPORTIVO` · `ACADEMICO` |
-| `EstadoRecurso` | `DISPONIBLE` · `RESERVADO` · `PRESTADO` · `MANTENIMIENTO` |
+| `EstadoRecurso` | `DISPONIBLE` · `RESERVADO` · `PRESTADO` · `MANTENIMIENTO` · `BAJA` |
 | `Gestor` | `CENTRO_ESTUDIANTES` · `INFRAESTRUCTURA` |
 
 Regla de coherencia que garantiza el backend: los `ACADEMICO` siempre tienen
 `gestor = INFRAESTRUCTURA`, y los `LIBRO` / `DEPORTIVO` siempre `CENTRO_ESTUDIANTES`.
+
+`BAJA` retira el recurso del catálogo para siempre (a mano vía `PUT`, o automático
+cuando una devolución reporta el recurso como perdido — Anexo RF3). A diferencia de
+`MANTENIMIENTO`, no es una transición pensada para revertirse sola, aunque nada lo
+impide (un `PUT` con `estado: "DISPONIBLE"` lo reactiva).
 
 ---
 
@@ -376,7 +454,11 @@ navegador aunque el endpoint funcione bien desde Swagger.
   (`mias`, `pendientes`, `estado`). Falta aplicarla a `/recursos` cuando el catálogo
   crezca lo suficiente para justificarlo.
 - Orden por defecto de `GET /api/recursos` (hoy: sin orden garantizado; conviene fijar `codigo ASC`).
-- `POST /api/recursos` (alta, issue #8) — se documenta acá cuando se implemente.
+- `RESERVADO` está en el enum pero ningún código lo asigna: una reserva (Anexo RF2)
+  aparta una franja horaria futura, no bloquea el recurso completo, así que un recurso
+  con una reserva pendiente sigue `DISPONIBLE` para usarse hoy. Si se decide que una
+  reserva confirmada sí deba bloquear el recurso, falta esa regla y qué pasa si se
+  confirma sobre un recurso ya `PRESTADO`.
 
 ---
 

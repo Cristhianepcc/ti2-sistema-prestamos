@@ -532,6 +532,11 @@ body.pagina-login {
   overflow-y: auto;
 }
 
+/* Para contenido que no es un formulario (ej. una tabla de historial). */
+.modal.modal-ancho {
+  max-width: 960px;
+}
+
 .modal-head {
   display: flex;
   justify-content: space-between;

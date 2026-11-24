@@ -1,36 +1,45 @@
-// Inventario del custodio (RF1): lista los recursos de su propio gestor y da
-// de alta nuevos. El endpoint POST /api/recursos ya existía en el backend
+// Inventario (RF1): lista los recursos del propio gestor de un custodio, o
+// el catálogo completo si es el administrador del sistema, y da de alta
+// nuevos. El endpoint POST /api/recursos ya existía en el backend
 // (routers/recurso.py) pero no tenía ninguna pantalla que lo usara.
 
 if (!requireAuth()) throw new Error("sin sesión");
 
 // El sidebar no ofrece esta página a otros roles, pero se puede llegar por URL
-// y el POST del backend igual responde 403. Se corta acá para no mostrar una
-// pantalla que no va a servir de nada.
-if (!hasRole("CUSTODIO_CE", "CUSTODIO_INFRA")) {
+// y el POST/PUT del backend igual responde 403. Se corta acá para no mostrar
+// una pantalla que no va a servir de nada.
+if (!hasRole("CUSTODIO_CE", "CUSTODIO_INFRA", "ADMINISTRADOR_SISTEMA")) {
     location.href = "inicio.html";
-    throw new Error("solo custodios");
+    throw new Error("solo custodios o administradores");
 }
 
 renderSidebar("inventario");
+
+const esAdmin = hasRole("ADMINISTRADOR_SISTEMA");
 
 // Cada custodio administra solo lo suyo: el CE los libros y deportivos,
 // Infraestructura los académicos (routers/recurso.py:77, y la constraint
 // chk_gestor_tipo de la base). Se refleja la misma regla acá para no ofrecer
 // opciones que el backend va a rechazar con 403. Un usuario con los dos roles
-// de custodio ve la unión.
+// de custodio ve la unión. El administrador del sistema no está atado a un
+// gestor (recurso.py:_exigir_gestor_propio hace la misma excepción): ve y
+// administra los tres tipos.
 const TIPOS_DEL_CE = ["LIBRO", "DEPORTIVO"];
 const TIPOS_DE_INFRA = ["ACADEMICO"];
 
-const tiposPermitidos = [
-    ...(hasRole("CUSTODIO_CE") ? TIPOS_DEL_CE : []),
-    ...(hasRole("CUSTODIO_INFRA") ? TIPOS_DE_INFRA : []),
-];
+const tiposPermitidos = esAdmin
+    ? [...TIPOS_DEL_CE, ...TIPOS_DE_INFRA]
+    : [
+          ...(hasRole("CUSTODIO_CE") ? TIPOS_DEL_CE : []),
+          ...(hasRole("CUSTODIO_INFRA") ? TIPOS_DE_INFRA : []),
+      ];
 
-const gestoresPropios = [
-    ...(hasRole("CUSTODIO_CE") ? ["CENTRO_ESTUDIANTES"] : []),
-    ...(hasRole("CUSTODIO_INFRA") ? ["INFRAESTRUCTURA"] : []),
-];
+const gestoresPropios = esAdmin
+    ? ["CENTRO_ESTUDIANTES", "INFRAESTRUCTURA"]
+    : [
+          ...(hasRole("CUSTODIO_CE") ? ["CENTRO_ESTUDIANTES"] : []),
+          ...(hasRole("CUSTODIO_INFRA") ? ["INFRAESTRUCTURA"] : []),
+      ];
 
 // Campos propios de cada subtipo (ver schemas/recurso.py). Los comunes
 // (codigo, nombre, descripcion, ubicacion) van en el formulario base.
@@ -84,6 +93,10 @@ function filaRecurso(r, opciones = {}) {
     const btnCopia = opciones.soloEnSuGrupo
         ? `<button type="button" class="btn btn-ghost btn-sm btn-agregar-copia" data-id="${esc(r.id)}">+ Copia</button>`
         : "";
+    // El backend ahora permite a cada custodio ver el historial de su propio
+    // gestor (y al admin, de cualquiera) — justo lo que esta tabla ya muestra
+    // por fila, así que el botón no necesita condición de rol.
+    const btnHistorial = `<button type="button" class="btn btn-ghost btn-sm btn-ver-historial" data-codigo="${esc(r.codigo)}">Ver historial</button>`;
     const clase = opciones.enGrupo ? ` class="fila-miembro"` : "";
     const conector = opciones.enGrupo ? `<span class="conector">↳</span>` : "";
     return `<tr${clase}>
@@ -96,6 +109,7 @@ function filaRecurso(r, opciones = {}) {
             <button type="button" class="btn btn-ghost btn-sm btn-editar" data-id="${esc(r.id)}">Editar</button>
             ${btnBaja}
             ${btnCopia}
+            ${btnHistorial}
         </div></td>
     </tr>`;
 }
@@ -147,6 +161,75 @@ function pintarInventario() {
                 : filaRecurso(grupo.unidades[0], { soloEnSuGrupo: true })
         )
         .join("");
+}
+
+// --- Historial de un recurso (modal) -----------------------------------------
+
+function parseFechaLocal(texto) {
+    const [anio, mes, dia] = String(texto).slice(0, 10).split("-").map(Number);
+    return new Date(anio, mes - 1, dia);
+}
+
+function formatearFecha(texto) {
+    return parseFechaLocal(texto).toLocaleDateString("es-PE", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+    });
+}
+
+// El motivo (`condicion_devolucion`, texto libre que escribe el custodio al
+// devolver) va pegado al badge: separarlos en columnas distintas no deja
+// claro que uno es la explicación del otro.
+function celdaIncidencia(item) {
+    const motivo = item.condicion_devolucion
+        ? ` — ${esc(item.condicion_devolucion)}`
+        : "";
+    if (item.perdido) return `<span class="badge danger">Perdido</span>${motivo}`;
+    if (item.danado) return `<span class="badge warn">Dañado</span>${motivo}`;
+    return item.condicion_devolucion ? esc(item.condicion_devolucion) : "—";
+}
+
+function filaHistorialRecurso(item) {
+    return `<tr>
+        <td>${esc(item.prestatario.nombres)} <span class="hint">${esc(item.prestatario.codigo)}</span></td>
+        <td>${esc(formatearFecha(item.fecha_entrega))}</td>
+        <td>${esc(formatearFecha(item.fecha_limite))}</td>
+        <td>${item.fecha_devolucion ? esc(formatearFecha(item.fecha_devolucion)) : "—"}</td>
+        <td>${celdaIncidencia(item)}</td>
+    </tr>`;
+}
+
+// Quiénes se prestaron este implemento, cuándo, y si alguna devolución quedó
+// marcada como dañada o perdida. `limite=50`: suficiente para el vistazo
+// rápido de un modal; si el recurso tiene más historial que eso, se avisa en
+// vez de paginar (no tiene sentido una paginación completa acá dentro).
+async function abrirModalHistorial(codigo) {
+    openModal(`Historial · ${codigo}`, `<p class="hint">Cargando…</p>`, { ancho: true });
+    try {
+        const r = await api.get(`/reportes/recursos/${encodeURIComponent(codigo)}/historial?limite=50`);
+        const encabezado = `<p class="hint"><b>${esc(r.recurso.nombre)}</b> · ${esc(r.recurso.codigo)} · ${badgeEstado(r.recurso.estado)}</p>`;
+        const cuerpo = r.items.length
+            ? `<div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Prestatario</th>
+                            <th>Entregado</th>
+                            <th>Vence</th>
+                            <th>Devuelto</th>
+                            <th>Incidencia</th>
+                        </tr>
+                    </thead>
+                    <tbody>${r.items.map(filaHistorialRecurso).join("")}</tbody>
+                </table>
+            </div>
+            ${r.total > r.items.length ? `<p class="hint">Mostrando los ${r.items.length} préstamos más recientes de ${r.total}.</p>` : ""}`
+            : `<p class="hint">Este recurso no tiene préstamos registrados.</p>`;
+        modalBody().innerHTML = encabezado + cuerpo;
+    } catch (e) {
+        modalBody().innerHTML = `<p class="alert-danger">${esc(e.message)}</p>`;
+    }
 }
 
 async function cargarInventario() {
@@ -373,6 +456,12 @@ tabla.addEventListener("click", (evento) => {
         if (!base) return;
         const clave = claveGrupo(base);
         abrirModalAgregarCopia(recursos.filter((r) => claveGrupo(r) === clave));
+        return;
+    }
+
+    const btnHistorial = evento.target.closest(".btn-ver-historial");
+    if (btnHistorial) {
+        abrirModalHistorial(btnHistorial.dataset.codigo);
     }
 });
 

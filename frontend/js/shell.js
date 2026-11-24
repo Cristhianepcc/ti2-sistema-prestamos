@@ -56,7 +56,10 @@ function itemsNav() {
   if (hasRole("CUSTODIO_CE", "CUSTODIO_INFRA")) {
     // Los custodios gestionan inventario, entregas y devoluciones.
     items.push(["registrar-prestamo.html", "custodio", "Panel Custodio"]);
-    // Alta y consulta del catálogo que administra cada custodio (RF1).
+  }
+  if (hasRole("CUSTODIO_CE", "CUSTODIO_INFRA", "ADMINISTRADOR_SISTEMA")) {
+    // Alta y consulta del catálogo (RF1): cada custodio administra su
+    // gestor; el administrador ve y administra los dos.
     items.push(["inventario.html", "inventario", "Inventario"]);
   }
   if (hasRole("ADMINISTRADOR_SISTEMA")) {

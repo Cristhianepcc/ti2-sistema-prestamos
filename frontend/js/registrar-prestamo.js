@@ -78,6 +78,22 @@ function formatearFechaCorta(texto) {
 
 buscarActivos.addEventListener("input", pintarActivos);
 
+// "Dañado"/"Perdido" sin explicación dejan un hueco en el historial de RF6
+// (el badge de incidencia aparece sin ningún motivo): si el resultado no es
+// "En buen estado", el comentario pasa de opcional a obligatorio.
+cajaActivos.addEventListener("change", (evento) => {
+    const select = evento.target.closest("select[name=resultado]");
+    if (!select) return;
+    const input = select.closest("form").querySelector("input[name=condicion_devolucion]");
+    const esIncidencia = select.value !== "OK";
+    input.required = esIncidencia;
+    input.placeholder = esIncidencia
+        ? select.value === "PERDIDO"
+            ? "Contá qué pasó (obligatorio)"
+            : "Describí el daño: qué parte, qué tan grave (obligatorio)"
+        : "Opcional";
+});
+
 cajaActivos.addEventListener("click", (evento) => {
     const btnDevolver = evento.target.closest(".btn-devolver");
     if (btnDevolver) {

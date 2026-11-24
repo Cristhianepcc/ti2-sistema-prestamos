@@ -1,5 +1,5 @@
 // Historial de préstamos (RF6): cualquier usuario ve el suyo; el
-// ADMINISTRADOR_SISTEMA además puede consultar el de otro por su ID.
+// ADMINISTRADOR_SISTEMA además puede consultar el de otro por su código.
 // Contrato: docs/02-contrato-api.md, Anexo RF6 — GET /api/historial.
 
 if (!requireAuth()) throw new Error("sin sesión");
@@ -9,13 +9,13 @@ renderSidebar("historial");
 const esAdmin = hasRole("ADMINISTRADOR_SISTEMA");
 
 document.getElementById("historial-subtitulo").textContent = esAdmin
-  ? "Tu historial de préstamos. Como administrador, también puedes consultar el de otro usuario por su ID."
+  ? "Tu historial de préstamos. Como administrador, también puedes consultar el de otro usuario por su código."
   : "Lo que pediste, cuándo, y si lo devolviste a tiempo.";
-if (esAdmin) document.getElementById("campo-usuario-id").hidden = false;
+if (esAdmin) document.getElementById("campo-usuario-codigo").hidden = false;
 
 // Deep link desde Reportes > Incidencias ("Ver historial" de un atrasado):
-// ?usuario_id=X precarga la búsqueda en vez de mostrar el historial propio.
-const usuarioIdPrecargado = esAdmin ? new URLSearchParams(location.search).get("usuario_id") : null;
+// ?codigo=X precarga la búsqueda en vez de mostrar el historial propio.
+const codigoPrecargado = esAdmin ? new URLSearchParams(location.search).get("codigo") : null;
 
 // --- Fechas -------------------------------------------------------------------
 
@@ -37,7 +37,7 @@ function formatearFecha(texto) {
 const LIMITE = 10;
 let offset = 0;
 
-const campoUsuarioId = document.getElementById("historial-usuario-id");
+const campoUsuarioCodigo = document.getElementById("historial-usuario-codigo");
 const campoEstado = document.getElementById("historial-estado");
 const mensaje = document.getElementById("mensaje-historial");
 const tabla = document.getElementById("historial-tabla");
@@ -45,7 +45,7 @@ const paginacion = document.getElementById("historial-paginacion");
 const btnAnterior = document.getElementById("btn-historial-anterior");
 const btnSiguiente = document.getElementById("btn-historial-siguiente");
 
-if (usuarioIdPrecargado) campoUsuarioId.value = usuarioIdPrecargado;
+if (codigoPrecargado) campoUsuarioCodigo.value = codigoPrecargado;
 
 function mostrarMensaje(texto) {
   mensaje.className = "alert-danger";
@@ -70,7 +70,7 @@ async function cargarHistorial() {
 
   const params = new URLSearchParams({ limite: LIMITE, offset });
   if (campoEstado.value) params.set("estado", campoEstado.value);
-  if (esAdmin && campoUsuarioId.value.trim()) params.set("usuario_id", campoUsuarioId.value.trim());
+  if (esAdmin && campoUsuarioCodigo.value.trim()) params.set("codigo", campoUsuarioCodigo.value.trim());
 
   try {
     const r = await api.get(`/historial?${params}`);

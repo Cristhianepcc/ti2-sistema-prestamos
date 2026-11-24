@@ -36,8 +36,14 @@
     return overlay;
   }
 
-  window.openModal = function (titulo, bodyHTML) {
+  window.openModal = function (titulo, bodyHTML, opciones = {}) {
     const el = asegurarOverlay();
+    // `opciones.ancho`: para contenido que no es un formulario (ej. una tabla
+    // de varias columnas), que no entra en el max-width pensado para forms.
+    // Se resetea la clase en cada apertura: si no, un modal ancho dejaba
+    // "pegada" esa clase en la siguiente apertura normal (el overlay es un
+    // singleton que se reusa entre llamadas).
+    el.querySelector(".modal").className = opciones.ancho ? "modal modal-ancho" : "modal";
     el.querySelector("#modal-titulo").textContent = titulo;
     el.querySelector(".modal-body").innerHTML = bodyHTML;
     el.hidden = false;

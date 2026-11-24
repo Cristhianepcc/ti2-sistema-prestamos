@@ -62,6 +62,19 @@ def test_crear_recurso_con_gestor_equivocado_devuelve_403(db_session):
     assert respuesta.status_code == 403
 
 
+def test_administrador_puede_crear_recurso_de_cualquier_gestor(db_session):
+    admin = crear_custodio(db_session, Rol.ADMINISTRADOR_SISTEMA, "ADMIN-ALTA")
+    client = crear_cliente(db_session, admin)
+
+    respuesta = client.post(
+        "/api/recursos",
+        json={"codigo": "ACA-901", "nombre": "Proyector", "tipo_recurso": "ACADEMICO"},
+    )
+
+    assert respuesta.status_code == 201
+    assert respuesta.json()["gestor"] == "INFRAESTRUCTURA"
+
+
 def test_crear_recurso_codigo_duplicado_devuelve_409(db_session):
     custodio = crear_custodio(db_session, Rol.CUSTODIO_CE, "CE-DUP")
     crear_recurso(db_session, TipoRecurso.LIBRO, "DUP-900")
@@ -104,6 +117,19 @@ def test_actualizar_recurso_de_otro_gestor_devuelve_403(db_session):
     )
 
     assert respuesta.status_code == 403
+
+
+def test_administrador_puede_editar_recurso_de_cualquier_gestor(db_session):
+    admin = crear_custodio(db_session, Rol.ADMINISTRADOR_SISTEMA, "ADMIN-EDIT")
+    recurso_academico = crear_recurso(db_session, TipoRecurso.ACADEMICO, "ADMIN-OTRO-900")
+    client = crear_cliente(db_session, admin)
+
+    respuesta = client.put(
+        f"/api/recursos/{recurso_academico.id}", json={"nombre": "Editado por admin"}
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["nombre"] == "Editado por admin"
 
 
 def test_actualizar_recurso_inexistente_devuelve_404(db_session):

@@ -60,6 +60,9 @@ def test_devolucion_libera_el_recurso(db_session):
 
     assert devuelto.estado == EstadoPrestamo.DEVUELTO
     assert recurso.estado == EstadoRecurso.DISPONIBLE
+    # Una devolución normal no debe dejar marcas de incidencia para RF6.
+    assert devuelto.danado is False
+    assert devuelto.perdido is False
 
 
 def test_devolucion_danada_pone_el_recurso_en_mantenimiento(db_session):
@@ -76,11 +79,36 @@ def test_devolucion_danada_pone_el_recurso_en_mantenimiento(db_session):
         ahora=AHORA_LABORAL,
     )
 
-    registrar_devolucion(db_session, prestamo_id=prestamo.id, danado=True)
+    devuelto = registrar_devolucion(db_session, prestamo_id=prestamo.id, danado=True)
 
     # A diferencia de uno perdido, uno dañado puede volver tras revisión: no se
     # da de baja, solo queda fuera de disponibilidad hasta que el custodio lo vea.
     assert recurso.estado == EstadoRecurso.MANTENIMIENTO
+    # Persistido en el préstamo (y no solo usado para decidir el estado del
+    # recurso): es lo que RF6 necesita para reportar el historial de daños.
+    assert devuelto.danado is True
+    assert devuelto.perdido is False
+
+
+def test_devolucion_perdida_marca_el_prestamo_y_da_de_baja_el_recurso(db_session):
+    prestatario = crear_usuario(db_session, "PERDIDO")
+    custodio = crear_usuario(db_session, "CUSTODIOPER")
+    recurso = crear_recurso(db_session, TipoRecurso.LIBRO, "PERDIDO")
+    prestamo = crear_prestamo(
+        db_session,
+        recurso_id=recurso.id,
+        prestatario_id=prestatario.id,
+        registrado_por_id=custodio.id,
+        tipo_prestamo=TipoPrestamo.SIMPLE,
+        modalidad_uso=ModalidadUso.EN_SITIO,
+        ahora=AHORA_LABORAL,
+    )
+
+    devuelto = registrar_devolucion(db_session, prestamo_id=prestamo.id, perdido=True)
+
+    assert recurso.estado == EstadoRecurso.BAJA
+    assert devuelto.perdido is True
+    assert devuelto.danado is False
 
 
 def test_no_permite_que_el_custodio_se_registre_a_si_mismo(db_session):

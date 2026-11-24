@@ -206,6 +206,8 @@ def registrar_devolucion(
     prestamo.estado = EstadoPrestamo.DEVUELTO
     prestamo.fecha_devolucion = datetime.now(timezone.utc)
     prestamo.condicion_devolucion = condicion_devolucion
+    prestamo.danado = danado
+    prestamo.perdido = perdido
     motivo_sancion = _motivo_sancion_devolucion(prestamo, danado=danado, perdido=perdido)
     if perdido:
         # Perdido: no vuelve, se retira del catálogo (RF1).

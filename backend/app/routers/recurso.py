@@ -58,24 +58,30 @@ def listar_recursos(
 
 
 def _exigir_gestor_propio(usuario: Usuario, gestor: Gestor, accion: str) -> None:
-    """Misma regla para alta y edición: cada custodio administra solo lo suyo."""
-    if gestor is Gestor.CENTRO_ESTUDIANTES and not usuario.tiene_rol(Rol.CUSTODIO_CE):
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            f"Solo un custodio del Centro de Estudiantes puede {accion} este tipo de recurso",
-        )
-    if gestor is Gestor.INFRAESTRUCTURA and not usuario.tiene_rol(Rol.CUSTODIO_INFRA):
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            f"Solo un custodio de Infraestructura puede {accion} este tipo de recurso",
-        )
+    """Misma regla para alta y edición: cada custodio administra solo lo suyo.
+
+    El administrador del sistema es la excepción: supervisa todo el
+    inventario, así que no está atado a un gestor. Ver `Usuario.puede_gestionar`
+    (también la usa el historial por recurso de `reporte.py`).
+    """
+    if usuario.puede_gestionar(gestor):
+        return
+    nombre_gestor = (
+        "del Centro de Estudiantes" if gestor is Gestor.CENTRO_ESTUDIANTES else "de Infraestructura"
+    )
+    raise HTTPException(
+        status.HTTP_403_FORBIDDEN,
+        f"Solo un custodio {nombre_gestor} puede {accion} este tipo de recurso",
+    )
 
 
 @router.post(
     "",
     response_model=RecursoPublico,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role(Rol.CUSTODIO_CE, Rol.CUSTODIO_INFRA))],
+    dependencies=[
+        Depends(require_role(Rol.CUSTODIO_CE, Rol.CUSTODIO_INFRA, Rol.ADMINISTRADOR_SISTEMA))
+    ],
 )
 def crear_recurso(
     datos: RecursoCreate,
@@ -85,7 +91,8 @@ def crear_recurso(
     """Alta de un recurso (issue #8, opcional).
 
     El custodio del CE solo da de alta libros/deportivos; el de
-    Infraestructura, solo academicos.
+    Infraestructura, solo academicos. El administrador del sistema puede
+    dar de alta cualquier tipo.
     """
     gestor = _GESTOR_POR_TIPO[datos.tipo_recurso]
     _exigir_gestor_propio(usuario, gestor, "dar de alta")
@@ -125,7 +132,9 @@ def crear_recurso(
 @router.put(
     "/{recurso_id}",
     response_model=RecursoPublico,
-    dependencies=[Depends(require_role(Rol.CUSTODIO_CE, Rol.CUSTODIO_INFRA))],
+    dependencies=[
+        Depends(require_role(Rol.CUSTODIO_CE, Rol.CUSTODIO_INFRA, Rol.ADMINISTRADOR_SISTEMA))
+    ],
 )
 def actualizar_recurso(
     recurso_id: int,
@@ -136,8 +145,8 @@ def actualizar_recurso(
     """Edita un recurso existente: datos, baja o cambio manual de estado (RF1).
 
     Mismo control de permisos que el alta: cada custodio solo edita lo que
-    administra su gestor. El tipo de recurso no se puede cambiar (ver
-    `RecursoUpdate`).
+    administra su gestor; el administrador del sistema edita cualquier
+    recurso. El tipo de recurso no se puede cambiar (ver `RecursoUpdate`).
     """
     recurso = db.get(Recurso, recurso_id)
     if recurso is None:

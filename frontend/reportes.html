@@ -19,6 +19,13 @@
             <p class="hint">Vista de solo lectura del sistema de préstamos (RF6).</p>
             <p class="hint solo-imprimir" id="fecha-exportacion"></p>
 
+            <div class="toolbar no-imprimir" style="margin-bottom:14px">
+                <label class="field" style="max-width:220px">Ver historial de un usuario
+                    <input type="text" id="buscar-historial-codigo" placeholder="Código, ej: 20200001" maxlength="20">
+                </label>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-buscar-historial-usuario">Ver historial</button>
+            </div>
+
             <div id="kpi-grid" class="kpi-grid"></div>
 
             <div class="block-title">Usuarios</div>
@@ -113,6 +120,7 @@
     <script src="js/api.js"></script>
     <script src="js/render.js"></script>
     <script src="js/shell.js"></script>
+    <script src="js/modal.js"></script>
     <script src="js/charts.js"></script>
     <script src="js/reportes.js"></script>
 </body>

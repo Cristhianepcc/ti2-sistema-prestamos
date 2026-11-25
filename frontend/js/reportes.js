@@ -65,7 +65,7 @@ async function cargarResumenGeneral() {
     kpiGrid.innerHTML = [
       kpiCardHTML(ICONOS.usuarios, r.total_usuarios, "Usuarios registrados"),
       kpiCardHTML(ICONOS.inventario, r.total_recursos, "Recursos totales"),
-      kpiCardHTML(ICONOS.prestamos, r.total_prestamos, "Préstamos registrados"),
+      kpiCardHTML(ICONOS.actividades, r.total_prestamos, "Préstamos registrados"),
       kpiCardHTML(ICONO_ALERTA, r.prestamos_atrasados, "Préstamos atrasados", r.prestamos_atrasados > 0),
     ].join("");
   } catch (e) {
@@ -195,9 +195,66 @@ function filaAtrasado(item) {
     <td>${esc(item.prestatario.nombres)} <span class="hint">${esc(item.prestatario.codigo)}</span></td>
     <td>${esc(formatearFecha(item.fecha_limite))}</td>
     <td><span class="badge danger">${esc(item.dias_atraso)} días</span></td>
-    <td class="no-imprimir"><a class="btn btn-ghost btn-sm" href="mis-actividades.html?tab=historial&codigo=${encodeURIComponent(item.prestatario.codigo)}">Ver historial</a></td>
+    <td class="no-imprimir"><button type="button" class="btn btn-ghost btn-sm btn-ver-historial-usuario" data-codigo="${esc(item.prestatario.codigo)}">Ver historial</button></td>
   </tr>`;
 }
+
+// Ver el historial de OTRO usuario es una consulta administrativa, no "mi
+// actividad" — por eso vive en un modal acá (mismo patrón que
+// abrirModalHistorial en inventario.js para el historial de un recurso) y
+// no navega a Mis Actividades. Tope de 50 sin paginación: para un vistazo
+// rápido del prestatario atrasado no hace falta más.
+function filaHistorialUsuario(item) {
+  return `<tr>
+    <td>${esc(item.recurso.nombre)} <span class="hint">${esc(item.recurso.codigo)}</span></td>
+    <td>${esc(ETIQUETA_TIPO_SOLICITUD[item.tipo_prestamo] || item.tipo_prestamo)}</td>
+    <td>${esc(formatearFecha(item.fecha_entrega))}</td>
+    <td>${esc(formatearFecha(item.fecha_limite))}</td>
+    <td>${badgePrestamo(item.estado)}</td>
+    <td>${item.dias_atraso > 0 ? `<span class="badge danger">${esc(item.dias_atraso)} días</span>` : "—"}</td>
+  </tr>`;
+}
+
+async function abrirModalHistorialUsuario(codigo) {
+  openModal(`Historial · ${codigo}`, `<p class="hint">Cargando…</p>`, { ancho: true });
+  try {
+    const r = await api.get(`/historial?codigo=${encodeURIComponent(codigo)}&limite=50`);
+    const cuerpo = r.items.length
+      ? `<div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Recurso</th>
+                        <th>Tipo</th>
+                        <th>Entregado</th>
+                        <th>Vence</th>
+                        <th>Estado</th>
+                        <th>Atraso</th>
+                    </tr>
+                </thead>
+                <tbody>${r.items.map(filaHistorialUsuario).join("")}</tbody>
+            </table>
+        </div>
+        ${r.total > r.items.length ? `<p class="hint">Mostrando los ${r.items.length} préstamos más recientes de ${r.total}.</p>` : ""}`
+      : `<p class="hint">Este usuario no tiene préstamos registrados.</p>`;
+    modalBody().innerHTML = cuerpo;
+  } catch (e) {
+    modalBody().innerHTML = `<p class="alert-danger">${esc(e.message)}</p>`;
+  }
+}
+
+atrasadosTabla.addEventListener("click", (evento) => {
+  const boton = evento.target.closest(".btn-ver-historial-usuario");
+  if (boton) abrirModalHistorialUsuario(boton.dataset.codigo);
+});
+
+// Buscador libre, arriba de todo: a diferencia del botón de Incidencias (que
+// solo sirve para quien ya aparece atrasado), este busca el historial de
+// CUALQUIER usuario por código, esté o no atrasado.
+document.getElementById("btn-buscar-historial-usuario").addEventListener("click", () => {
+  const codigo = document.getElementById("buscar-historial-codigo").value.trim();
+  if (codigo) abrirModalHistorialUsuario(codigo);
+});
 
 async function cargarPrestamos() {
   showLoading(prestamosStats);

@@ -222,33 +222,23 @@ cajaPrestamos.addEventListener("click", (evento) => {
 
 // --- Historial (GET /historial) -----------------------------------------------
 //
-// Cualquier usuario ve el suyo; el ADMINISTRADOR_SISTEMA además puede
-// consultar el de otro por su código. Contrato: docs/02-contrato-api.md,
+// Siempre el propio: ver el historial de otro usuario es una consulta
+// administrativa (Reportes > Incidencias > "Ver historial", en un modal),
+// no "mi actividad" — no tiene cabida acá. Contrato: docs/02-contrato-api.md,
 // Anexo RF6.
 
-const esAdmin = hasRole("ADMINISTRADOR_SISTEMA");
-
-document.getElementById("historial-subtitulo").textContent = esAdmin
-  ? "Tu historial de préstamos. Como administrador, también puedes consultar el de otro usuario por su código."
-  : "Lo que pediste, cuándo, y si lo devolviste a tiempo.";
-if (esAdmin) document.getElementById("campo-usuario-codigo").hidden = false;
-
-// Deep link desde Reportes > Incidencias ("Ver historial" de un atrasado):
-// ?codigo=X precarga la búsqueda (ver más abajo el tab inicial).
-const codigoPrecargado = esAdmin ? new URLSearchParams(location.search).get("codigo") : null;
+document.getElementById("historial-subtitulo").textContent =
+  "Lo que pediste, cuándo, y si lo devolviste a tiempo.";
 
 const LIMITE_HISTORIAL = 10;
 let offsetHistorial = 0;
 
-const campoUsuarioCodigo = document.getElementById("historial-usuario-codigo");
 const campoEstado = document.getElementById("historial-estado");
 const mensajeHistorial = document.getElementById("mensaje-historial");
 const tablaHistorial = document.getElementById("historial-tabla");
 const paginacionHistorial = document.getElementById("historial-paginacion");
 const btnHistorialAnterior = document.getElementById("btn-historial-anterior");
 const btnHistorialSiguiente = document.getElementById("btn-historial-siguiente");
-
-if (codigoPrecargado) campoUsuarioCodigo.value = codigoPrecargado;
 
 function mostrarMensajeHistorial(texto) {
   mensajeHistorial.className = "alert-danger";
@@ -273,7 +263,6 @@ async function cargarHistorial() {
 
   const params = new URLSearchParams({ limite: LIMITE_HISTORIAL, offset: offsetHistorial });
   if (campoEstado.value) params.set("estado", campoEstado.value);
-  if (esAdmin && campoUsuarioCodigo.value.trim()) params.set("codigo", campoUsuarioCodigo.value.trim());
 
   try {
     const r = await api.get(`/historial?${params}`);
@@ -332,8 +321,8 @@ function mostrarTab(tab) {
     CARGAR_TAB[tab]();
   }
 
-  // Refleja la pestaña activa en la URL sin recargar, para que el deep link
-  // de "Ver historial" (desde Reportes) y volver/compartir funcionen bien.
+  // Refleja la pestaña activa en la URL sin recargar, para que
+  // volver/compartir el link funcione bien.
   const params = new URLSearchParams(location.search);
   params.set("tab", tab);
   history.replaceState(null, "", `${location.pathname}?${params}`);
@@ -345,5 +334,5 @@ document.getElementById("tabs").addEventListener("click", (evento) => {
 });
 
 const tabParam = new URLSearchParams(location.search).get("tab");
-const tabInicial = TABS.includes(tabParam) ? tabParam : codigoPrecargado ? "historial" : "solicitudes";
+const tabInicial = TABS.includes(tabParam) ? tabParam : "solicitudes";
 mostrarTab(tabInicial);

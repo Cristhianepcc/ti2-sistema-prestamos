@@ -26,6 +26,7 @@ from .prestamo_service import (
     RegistroPrestamoNoEncontrado,
     crear_prestamo,
 )
+from .sancion_service import mensaje_bloqueo, sancion_bloqueante
 
 
 class ErrorSolicitud(Exception):
@@ -49,9 +50,9 @@ class PermisoSolicitud(ErrorSolicitud):
 
 
 def _validar_sancion_activa(db: Session, usuario_id: int) -> None:
-    """Punto de extensión para el módulo de sanciones RF5, aún no implementado."""
-    # TODO(RF5): comprobar si el usuario tiene una sanción activa y bloquear la solicitud.
-    pass
+    sancion = sancion_bloqueante(db, usuario_id)
+    if sancion is not None:
+        raise ConflictoSolicitud(mensaje_bloqueo(sancion))
 
 
 def _rol_custodio(solicitud: Solicitud) -> Rol:

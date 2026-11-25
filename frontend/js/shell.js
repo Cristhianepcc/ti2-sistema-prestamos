@@ -18,6 +18,8 @@ const ICONOS = {
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg>',
   historial:
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
+  sanciones:
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 16H3L12 3z"/><path d="M12 9v4M12 16h.01"/></svg>',
   usuarios:
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.3"/><path d="M3 20c0-3.6 2.7-6 6-6s6 2.4 6 6"/><circle cx="18" cy="9" r="2.6"/><path d="M15.5 14.2c2.6.3 4.5 2.3 4.5 5.3"/></svg>',
   solicitudes:
@@ -47,6 +49,7 @@ function itemsNav() {
     ["mis-reservas.html", "reservas", "Mis Reservas"],
     ["mis-prestamos.html", "prestamos", "Mis Préstamos"],
     ["historial.html", "historial", "Historial"],
+    ["sanciones.html", "sanciones", "Sanciones"],
   ];
   if (
     hasRole("CUSTODIO_CE", "CUSTODIO_INFRA", "DOCENTE", "ADMINISTRADOR_SISTEMA")

@@ -9,7 +9,9 @@ from sqlalchemy.orm import Session
 from ..models.enums import (
     EstadoPrestamo,
     EstadoRecurso,
+    Gestor,
     ModalidadUso,
+    Rol,
     TipoPrestamo,
     TipoRecurso,
 )
@@ -18,6 +20,7 @@ from ..models.recurso import Recurso
 from ..models.reserva import Reserva
 from ..models.usuario import Usuario
 from ..models.enums import EstadoReserva
+from .sancion_service import mensaje_bloqueo, registrar_sanciones_por_devolucion, sancion_bloqueante
 from .invariantes import (
     ZONA_LIMA,
     FueraDeHorarioLaboral,
@@ -35,6 +38,10 @@ class ErrorPrestamo(Exception):
 
 class ConflictoPrestamo(ErrorPrestamo):
     """La operación contradice una regla de negocio."""
+
+
+class PermisoPrestamo(ErrorPrestamo):
+    """El custodio no administra el recurso del préstamo."""
 
 
 class RegistroPrestamoNoEncontrado(ErrorPrestamo):
@@ -77,13 +84,9 @@ def _calcular_fecha_limite(
 
 
 def _validar_sancion_activa(db: Session, usuario_id: int) -> None:
-    """Punto de extensión para el bloqueo por sanciones de RF5.
-
-    El modelo Sancion aún no existe; por ahora no se aplica el bloqueo.
-    """
-    # TODO(RF5): comprobar si el usuario tiene una sanción activa y bloquear
-    # el préstamo cuando se implemente el modelo y servicio de sanciones.
-    pass
+    sancion = sancion_bloqueante(db, usuario_id)
+    if sancion is not None:
+        raise ConflictoPrestamo(mensaje_bloqueo(sancion))
 
 
 def crear_prestamo(
@@ -190,6 +193,8 @@ def registrar_devolucion(
     condicion_devolucion: str | None = None,
     danado: bool = False,
     perdido: bool = False,
+    actor_usuario_id: int | None = None,
+    ahora: datetime | None = None,
 ) -> Prestamo:
     """Registra la devolución y actualiza el estado del recurso."""
     prestamo = db.get(Prestamo, prestamo_id)
@@ -203,10 +208,25 @@ def registrar_devolucion(
     if recurso is None:
         raise RegistroPrestamoNoEncontrado("Recurso del préstamo no encontrado")
 
+    if actor_usuario_id is not None:
+        actor = db.get(Usuario, actor_usuario_id)
+        rol_requerido = (
+            Rol.CUSTODIO_CE
+            if recurso.gestor == Gestor.CENTRO_ESTUDIANTES
+            else Rol.CUSTODIO_INFRA
+        )
+        if actor is None or not actor.activo or not actor.tiene_rol(rol_requerido):
+            raise PermisoPrestamo("El custodio no administra el recurso de este préstamo")
+
     prestamo.estado = EstadoPrestamo.DEVUELTO
-    prestamo.fecha_devolucion = datetime.now(timezone.utc)
+    fecha_devolucion = ahora or datetime.now(timezone.utc)
+    fecha_devolucion = (
+        fecha_devolucion
+        if fecha_devolucion.tzinfo is not None
+        else fecha_devolucion.replace(tzinfo=timezone.utc)
+    ).astimezone(timezone.utc)
+    prestamo.fecha_devolucion = fecha_devolucion
     prestamo.condicion_devolucion = condicion_devolucion
-    motivo_sancion = _motivo_sancion_devolucion(prestamo, danado=danado, perdido=perdido)
     if perdido or danado:
         # TODO(RF1): agregar estado BAJA y retirar el recurso perdido del catálogo.
         # Mientras no exista esa decisión, MANTENIMIENTO lo mantiene no disponible.
@@ -220,8 +240,14 @@ def registrar_devolucion(
         )
     else:
         recurso.estado = EstadoRecurso.DISPONIBLE
-    # TODO(RF5): crear la sanción usando motivo_sancion cuando exista ese módulo.
-    _ = motivo_sancion
+    registrar_sanciones_por_devolucion(
+        db,
+        prestamo=prestamo,
+        danado=danado,
+        perdido=perdido,
+        actor_usuario_id=actor_usuario_id,
+        ahora=fecha_devolucion,
+    )
 
     try:
         db.commit()
@@ -231,23 +257,6 @@ def registrar_devolucion(
         raise
 
     return prestamo
-
-
-def _motivo_sancion_devolucion(
-    prestamo: Prestamo, *, danado: bool, perdido: bool, ahora: datetime | None = None
-) -> str | None:
-    """Resuelve el motivo previsto para RF5; pérdida prevalece sobre daño y retraso."""
-    if perdido:
-        return "PERDIDA"
-    if danado:
-        return "DANIO"
-    ahora = ahora or datetime.now(timezone.utc)
-    fecha_limite = prestamo.fecha_limite
-    if fecha_limite.tzinfo is None:
-        fecha_limite = fecha_limite.replace(tzinfo=timezone.utc)
-    if fecha_limite < ahora:
-        return "RETRASO"
-    return None
 
 
 def marcar_prestamos_atrasados(db: Session) -> int:

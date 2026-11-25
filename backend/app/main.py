@@ -14,6 +14,7 @@ from .routers import (
     recurso,
     reporte,
     reserva,
+    sancion,
     solicitud,
     usuarios,
 )
@@ -46,6 +47,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(recurso.router, prefix="/api")
 app.include_router(reserva.router, prefix="/api")
 app.include_router(prestamo.router, prefix="/api")
+app.include_router(sancion.router, prefix="/api")
 app.include_router(usuarios.router, prefix="/api")
 app.include_router(solicitud.router, prefix="/api")
 app.include_router(notificacion.router, prefix="/api")

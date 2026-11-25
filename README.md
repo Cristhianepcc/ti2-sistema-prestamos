@@ -46,7 +46,8 @@ El dominio se organiza en subdominios:
 - **SolicitudAcademica** — solo para préstamos `POR_CURSO` y `EXCEPCIONAL`.
 - **Prestamo** — entidad núcleo, con `tipoPrestamo` y `modalidadUso`
   (la categoría del prestatario se deriva del rol; ver auditoría §8 del doc base).
-- **Garantia**, **Sancion** (`RETRASO`, `DANIO`, `PERDIDA`), **Reporte**.
+- **Garantia**, **Sancion** (`RETRASO`, `DANIO`, `PERDIDA`) con historial de eventos,
+  **Reporte**.
 
 ### Roles
 
@@ -56,6 +57,10 @@ El dominio se organiza en subdominios:
 - **Solicitar:** cualquier rol, único requisito no tener sanción activa. Toda solicitud se
   hace **desde la plataforma**, incluso para préstamos SIMPLE (ya no hay registro directo en
   persona sin solicitud previa).
+- **Sanciones:** una devolución fuera de plazo crea un bloqueo de 72 horas; daño bloquea hasta
+  que el custodio registre la reparación; pérdida, hasta que registre una reposición del mismo
+  tipo y gestor. El bloqueo impide nuevas solicitudes, reservas y préstamos. No hay cálculo de
+  multas porque el equipo aún no definió montos.
 - **Aprobar/gestionar:**
   - `CUSTODIO_CE` → **acepta o rechaza manualmente** las solicitudes SIMPLE de libros/deportivos
     y registra la entrega al aceptar.

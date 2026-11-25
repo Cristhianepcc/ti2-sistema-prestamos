@@ -15,6 +15,7 @@ from .invariantes import (
     validar_dia_laboral,
     validar_hora_laboral,
 )
+from .sancion_service import mensaje_bloqueo, sancion_bloqueante
 
 
 class ErrorReserva(Exception):
@@ -81,13 +82,9 @@ def _validar_tipo_recurso(tipo: TipoPrestamo, recurso: Recurso) -> None:
 
 
 def _validar_sancion_activa(db: Session, usuario_id: int) -> None:
-    """Punto de extensión para el bloqueo por sanciones de RF5.
-
-    La entidad Sancion aún no existe; por ahora no se aplica el bloqueo.
-    """
-    # TODO(RF5): comprobar si el usuario tiene una sanción activa y bloquear
-    # la reserva cuando se implemente el modelo y servicio de sanciones.
-    pass
+    sancion = sancion_bloqueante(db, usuario_id)
+    if sancion is not None:
+        raise ConflictoReserva(mensaje_bloqueo(sancion))
 
 
 def crear_reserva(

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sanciones</title>
+    <link href="css/styles.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app">
+        <aside class="app-sidebar" id="app-sidebar"></aside>
+        <main class="app-main">
+            <h2 class="page-title">Sanciones</h2>
+            <p class="hint">Consulta el motivo, el préstamo relacionado y el historial de cada sanción.</p>
+
+            <section class="seccion-sanciones">
+                <h3 class="block-title">Mis sanciones</h3>
+                <div id="mis-sanciones" class="loan-list"></div>
+            </section>
+
+            <section id="seccion-gestion-sanciones" class="seccion-sanciones" hidden>
+                <h3 id="titulo-gestion-sanciones" class="block-title">Gestión de sanciones</h3>
+                <p id="ayuda-gestion-sanciones" class="hint"></p>
+                <div id="gestion-sanciones" class="loan-list"></div>
+            </section>
+        </main>
+    </div>
+    <script src="js/api.js"></script>
+    <script src="js/render.js"></script>
+    <script src="js/shell.js"></script>
+    <script src="js/sanciones.js"></script>
+</body>
+</html>

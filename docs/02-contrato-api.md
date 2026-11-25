@@ -446,9 +446,14 @@ Devuelve un objeto `ReservaPublica`:
 | `409` | El recurso está en mantenimiento |
 | `409` | El mismo usuario ya tiene una reserva pendiente/confirmada para el mismo recurso, fecha y franja |
 | `409` | `fecha` cae en sábado/domingo, o `franja` queda fuera de 8:00-19:00 |
+| `409` | El usuario tiene una sanción vigente |
 | `422` | `fecha`, `franja` o `tipo` no cumplen el formato esperado |
 
-La comprobación de sanciones aún está pendiente de RF5: el servicio actual tiene ese punto como TODO y todavía no bloquea reservas por sanción activa.
+Las sanciones por retraso vencen 72 horas después de registrarse la devolución. Las de daño o pérdida permanecen vigentes hasta que el custodio registre la reparación o reposición.
+
+La expiración se evalúa en las operaciones protegidas y al consultar el historial: al cumplirse
+las 72 horas, la sanción deja de bloquear; el siguiente acceso registra además el evento
+`VENCIDA` y cambia `activa` a `false`. No se ejecuta un proceso en segundo plano.
 
 ### GET `/api/reservas?mias=true` — Mis reservas
 
@@ -488,8 +493,8 @@ Devuelve `204` sin cuerpo cuando la cancelación se completa.
 
 ### POST `/api/solicitudes` — Crear solicitud
 
-Requiere autenticación. Cualquier cuenta activa puede crear la solicitud. El bloqueo por
-sanciones aún no se aplica porque RF5 no está implementado.
+Requiere autenticación. Cualquier cuenta activa puede crear la solicitud. Si el usuario tiene
+una sanción vigente, responde `409` con el motivo y, para retraso, la fecha de fin del bloqueo.
 
 #### Request
 
@@ -783,6 +788,7 @@ El backend asigna `registrado_por_id`, `fecha_entrega` y `estado`; y `fecha_limi
 | `404` | `recurso_id`, `prestatario_id` o el registrador no existen |
 | `409` | `registrado_por_id == prestatario_id` ("El registrador no puede ser el prestatario") |
 | `409` | El recurso no está `DISPONIBLE` |
+| `409` | El prestatario tiene una sanción vigente |
 | `409` | `tipo_prestamo=SIMPLE` sobre un recurso `ACADEMICO`, o `POR_CURSO`/`EXCEPCIONAL` sobre uno que no lo es |
 | `409` | `tipo_prestamo=EXCEPCIONAL` con `modalidad_uso` distinta de `RETIRO_TEMPORAL` |
 | `409` | Se registra fuera del horario de atención: sábado/domingo, o fuera de 8:00-19:00 (hora de Lima) — ver Anexo de Reservas |
@@ -805,7 +811,7 @@ Requiere autenticación con rol `CUSTODIO_CE` o `CUSTODIO_INFRA`.
 | `danado` | boolean | No (default `false`) | Si es `true`, el recurso pasa a `MANTENIMIENTO` en vez de `DISPONIBLE` |
 | `perdido` | boolean | No (default `false`) | Si es `true`, el recurso queda no disponible en `MANTENIMIENTO` mientras se define el estado `BAJA` |
 
-Solo se pueden devolver préstamos en estado `ACTIVO` o `ATRASADO`. Al devolver, `estado` pasa a `DEVUELTO` y se completa `fecha_devolucion`. Si `danado` o `perdido` es `true`, el recurso queda en `MANTENIMIENTO` y no disponible hasta que se decida cómo representarlo como baja lógica. Si ambos son `true`, la pérdida prevalece al determinar el motivo de sanción. La sanción aún no se crea: RF5 está pendiente.
+Solo se pueden devolver préstamos en estado `ACTIVO` o `ATRASADO`. Al devolver, `estado` pasa a `DEVUELTO` y se completa `fecha_devolucion`. Si `danado` o `perdido` es `true`, el recurso queda en `MANTENIMIENTO`. Se crea una sanción `DANIO` o `PERDIDA`; si además la devolución fue tardía, se crea otra sanción `RETRASO`. Si ambos indicadores de condición son `true`, `PERDIDA` prevalece sobre `DANIO`, porque el recurso perdido no puede repararse. La devolución, las sanciones y sus eventos se guardan en una misma transacción.
 
 #### Response `200`
 
@@ -817,6 +823,76 @@ Mismo objeto `PrestamoPublico` de arriba, ya con `estado: "DEVUELTO"`.
 | `403` | El usuario no es `CUSTODIO_CE` ni `CUSTODIO_INFRA` |
 | `404` | El préstamo no existe |
 | `409` | El préstamo no está `ACTIVO` ni `ATRASADO` |
+
+---
+
+## Anexo RF5 — Sanciones
+
+Todas las rutas requieren autenticación. `Sancion` se vincula al prestatario y al préstamo;
+el custodio solo puede gestionar sanciones de recursos que administra. Un usuario normal solo
+consulta sus propios registros; el administrador puede consultar todas las sanciones.
+
+### GET `/api/sanciones?mias=true` — Mis sanciones
+
+Devuelve las sanciones propias con el préstamo, recurso y lista cronológica de eventos.
+`activas=true` limita el resultado a sanciones vigentes; `activas=false` devuelve las cerradas.
+
+### GET `/api/sanciones` — Vista de gestión
+
+Un custodio ve sanciones de su gestor. Un administrador ve todas. Para que un custodio vea
+también las suyas como prestatario, debe usar `?mias=true`.
+
+### POST `/api/sanciones` — Registro manual de un caso histórico/corregido
+
+Requiere rol custodio. La devolución normal crea las sanciones aplicables automáticamente;
+este endpoint sirve para registrar un caso anterior o corregido. El usuario afectado se deriva
+del préstamo, no se acepta arbitrariamente en el body.
+
+#### Request
+
+```json
+{
+  "prestamo_id": 42,
+  "motivo": "DANIO",
+  "detalle": "Se registró el daño al revisar la devolución."
+}
+```
+
+`motivo` acepta `RETRASO`, `DANIO` o `PERDIDA`; `detalle` es obligatorio. Para retraso, el
+préstamo debe estar vencido y el bloqueo dura 72 horas desde el registro. Daño/pérdida requieren
+que la devolución esté registrada y el recurso siga en `MANTENIMIENTO`.
+
+### PATCH `/api/sanciones/{id}/levantar` — Registrar resolución
+
+Requiere ser custodio del gestor del préstamo. No elimina el registro: añade un evento con
+quién resolvió, cuándo y el detalle. Los retrasos no se pueden levantar antes de sus 72 horas.
+
+#### Reparación
+
+```json
+{ "detalle": "Se reemplazó la pieza y se probó el equipo." }
+```
+
+Al resolver `DANIO`, el recurso pasa de `MANTENIMIENTO` a `DISPONIBLE`.
+
+#### Reposición por pérdida
+
+```json
+{
+  "detalle": "Se recibió el ejemplar de reposición y se dio de alta en inventario.",
+  "recurso_reposicion_id": 57
+}
+```
+
+La reposición debe existir en inventario, estar disponible y tener el mismo gestor y tipo que
+el recurso perdido. Un mismo ejemplar no puede usarse como reposición de más de una sanción.
+El original permanece en `MANTENIMIENTO` hasta que se defina el estado de baja lógica. `monto`
+queda sin asignar (`null`): no hay regla acordada para calcular multas ni integración de pagos.
+
+Las sanciones admiten una fila por motivo y préstamo (`UNIQUE(prestamo_id, motivo)`), para poder
+registrar, por ejemplo, retraso y daño a la vez. Si vence una sanción temporal, se marca cerrada
+al siguiente acceso al módulo o al comprobar el bloqueo; ese vencimiento también queda en el
+historial.
 
 ---
 
@@ -928,7 +1004,8 @@ de la consulta.
 ```
 
 Todas las claves de los enums aparecen siempre, aunque valgan `0`. `MANTENIMIENTO` incluye
-los recursos retirados por daño o pérdida; no distingue el motivo (RF5 pendiente).
+los recursos retirados por daño o pérdida. La causa detallada se consulta en el módulo de
+sanciones y no se desglosa en este resumen de reportes.
 
 | Código | Cuándo |
 |---|---|

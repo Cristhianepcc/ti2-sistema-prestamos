@@ -189,7 +189,7 @@ try {
 
 | Función | Qué hace |
 |---|---|
-| `renderSidebar(activa)` | Pinta el sidebar de navegación en `#app-sidebar` y resalta el item `activa` (`"catalogo"`, `"reservas"`, `"prestamos"` o `"custodio"`). Incluye el botón de cerrar sesión. Llamalo una vez al cargar cualquier página con sesión |
+| `renderSidebar(activa)` | Pinta el sidebar de navegación en `#app-sidebar` y resalta el item `activa` (por ejemplo `"catalogo"`, `"reservas"`, `"prestamos"`, `"custodio"` o `"sanciones"`). Incluye el botón de cerrar sesión. Llamalo una vez al cargar cualquier página con sesión |
 
 El Panel Custodio solo aparece en el sidebar para `CUSTODIO_CE`/`CUSTODIO_INFRA`
 (usa `hasRole()` internamente) — no hace falta ocultarlo a mano.

@@ -58,6 +58,14 @@ class EstadoPrestamo(str, enum.Enum):
     ATRASADO = "ATRASADO"
 
 
+class MotivoSancion(str, enum.Enum):
+    """Causa de una sanción asociada a un préstamo."""
+
+    RETRASO = "RETRASO"
+    DANIO = "DANIO"
+    PERDIDA = "PERDIDA"
+
+
 class TipoPrestamo(str, enum.Enum):
     """Tipos de préstamo permitidos."""
 

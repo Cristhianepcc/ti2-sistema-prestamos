@@ -38,7 +38,8 @@ function currentUser() {
 
 function hasRole(...roles) {
   const user = currentUser();
-  return !!user && roles.some((rol) => user.roles.includes(rol));
+  const rolesUsuario = user && Array.isArray(user.roles) ? user.roles : [];
+  return roles.some((rol) => rolesUsuario.includes(rol));
 }
 
 function onLoginPage() {
@@ -84,19 +85,28 @@ async function apiFetch(path, { method = "GET", body = null, auth = true } = {})
     if (token) headers["Authorization"] = `Bearer ${token}`;
   }
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000); // 15 s
+
   let res;
+  let data = null;
   try {
     res = await fetch(`${API_BASE}${path}`, {
       method,
       headers,
       body: body ? JSON.stringify(body) : null,
+      signal: controller.signal,
     });
-  } catch {
+    data = res.status !== 204 ? await res.json().catch(() => null) : null;
+  } catch (e) {
+    if (e.name === "AbortError") {
+      throw new ApiError(0, "La API tardó demasiado en responder. Inténtalo de nuevo.");
+    }
     // Falla de red: la API está caída, el puerto es otro, o falta el origen en CORS.
     throw new ApiError(0, "No se pudo conectar con la API. ¿Está corriendo en :8000?");
+  } finally {
+    clearTimeout(timer);
   }
-
-  const data = res.status !== 204 ? await res.json().catch(() => null) : null;
 
   if (res.ok) return data;
 

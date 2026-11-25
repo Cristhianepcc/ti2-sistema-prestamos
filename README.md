@@ -160,9 +160,10 @@ en distintos estados. La contraseña de todos es `prestamos123`.
 
 > Son credenciales de desarrollo, solo para la demo. No usar en nada real.
 
-> **Nota sobre el esquema:** todavía no hay migraciones (Alembic). Las tablas se crean
-> al arrancar la API a partir de los modelos, y `create_all` **no** modifica tablas ya
-> existentes: si cambian las columnas de un modelo, hay que recrear la base con
-> `docker compose down -v`.
+> **Esquema de la base de datos:** la API crea las tablas faltantes al arrancar y aplica
+> una vez los scripts SQL pendientes de `backend/migrations/`. `create_all` por sí solo no
+> cambia tablas existentes; la migración `001_sanciones.sql` agrega `BAJA` y las banderas
+> de daño/pérdida necesarias para sanciones. No borres el volumen de PostgreSQL para aplicar
+> esa migración. Otros cambios de modelo deben incluir su propia migración.
 
 > Repositorio del semestre; se irá completando conforme avancen las entregas del curso.

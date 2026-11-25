@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Actividades</title>
+    <link href="css/styles.css" rel="stylesheet">
+</head>
+<body>
+
+    <div class="app">
+        <aside class="app-sidebar" id="app-sidebar"></aside>
+
+        <div class="app-main">
+            <h2 class="page-title">Mis Actividades</h2>
+
+            <div class="tabs" id="tabs" role="tablist">
+                <button type="button" class="tab" role="tab" data-tab="solicitudes">Solicitudes</button>
+                <button type="button" class="tab" role="tab" data-tab="reservas">Reservas</button>
+                <button type="button" class="tab" role="tab" data-tab="prestamos">Préstamos</button>
+                <button type="button" class="tab" role="tab" data-tab="historial">Historial</button>
+            </div>
+
+            <section class="tab-panel" id="panel-solicitudes">
+                <p class="nota-futura">Consulta el estado de las solicitudes que enviaste desde el catálogo.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Recurso</th><th>Tipo</th><th>Motivo</th><th>Estado</th><th>Fecha</th></tr>
+                        </thead>
+                        <tbody id="mis-solicitudes"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="tab-panel" id="panel-reservas" hidden>
+                <div id="reservas-error" class="alert-danger" hidden role="alert"></div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Recurso</th><th>Fecha · franja</th><th>Estado</th><th></th></tr>
+                        </thead>
+                        <tbody id="reservas"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="tab-panel" id="panel-prestamos" hidden>
+                <div class="two-col">
+                    <div id="prestamos" class="loan-list"></div>
+                    <div>
+                        <div class="block-title">Comprobante de entrega</div>
+                        <div id="comprobante"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="tab-panel" id="panel-historial" hidden>
+                <p class="hint" id="historial-subtitulo"></p>
+                <div class="toolbar">
+                    <label class="field" id="campo-usuario-codigo" hidden>Código de usuario (opcional)
+                        <input type="text" id="historial-usuario-codigo" placeholder="Vacío = tu propio historial">
+                    </label>
+                    <label class="field">Estado
+                        <select id="historial-estado">
+                            <option value="">Todos</option>
+                            <option value="ACTIVO">Activo</option>
+                            <option value="ATRASADO">Atrasado</option>
+                            <option value="DEVUELTO">Devuelto</option>
+                        </select>
+                    </label>
+                    <button type="button" class="btn btn-ghost btn-sm" id="btn-buscar-historial">Buscar</button>
+                </div>
+                <div id="mensaje-historial" aria-live="polite"></div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Recurso</th>
+                                <th>Tipo</th>
+                                <th>Entregado</th>
+                                <th>Vence</th>
+                                <th>Estado</th>
+                                <th>Días de atraso</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historial-tabla"></tbody>
+                    </table>
+                </div>
+                <div class="toolbar" style="justify-content:space-between">
+                    <span class="hint" id="historial-paginacion"></span>
+                    <div class="filters">
+                        <button type="button" class="btn btn-ghost btn-sm" id="btn-historial-anterior">‹ Anterior</button>
+                        <button type="button" class="btn btn-ghost btn-sm" id="btn-historial-siguiente">Siguiente ›</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/render.js"></script>
+    <script src="js/shell.js"></script>
+    <script src="js/mis-actividades.js"></script>
+</body>
+</html>

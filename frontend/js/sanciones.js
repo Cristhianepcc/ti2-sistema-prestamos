@@ -57,7 +57,11 @@ function eventosHtml(eventos = []) {
         <span>${esc(fechaHoraLocal(e.created_at))}</span>
         <p>${esc(e.detalle)}</p>
         ${e.actor ? `<small>Registrado por ${esc(e.actor.nombres)}</small>` : ""}
-        ${e.recurso_reposicion_id ? `<small>Ejemplar de reposición #${esc(e.recurso_reposicion_id)}</small>` : ""}
+        ${e.recurso_reposicion
+          ? `<small>Ejemplar de reposición: ${esc(e.recurso_reposicion.codigo)} · ${esc(e.recurso_reposicion.nombre)}</small>`
+          : e.recurso_reposicion_id
+            ? `<small>Ejemplar de reposición #${esc(e.recurso_reposicion_id)}</small>`
+            : ""}
       </li>`).join("")}</ol>
   </details>`;
 }
@@ -65,12 +69,12 @@ function eventosHtml(eventos = []) {
 function formularioResolucion(s) {
   if (!puedeResolver || !s.activa || s.motivo === "RETRASO") return "";
   const esPerdida = s.motivo === "PERDIDA";
-  return `<form class="form-card sancion-resolucion" data-id="${esc(s.id)}">
+  return `<form class="form-card sancion-resolucion" data-id="${esc(s.id)}" data-motivo="${esc(s.motivo)}">
     <label class="field">${esPerdida ? "Detalle de la reposición" : "Detalle de la reparación"}
       <textarea name="detalle" rows="2" required minlength="3" maxlength="1000" placeholder="Qué se hizo y cuándo"></textarea>
     </label>
-    ${esPerdida ? `<label class="field">Código del nuevo ejemplar en inventario
-      <input name="recurso_reposicion_id" type="number" min="1" required>
+    ${esPerdida ? `<label class="field">Código del ejemplar registrado como reposición
+      <input name="codigo_reposicion" type="text" maxlength="30" required placeholder="LIB-005">
     </label>` : ""}
     <div class="alert-danger form-error-msg" hidden></div>
     <button type="submit" class="btn btn-primary btn-sm">Registrar ${esPerdida ? "reposición" : "reparación"}</button>
@@ -123,13 +127,25 @@ cajaGestion.addEventListener("submit", async (evento) => {
   const boton = form.querySelector('button[type="submit"]');
   const error = form.querySelector(".form-error-msg");
   const payload = { detalle: valores.detalle };
-  if (valores.recurso_reposicion_id) {
-    payload.recurso_reposicion_id = Number(valores.recurso_reposicion_id);
-  }
 
   setBusy(boton, true, "Guardando...");
   showFormError(error, "");
   try {
+    if (form.dataset.motivo === "PERDIDA") {
+      const codigo = String(valores.codigo_reposicion || "").trim();
+      if (!codigo) {
+        throw new Error("Ingresa el código del ejemplar de reposición.");
+      }
+      const recursos = await api.get("/recursos?q=" + encodeURIComponent(codigo));
+      const reposicion = recursos.find(
+        (recurso) => String(recurso.codigo).trim().toUpperCase() === codigo.toUpperCase()
+      );
+      if (!reposicion) {
+        throw new Error("No se encontró un recurso con ese código en el inventario.");
+      }
+      payload.recurso_reposicion_id = Number(reposicion.id);
+    }
+
     await api.patch(`/sanciones/${Number(form.dataset.id)}/levantar`, payload);
     await cargar();
   } catch (e) {
@@ -137,5 +153,4 @@ cajaGestion.addEventListener("submit", async (evento) => {
     setBusy(boton, false);
   }
 });
-
 cargar();

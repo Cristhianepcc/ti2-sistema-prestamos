@@ -102,11 +102,13 @@ def test_devolucion_tardia_y_danada_crea_dos_sanciones(db_session):
     assert retraso.fin - retraso.inicio == timedelta(hours=72)
     assert "después del plazo" in retraso.detalle
     assert retraso.eventos[0].actor_usuario_id == custodio.id
+    assert prestamo.danado is True
+    assert prestamo.perdido is False
     assert recurso.estado == EstadoRecurso.MANTENIMIENTO
 
 
 def test_perdida_prevalece_sobre_danio_y_retraso_se_guarda_aparte(db_session):
-    prestatario, custodio, _, prestamo = prestamo_ejemplo(
+    prestatario, custodio, recurso, prestamo = prestamo_ejemplo(
         db_session, "PERDIDA-TARDE", fecha_limite=AHORA - timedelta(days=1)
     )
 
@@ -125,6 +127,9 @@ def test_perdida_prevalece_sobre_danio_y_retraso_se_guarda_aparte(db_session):
         ).all()
     )
     assert motivos == {MotivoSancion.PERDIDA, MotivoSancion.RETRASO}
+    assert prestamo.danado is True
+    assert prestamo.perdido is True
+    assert recurso.estado == EstadoRecurso.BAJA
 
 
 def test_devolucion_normal_no_crea_sancion(db_session):
@@ -258,7 +263,7 @@ def test_perdida_exige_recurso_de_reposicion_y_lo_registra(db_session):
     )
 
     assert resuelta.activa is False
-    assert recurso.estado == EstadoRecurso.MANTENIMIENTO
+    assert recurso.estado == EstadoRecurso.BAJA
     assert resuelta.eventos[-1].recurso_reposicion_id == reposicion.id
 
     _, segundo_custodio, _, segundo_prestamo = prestamo_ejemplo(

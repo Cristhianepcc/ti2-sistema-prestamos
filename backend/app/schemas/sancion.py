@@ -76,6 +76,7 @@ class SancionEventoPublico(BaseModel):
     actor: UsuarioSancionPublico | None = None
     recurso_reposicion_id: int | None
     created_at: datetime
+    recurso_reposicion: RecursoSancionPublico | None = None
 
 
 class SancionPublica(BaseModel):

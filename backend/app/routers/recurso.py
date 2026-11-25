@@ -6,12 +6,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import ImplementoAcademico, ImplementoDeportivo, Libro, Recurso
+from ..models import ImplementoAcademico, ImplementoDeportivo, Libro, Recurso, Usuario
 from ..models.enums import EstadoRecurso, Gestor, Rol, TipoRecurso
-from ..schemas.recurso import RecursoCreate, RecursoPublico
+from ..schemas.recurso import RecursoCreate, RecursoPublico, RecursoUpdate
 from ..security import UsuarioActual, require_role
 
 router = APIRouter(prefix="/recursos", tags=["recursos"])
@@ -56,11 +57,31 @@ def listar_recursos(
     return list(db.scalars(stmt))
 
 
+def _exigir_gestor_propio(usuario: Usuario, gestor: Gestor, accion: str) -> None:
+    """Misma regla para alta y edición: cada custodio administra solo lo suyo.
+
+    El administrador del sistema es la excepción: supervisa todo el
+    inventario, así que no está atado a un gestor. Ver `Usuario.puede_gestionar`
+    (también la usa el historial por recurso de `reporte.py`).
+    """
+    if usuario.puede_gestionar(gestor):
+        return
+    nombre_gestor = (
+        "del Centro de Estudiantes" if gestor is Gestor.CENTRO_ESTUDIANTES else "de Infraestructura"
+    )
+    raise HTTPException(
+        status.HTTP_403_FORBIDDEN,
+        f"Solo un custodio {nombre_gestor} puede {accion} este tipo de recurso",
+    )
+
+
 @router.post(
     "",
     response_model=RecursoPublico,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role(Rol.CUSTODIO_CE, Rol.CUSTODIO_INFRA))],
+    dependencies=[
+        Depends(require_role(Rol.CUSTODIO_CE, Rol.CUSTODIO_INFRA, Rol.ADMINISTRADOR_SISTEMA))
+    ],
 )
 def crear_recurso(
     datos: RecursoCreate,
@@ -70,20 +91,11 @@ def crear_recurso(
     """Alta de un recurso (issue #8, opcional).
 
     El custodio del CE solo da de alta libros/deportivos; el de
-    Infraestructura, solo academicos.
+    Infraestructura, solo academicos. El administrador del sistema puede
+    dar de alta cualquier tipo.
     """
     gestor = _GESTOR_POR_TIPO[datos.tipo_recurso]
-
-    if gestor is Gestor.CENTRO_ESTUDIANTES and not usuario.tiene_rol(Rol.CUSTODIO_CE):
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            "Solo un custodio del Centro de Estudiantes puede dar de alta este tipo de recurso",
-        )
-    if gestor is Gestor.INFRAESTRUCTURA and not usuario.tiene_rol(Rol.CUSTODIO_INFRA):
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            "Solo un custodio de Infraestructura puede dar de alta este tipo de recurso",
-        )
+    _exigir_gestor_propio(usuario, gestor, "dar de alta")
 
     campos_comunes = dict(
         codigo=datos.codigo,
@@ -106,6 +118,63 @@ def crear_recurso(
         )
 
     db.add(recurso)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Ya existe un recurso con ese código"
+        ) from error
+    db.refresh(recurso)
+    return recurso
+
+
+@router.put(
+    "/{recurso_id}",
+    response_model=RecursoPublico,
+    dependencies=[
+        Depends(require_role(Rol.CUSTODIO_CE, Rol.CUSTODIO_INFRA, Rol.ADMINISTRADOR_SISTEMA))
+    ],
+)
+def actualizar_recurso(
+    recurso_id: int,
+    datos: RecursoUpdate,
+    usuario: UsuarioActual,
+    db: Annotated[Session, Depends(get_db)],
+) -> Recurso:
+    """Edita un recurso existente: datos, baja o cambio manual de estado (RF1).
+
+    Mismo control de permisos que el alta: cada custodio solo edita lo que
+    administra su gestor; el administrador del sistema edita cualquier
+    recurso. El tipo de recurso no se puede cambiar (ver `RecursoUpdate`).
+    """
+    recurso = db.get(Recurso, recurso_id)
+    if recurso is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Recurso no encontrado")
+
+    _exigir_gestor_propio(usuario, recurso.gestor, "editar")
+
+    cambios = datos.model_dump(exclude_unset=True)
+    if "estado" in cambios and recurso.estado == EstadoRecurso.PRESTADO:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "No se puede cambiar el estado de un recurso prestado;"
+            " se actualiza solo al registrar la devolución",
+        )
+
+    # Solo se aplican los campos propios del subtipo real del recurso (p.ej.
+    # `autor` en un LIBRO); el schema acepta los de los tres tipos porque es
+    # uno solo para los tres, pero el cliente solo manda los de su propio tipo.
+    for campo, valor in cambios.items():
+        if hasattr(type(recurso), campo):
+            setattr(recurso, campo, valor)
+
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Ya existe un recurso con ese código"
+        ) from error
     db.refresh(recurso)
     return recurso

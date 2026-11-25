@@ -33,12 +33,19 @@ class TipoRecurso(str, enum.Enum):
 
 
 class EstadoRecurso(str, enum.Enum):
-    """Disponibilidad del recurso en el catálogo."""
+    """Disponibilidad del recurso en el catálogo.
+
+    `BAJA` retira el recurso del catálogo para siempre (a mano, por un
+    custodio, o automático cuando una devolución reporta el recurso como
+    perdido — ver `prestamo_service.registrar_devolucion`). A diferencia de
+    `MANTENIMIENTO`, no es una transición pensada para revertirse sola.
+    """
 
     DISPONIBLE = "DISPONIBLE"
     RESERVADO = "RESERVADO"
     PRESTADO = "PRESTADO"
     MANTENIMIENTO = "MANTENIMIENTO"
+    BAJA = "BAJA"
 
 
 class EstadoReserva(str, enum.Enum):

@@ -441,6 +441,13 @@ body.pagina-login {
   gap: 3px;
 }
 
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
 .app-sidebar .marca {
   font-family: var(--f-titulos);
   font-weight: 800;
@@ -448,6 +455,10 @@ body.pagina-login {
   color: #fff;
   margin-bottom: 10px;
   padding: 0 10px;
+}
+
+.sidebar-header .marca {
+  margin-bottom: 0;
 }
 
 .app-sidebar .marca span {
@@ -532,6 +543,11 @@ body.pagina-login {
   overflow-y: auto;
 }
 
+/* Para contenido que no es un formulario (ej. una tabla de historial). */
+.modal.modal-ancho {
+  max-width: 960px;
+}
+
 .modal-head {
   display: flex;
   justify-content: space-between;
@@ -599,6 +615,62 @@ body.pagina-login {
   padding: 2px 6px;
   border-radius: var(--radius-full);
   flex: none;
+}
+
+/* Ícono de notificaciones junto a la marca (ver sidebar-header en shell.js),
+   en vez de una fila más de la lista de navegación. */
+.btn-notif-icono {
+  position: relative;
+  display: flex;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.72);
+  padding: 6px;
+  margin-right: 2px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btn-notif-icono:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.btn-notif-icono .badge-icono {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  margin-left: 0;
+}
+
+/* ---- panel de notificaciones (dropdown, ver shell.js) ---- */
+
+.notif-panel {
+  position: fixed;
+  z-index: 100;
+  width: 320px;
+  max-width: calc(100vw - 28px);
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--fondo);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+}
+
+.notif-panel-head {
+  font-family: var(--f-titulos);
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--azul);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--linea);
+}
+
+.notif-panel-body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .app-main {
@@ -691,6 +763,31 @@ body.pagina-login {
   background: var(--azul);
   border-color: var(--azul);
   color: var(--sobre-azul);
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--linea);
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.tab {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  color: var(--tinta-suave);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.tab.active {
+  color: var(--azul);
+  border-bottom-color: var(--azul);
 }
 
 .cards {
@@ -845,6 +942,43 @@ tr:last-child td {
 td .sub {
   color: var(--tinta-suave);
   font-size: 11.5px;
+}
+
+/* Encabezado de grupo (varias copias del mismo recurso en inventario, RF1):
+   necesita distinguirse de las filas de unidad individuales que vienen justo
+   debajo, no solo por el texto en negrita. */
+.fila-grupo td {
+  background: var(--fondo-suave);
+  border-left: 3px solid var(--azul);
+  border-bottom: 1px solid var(--linea);
+  padding-top: 9px;
+  padding-bottom: 9px;
+  color: var(--tinta-suave);
+  font-size: 12px;
+}
+
+.fila-grupo td b {
+  color: var(--tinta);
+  font-size: 13px;
+}
+
+.fila-grupo .btn {
+  float: right;
+  margin-left: 12px;
+}
+
+/* Filas que cuelgan de un .fila-grupo: el código lleva un conector "↳" en
+   vez de jugarse a un color/fondo que puede no leerse bien. Es texto, no
+   diseño: funciona igual en cualquier pantalla y no compite con el badge de
+   estado ni con los botones de acción. */
+.fila-miembro td:first-child {
+  color: var(--tinta-suave);
+  font-weight: 400;
+}
+
+.fila-miembro .conector {
+  margin-right: 4px;
+  color: var(--gris);
 }
 
 .who-cell {

@@ -75,3 +75,34 @@ class RecursoCreate(BaseModel):
     tipo_deportivo: str | None = None
     codigo_patrimonial: str | None = None
     requiere_aval: bool | None = None
+
+
+class RecursoUpdate(BaseModel):
+    """Edición parcial de un recurso (PUT /api/recursos/{id}).
+
+    Todos los campos son opcionales: solo se cambia lo que se manda. No
+    incluye `tipo_recurso` — cambiarlo requeriría migrar entre subtipos (cada
+    uno con sus propias columnas), así que no es una edición sino dar de baja
+    y crear un recurso nuevo.
+
+    `estado` solo acepta las transiciones que tiene sentido hacer a mano:
+    `DISPONIBLE` (volver de un mantenimiento), `MANTENIMIENTO` o `BAJA`.
+    `PRESTADO` y `RESERVADO` los asigna el sistema (`prestamo_service` /
+    `reserva_service`), nunca un custodio desde este endpoint.
+    """
+
+    codigo: str | None = Field(default=None, min_length=1, max_length=30)
+    nombre: str | None = Field(default=None, min_length=1, max_length=120)
+    descripcion: str | None = None
+    ubicacion: str | None = None
+    estado: (
+        Literal[EstadoRecurso.DISPONIBLE, EstadoRecurso.MANTENIMIENTO, EstadoRecurso.BAJA]
+        | None
+    ) = None
+
+    isbn: str | None = None
+    autor: str | None = None
+    categoria: str | None = None
+    tipo_deportivo: str | None = None
+    codigo_patrimonial: str | None = None
+    requiere_aval: bool | None = None

@@ -20,6 +20,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
 from .enums import MotivoSancion
+from .recurso import Recurso
 
 
 class Sancion(Base):
@@ -92,6 +93,9 @@ class SancionEvento(Base):
 
     sancion: Mapped[Sancion] = relationship(back_populates="eventos")
     actor: Mapped["Usuario | None"] = relationship(foreign_keys=[actor_usuario_id])
+    recurso_reposicion: Mapped["Recurso | None"] = relationship(
+        foreign_keys=[recurso_reposicion_id]
+    )
 
     def __repr__(self) -> str:
         return f"<SancionEvento id={self.id} sancion_id={self.sancion_id} tipo={self.tipo}>"

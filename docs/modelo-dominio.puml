@@ -87,6 +87,7 @@ package "Catalogo de Recursos  «soporte»" {
     RESERVADO
     PRESTADO
     MANTENIMIENTO
+    BAJA
   }
 }
 
@@ -147,6 +148,8 @@ package "Prestamos  «NUCLEO»" #FFF6E5 {
     - modalidadUso : ModalidadUso
     - condicionEntrega : String
     - condicionDevolucion : String
+    - danado : boolean
+    - perdido : boolean
     --
     + registrarDevolucion(cond : String) : void
     + estaAtrasado() : boolean

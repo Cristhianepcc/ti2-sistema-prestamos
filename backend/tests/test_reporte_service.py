@@ -17,10 +17,13 @@ from app.models import (
 )
 from app.services.reporte_service import (
     RangoInvalido,
+    RecursoNoEncontrado,
     UsuarioNoEncontrado,
     _dia_lima,
+    _en_utc,
     _inicio_del_dia,
     evolucion_prestamos,
+    historial_recurso,
     listar_historial,
     reporte_inventario,
     reporte_prestamos,
@@ -44,6 +47,8 @@ def _crear_prestamo(
     fecha_entrega=None,
     fecha_limite=None,
     fecha_devolucion=None,
+    danado=False,
+    perdido=False,
 ) -> Prestamo:
     prestamo = Prestamo(
         recurso_id=recurso.id,
@@ -55,6 +60,8 @@ def _crear_prestamo(
         fecha_entrega=fecha_entrega or AHORA,
         fecha_limite=fecha_limite or (AHORA + timedelta(days=7)),
         fecha_devolucion=fecha_devolucion,
+        danado=danado,
+        perdido=perdido,
     )
     db.add(prestamo)
     db.commit()
@@ -589,3 +596,83 @@ def test_historial_filtra_por_estado_y_pagina(db_session):
 def test_historial_usuario_inexistente_lanza_error(db_session):
     with pytest.raises(UsuarioNoEncontrado):
         listar_historial(db_session, usuario_id=999)
+
+
+# --- Historial por recurso -----------------------------------------------------
+
+
+def test_historial_recurso_inexistente_lanza_error(db_session):
+    with pytest.raises(RecursoNoEncontrado):
+        historial_recurso(db_session, recurso_id=999)
+
+
+def test_historial_recurso_sin_prestamos_devuelve_vacio(db_session):
+    recurso = crear_recurso(db_session, TipoRecurso.LIBRO, "HISTREC-VACIO")
+
+    resultado = historial_recurso(db_session, recurso_id=recurso.id)
+
+    assert resultado["recurso"]["codigo"] == recurso.codigo
+    assert resultado["total"] == 0
+    assert resultado["items"] == []
+
+
+def test_historial_recurso_marca_danado_y_perdido_con_fecha(db_session):
+    prestatario = crear_usuario(db_session, "HISTREC-USR")
+    registrador = crear_usuario(db_session, "HISTREC-REG")
+    recurso = crear_recurso(db_session, TipoRecurso.LIBRO, "HISTREC-DP")
+
+    _crear_prestamo(
+        db_session,
+        recurso=recurso,
+        prestatario=prestatario,
+        registrador=registrador,
+        estado=EstadoPrestamo.DEVUELTO,
+        fecha_entrega=AHORA - timedelta(days=10),
+        fecha_devolucion=AHORA - timedelta(days=5),
+        danado=True,
+    )
+    _crear_prestamo(
+        db_session,
+        recurso=recurso,
+        prestatario=prestatario,
+        registrador=registrador,
+        estado=EstadoPrestamo.DEVUELTO,
+        fecha_entrega=AHORA - timedelta(days=4),
+        fecha_devolucion=AHORA - timedelta(days=1),
+        perdido=True,
+    )
+
+    resultado = historial_recurso(db_session, recurso_id=recurso.id)
+
+    assert resultado["total"] == 2
+    # Más reciente primero.
+    mas_reciente, mas_viejo = resultado["items"]
+    assert mas_reciente["perdido"] is True and mas_reciente["danado"] is False
+    # SQLite no conserva tzinfo (a diferencia de Postgres en producción); _en_utc
+    # es la misma normalización que ya usa reporte_service para estos casos.
+    assert _en_utc(mas_reciente["fecha_devolucion"]) == AHORA - timedelta(days=1)
+    assert mas_viejo["danado"] is True and mas_viejo["perdido"] is False
+    assert _en_utc(mas_viejo["fecha_devolucion"]) == AHORA - timedelta(days=5)
+    assert mas_reciente["prestatario"]["codigo"] == prestatario.codigo
+
+
+def test_historial_recurso_pagina_sin_cambiar_el_total(db_session):
+    prestatario = crear_usuario(db_session, "HISTREC-PAG-USR")
+    registrador = crear_usuario(db_session, "HISTREC-PAG-REG")
+    recurso = crear_recurso(db_session, TipoRecurso.LIBRO, "HISTREC-PAG")
+
+    for i in range(3):
+        _crear_prestamo(
+            db_session,
+            recurso=recurso,
+            prestatario=prestatario,
+            registrador=registrador,
+            estado=EstadoPrestamo.DEVUELTO,
+            fecha_entrega=AHORA - timedelta(days=i),
+            fecha_devolucion=AHORA,
+        )
+
+    pagina = historial_recurso(db_session, recurso_id=recurso.id, limite=2, offset=0)
+
+    assert pagina["total"] == 3
+    assert len(pagina["items"]) == 2

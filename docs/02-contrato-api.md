@@ -309,6 +309,81 @@ Un **array** (vacío `[]` si no hay coincidencias, nunca `null` ni un 404).
 
 ---
 
+### POST `/api/recursos` — Alta
+
+Requiere rol `CUSTODIO_CE`, `CUSTODIO_INFRA` o `ADMINISTRADOR_SISTEMA`. El custodio del CE
+solo puede dar de alta `LIBRO`/`DEPORTIVO`; el de Infraestructura, solo `ACADEMICO` (misma
+regla que la constraint `chk_gestor_tipo` de la base). El `ADMINISTRADOR_SISTEMA` no tiene
+esa restricción: puede dar de alta cualquier tipo.
+
+```jsonc
+// Request — un LIBRO. isbn/autor/categoria son del tipo LIBRO; cada tipo tiene los
+// suyos (ver la tabla de "Según tipo_recurso" más arriba).
+{
+  "codigo": "LIB-011",
+  "nombre": "Refactoring",
+  "descripcion": "Segunda edición",
+  "ubicacion": "Estante B-2",
+  "tipo_recurso": "LIBRO",
+  "isbn": "9780134757599",
+  "autor": "Martin Fowler",
+  "categoria": "Software"
+}
+```
+
+`gestor` **no** se manda: el backend lo deriva de `tipo_recurso` para que sea imposible
+violar `chk_gestor_tipo`. `estado` es opcional y por defecto `DISPONIBLE`.
+
+**Response `201`** — el recurso creado, misma forma que un item de `GET /api/recursos`.
+
+| Código | Cuándo |
+|---|---|
+| `401` | No autenticado |
+| `403` | El rol del custodio no corresponde al `tipo_recurso` pedido |
+| `409` | Ya existe un recurso con ese `codigo` |
+| `422` | Falta un campo requerido o un valor no cumple el esquema |
+
+---
+
+### PUT `/api/recursos/{id}` — Editar, cambiar estado o dar de baja
+
+Mismo control de permisos que el alta, pero evaluado contra el `gestor` del recurso que
+ya existe (no contra un `tipo_recurso` del body, que esta vez no se manda). Requiere rol
+`CUSTODIO_CE`, `CUSTODIO_INFRA` o `ADMINISTRADOR_SISTEMA`; este último puede editar
+recursos de cualquier gestor.
+
+Todos los campos del body son **opcionales**: solo se cambia lo que se manda. No existe
+`tipo_recurso` en este endpoint — cambiar el tipo no es una edición, es dar de baja y
+crear un recurso nuevo.
+
+```jsonc
+// Request — cambia solo la ubicación y pone el recurso en mantenimiento.
+{
+  "ubicacion": "Estante C-1",
+  "estado": "MANTENIMIENTO"
+}
+```
+
+`estado` solo acepta `DISPONIBLE`, `MANTENIMIENTO` o `BAJA` — las transiciones que tiene
+sentido hacer a mano. `PRESTADO` y `RESERVADO` los asigna el sistema (al prestar/devolver
+o confirmar una reserva); mandarlos aquí es `422`. Dar de baja un recurso es este mismo
+endpoint con `{ "estado": "BAJA" }` — no hay un endpoint de baja aparte ni `DELETE`: es
+baja lógica, el recurso sigue existiendo pero sale del catálogo (ver `EstadoRecurso` más
+abajo).
+
+**Response `200`** — el recurso actualizado, misma forma que un item de
+`GET /api/recursos`.
+
+| Código | Cuándo |
+|---|---|
+| `401` | No autenticado |
+| `403` | El rol del custodio no administra el `gestor` de este recurso |
+| `404` | No existe un recurso con ese `id` |
+| `409` | Ya existe otro recurso con el `codigo` nuevo, o se manda `estado` y el recurso está actualmente `PRESTADO` |
+| `422` | `estado` es `PRESTADO`/`RESERVADO`, o algún campo no cumple el esquema |
+
+---
+
 ## 4. Valores de los enums
 
 El frontend debe tratarlos como **strings exactos, en mayúsculas**. Son los que viajan
@@ -318,11 +393,16 @@ por la API; el texto bonito para el usuario se arma en el frontend.
 |---|---|
 | `Rol` | `ESTUDIANTE` · `DOCENTE` · `CUSTODIO_CE` · `CUSTODIO_INFRA` · `ADMINISTRADOR_SISTEMA` |
 | `TipoRecurso` | `LIBRO` · `DEPORTIVO` · `ACADEMICO` |
-| `EstadoRecurso` | `DISPONIBLE` · `RESERVADO` · `PRESTADO` · `MANTENIMIENTO` |
+| `EstadoRecurso` | `DISPONIBLE` · `RESERVADO` · `PRESTADO` · `MANTENIMIENTO` · `BAJA` |
 | `Gestor` | `CENTRO_ESTUDIANTES` · `INFRAESTRUCTURA` |
 
 Regla de coherencia que garantiza el backend: los `ACADEMICO` siempre tienen
 `gestor = INFRAESTRUCTURA`, y los `LIBRO` / `DEPORTIVO` siempre `CENTRO_ESTUDIANTES`.
+
+`BAJA` retira el recurso del catálogo para siempre (a mano vía `PUT`, o automático
+cuando una devolución reporta el recurso como perdido — Anexo RF3). A diferencia de
+`MANTENIMIENTO`, no es una transición pensada para revertirse sola, aunque nada lo
+impide (un `PUT` con `estado: "DISPONIBLE"` lo reactiva).
 
 ---
 
@@ -376,7 +456,11 @@ navegador aunque el endpoint funcione bien desde Swagger.
   (`mias`, `pendientes`, `estado`). Falta aplicarla a `/recursos` cuando el catálogo
   crezca lo suficiente para justificarlo.
 - Orden por defecto de `GET /api/recursos` (hoy: sin orden garantizado; conviene fijar `codigo ASC`).
-- `POST /api/recursos` (alta, issue #8) — se documenta acá cuando se implemente.
+- `RESERVADO` está en el enum pero ningún código lo asigna: una reserva (Anexo RF2)
+  aparta una franja horaria futura, no bloquea el recurso completo, así que un recurso
+  con una reserva pendiente sigue `DISPONIBLE` para usarse hoy. Si se decide que una
+  reserva confirmada sí deba bloquear el recurso, falta esa regla y qué pasa si se
+  confirma sobre un recurso ya `PRESTADO`.
 
 ---
 
@@ -809,9 +893,9 @@ Requiere autenticación con rol `CUSTODIO_CE` o `CUSTODIO_INFRA`.
 |---|---|---|---|
 | `condicion_devolucion` | string o `null` | No | |
 | `danado` | boolean | No (default `false`) | Si es `true`, el recurso pasa a `MANTENIMIENTO` en vez de `DISPONIBLE` |
-| `perdido` | boolean | No (default `false`) | Si es `true`, el recurso queda no disponible en `MANTENIMIENTO` mientras se define el estado `BAJA` |
+| `perdido` | boolean | No (default `false`) | Si es `true`, el recurso pasa a `BAJA` y se retira del catálogo |
 
-Solo se pueden devolver préstamos en estado `ACTIVO` o `ATRASADO`. Al devolver, `estado` pasa a `DEVUELTO` y se completa `fecha_devolucion`. Si `danado` o `perdido` es `true`, el recurso queda en `MANTENIMIENTO`. Se crea una sanción `DANIO` o `PERDIDA`; si además la devolución fue tardía, se crea otra sanción `RETRASO`. Si ambos indicadores de condición son `true`, `PERDIDA` prevalece sobre `DANIO`, porque el recurso perdido no puede repararse. La devolución, las sanciones y sus eventos se guardan en una misma transacción.
+Solo se pueden devolver préstamos en estado `ACTIVO` o `ATRASADO`. Al devolver, `estado` pasa a `DEVUELTO`, se completa `fecha_devolucion` y se guardan los indicadores `danado` y `perdido`. Si `perdido` es `true`, el recurso pasa a `BAJA`; si solo `danado` es `true`, pasa a `MANTENIMIENTO`; si ninguno, queda `DISPONIBLE`. Cuando hay daño o pérdida se cancelan las reservas pendientes del recurso. Se crea una sanción `DANIO` o `PERDIDA`; si además la devolución fue tardía, se crea otra sanción `RETRASO`. Si ambos indicadores de condición son `true`, `PERDIDA` prevalece sobre `DANIO`, porque el recurso perdido no puede repararse. La devolución, las sanciones y sus eventos se guardan en una misma transacción.
 
 #### Response `200`
 
@@ -859,8 +943,9 @@ del préstamo, no se acepta arbitrariamente en el body.
 ```
 
 `motivo` acepta `RETRASO`, `DANIO` o `PERDIDA`; `detalle` es obligatorio. Para retraso, el
-préstamo debe estar vencido y el bloqueo dura 72 horas desde el registro. Daño/pérdida requieren
-que la devolución esté registrada y el recurso siga en `MANTENIMIENTO`.
+préstamo debe estar vencido y el bloqueo dura 72 horas desde la devolución. Daño requiere que el
+préstamo esté devuelto y el recurso en `MANTENIMIENTO`; pérdida requiere un recurso en `BAJA`.
+Para corregir un caso histórico, también acepta `MANTENIMIENTO` y lo mueve a `BAJA`.
 
 ### PATCH `/api/sanciones/{id}/levantar` — Registrar resolución
 
@@ -886,7 +971,7 @@ Al resolver `DANIO`, el recurso pasa de `MANTENIMIENTO` a `DISPONIBLE`.
 
 La reposición debe existir en inventario, estar disponible y tener el mismo gestor y tipo que
 el recurso perdido. Un mismo ejemplar no puede usarse como reposición de más de una sanción.
-El original permanece en `MANTENIMIENTO` hasta que se defina el estado de baja lógica. `monto`
+El original permanece en `BAJA` después de la reposición; el nuevo ejemplar sigue disponible en el inventario. `monto`
 queda sin asignar (`null`): no hay regla acordada para calcular multas ni integración de pagos.
 
 Las sanciones admiten una fila por motivo y préstamo (`UNIQUE(prestamo_id, motivo)`), para poder
@@ -925,8 +1010,11 @@ Un array de `PrestamoPublico` (`[]` si no hay coincidencias).
 > (lo mínimo que pide RF6); el nivel 2 (solicitudes, reservas, usuarios más activos) se
 > agrega aquí si se implementa.
 
-Todo `/api/reportes/*` requiere rol `ADMINISTRADOR_SISTEMA`. El historial lo ve el propio
-usuario, o el administrador por cualquier `usuario_id`.
+Todo `/api/reportes/*` requiere rol `ADMINISTRADOR_SISTEMA`, excepto el historial por
+recurso (`GET /api/reportes/recursos/{codigo}/historial`), que también admite
+`CUSTODIO_CE`/`CUSTODIO_INFRA` para los recursos de su propio gestor. El historial de
+usuario (`GET /api/historial`) lo ve el propio usuario, o el administrador por el
+`codigo` de cualquier otro usuario.
 
 **Regla única de "atrasado"** (aplica a los 4 endpoints de este anexo): un préstamo está
 atrasado si `estado IN (ACTIVO, ATRASADO)` y `fecha_limite < ahora`. El estado `ATRASADO`
@@ -938,13 +1026,14 @@ Requiere autenticación.
 
 | Param | Tipo | Defecto | Efecto |
 |---|---|---|---|
-| `usuario_id` | int | usuario autenticado | Ver reglas de acceso abajo |
+| `codigo` | string | usuario autenticado | Código del usuario a consultar; ver reglas de acceso abajo |
 | `estado` | enum `EstadoPrestamo` | todos | Filtro opcional |
 | `limite` | int (1–100) | 20 | Tamaño de página |
 | `offset` | int (≥ 0) | 0 | Desplazamiento |
 
-Sin `usuario_id`, ve el propio historial. Con `usuario_id`, solo si es el propio o si el
-autenticado es `ADMINISTRADOR_SISTEMA`; cualquier otro caso es `403`.
+Sin `codigo`, ve el propio historial. Con `codigo`, solo si el autenticado es
+`ADMINISTRADOR_SISTEMA`; cualquier otro caso es `403`. Si `codigo` no corresponde a ningún
+usuario, `404`.
 
 > **Convención de paginación:** primer endpoint de la API con paginación real — fija
 > `?limite/?offset` (ver nota de la Sección 6).
@@ -978,9 +1067,60 @@ a tiempo); si sigue sin devolverse, días entre `fecha_limite` y ahora (`0` si n
 | Código | Cuándo |
 |---|---|
 | `401` | Falta el token o es inválido/expiró |
-| `403` | `usuario_id` es de otro usuario y el autenticado no es `ADMINISTRADOR_SISTEMA` |
-| `404` | `usuario_id` no existe |
+| `403` | Se pasó `codigo` y el autenticado no es `ADMINISTRADOR_SISTEMA` |
+| `404` | `codigo` no corresponde a ningún usuario |
 | `422` | `estado`, `limite` u `offset` inválidos o fuera de rango |
+
+### GET `/api/reportes/recursos/{codigo}/historial` — Historial de un recurso
+
+Requiere rol `ADMINISTRADOR_SISTEMA`, `CUSTODIO_CE` o `CUSTODIO_INFRA`. El administrador
+ve cualquier recurso; cada custodio, solo los de su propio gestor (misma regla que
+`POST`/`PUT /api/recursos`, vía `Usuario.puede_gestionar`). Simétrico al historial por
+usuario, pero por recurso: todos los préstamos de ese ítem del inventario, el más
+reciente primero, con si cada devolución volvió dañada o perdida (y cuándo, vía
+`fecha_devolucion`).
+
+| Param | Tipo | Defecto | Efecto |
+|---|---|---|---|
+| `limite` | int (1–100) | 20 | Tamaño de página |
+| `offset` | int (≥ 0) | 0 | Desplazamiento |
+
+#### Response `200`
+
+```json
+{
+  "recurso": { "id": 3, "codigo": "LIB-003", "nombre": "Clean Code", "tipo_recurso": "LIBRO", "estado": "MANTENIMIENTO" },
+  "total": 2,
+  "limite": 20,
+  "offset": 0,
+  "items": [
+    {
+      "prestamo_id": 31,
+      "prestatario": { "id": 7, "codigo": "EST-007", "nombres": "Ana Flores" },
+      "tipo_prestamo": "SIMPLE",
+      "modalidad_uso": "RETIRO_TEMPORAL",
+      "estado": "DEVUELTO",
+      "fecha_entrega": "2026-10-02T15:10:00Z",
+      "fecha_limite": "2026-10-09T15:10:00Z",
+      "fecha_devolucion": "2026-10-08T11:00:00Z",
+      "condicion_entrega": "Buen estado",
+      "condicion_devolucion": "Tapa rota",
+      "danado": true,
+      "perdido": false
+    }
+  ]
+}
+```
+
+`danado`/`perdido` reflejan lo que el custodio marcó al registrar la devolución
+(`POST /api/prestamos/{id}/devolucion`); en un préstamo todavía activo son siempre `false`.
+
+| Código | Cuándo |
+|---|---|
+| `401` | Falta el token o es inválido/expiró |
+| `403` | El autenticado no tiene ninguno de los 3 roles, o es custodio de un gestor distinto al del recurso |
+| `404` | `codigo` no corresponde a ningún recurso |
+| `422` | `limite` u `offset` fuera de rango |
 
 ### GET `/api/reportes/inventario` — Reporte de inventario
 
@@ -993,19 +1133,19 @@ de la consulta.
 {
   "total_recursos": 42,
   "por_tipo": { "LIBRO": 25, "DEPORTIVO": 10, "ACADEMICO": 7 },
-  "por_estado": { "DISPONIBLE": 30, "RESERVADO": 2, "PRESTADO": 8, "MANTENIMIENTO": 2 },
+  "por_estado": { "DISPONIBLE": 30, "RESERVADO": 2, "PRESTADO": 8, "MANTENIMIENTO": 2, "BAJA": 0 },
   "por_gestor": { "CENTRO_ESTUDIANTES": 35, "INFRAESTRUCTURA": 7 },
   "tipo_por_estado": {
-    "LIBRO": { "DISPONIBLE": 18, "RESERVADO": 1, "PRESTADO": 5, "MANTENIMIENTO": 1 },
-    "DEPORTIVO": { "DISPONIBLE": 8, "RESERVADO": 1, "PRESTADO": 1, "MANTENIMIENTO": 0 },
-    "ACADEMICO": { "DISPONIBLE": 4, "RESERVADO": 0, "PRESTADO": 2, "MANTENIMIENTO": 1 }
+    "LIBRO": { "DISPONIBLE": 18, "RESERVADO": 1, "PRESTADO": 5, "MANTENIMIENTO": 1, "BAJA": 0 },
+    "DEPORTIVO": { "DISPONIBLE": 8, "RESERVADO": 1, "PRESTADO": 1, "MANTENIMIENTO": 0, "BAJA": 0 },
+    "ACADEMICO": { "DISPONIBLE": 4, "RESERVADO": 0, "PRESTADO": 2, "MANTENIMIENTO": 1, "BAJA": 0 }
   }
 }
 ```
 
 Todas las claves de los enums aparecen siempre, aunque valgan `0`. `MANTENIMIENTO` incluye
-los recursos retirados por daño o pérdida. La causa detallada se consulta en el módulo de
-sanciones y no se desglosa en este resumen de reportes.
+recursos en reparación y `BAJA` incluye recursos retirados por pérdida. La causa detallada se
+consulta en el historial de sanciones y no se desglosa en este resumen de reportes.
 
 | Código | Cuándo |
 |---|---|

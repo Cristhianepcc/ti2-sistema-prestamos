@@ -1,4 +1,4 @@
-﻿"""Reglas de negocio de préstamos (RF3, issue #30)."""
+"""Reglas de negocio de préstamos (RF3, issue #30)."""
 
 from datetime import datetime, time, timedelta, timezone
 from typing import Any, Mapping
@@ -227,10 +227,19 @@ def registrar_devolucion(
     ).astimezone(timezone.utc)
     prestamo.fecha_devolucion = fecha_devolucion
     prestamo.condicion_devolucion = condicion_devolucion
-    if perdido or danado:
-        # TODO(RF1): agregar estado BAJA y retirar el recurso perdido del catálogo.
-        # Mientras no exista esa decisión, MANTENIMIENTO lo mantiene no disponible.
+    prestamo.danado = danado
+    prestamo.perdido = perdido
+
+    if perdido:
+        # La pérdida retira el recurso original del catálogo.
+        recurso.estado = EstadoRecurso.BAJA
+    elif danado:
+        # El recurso dañado queda fuera de circulación hasta su reparación.
         recurso.estado = EstadoRecurso.MANTENIMIENTO
+    else:
+        recurso.estado = EstadoRecurso.DISPONIBLE
+
+    if perdido or danado:
         db.query(Reserva).filter(
             Reserva.recurso_id == recurso.id,
             Reserva.estado == EstadoReserva.PENDIENTE,
@@ -238,8 +247,7 @@ def registrar_devolucion(
             {Reserva.estado: EstadoReserva.CANCELADA},
             synchronize_session=False,
         )
-    else:
-        recurso.estado = EstadoRecurso.DISPONIBLE
+
     registrar_sanciones_por_devolucion(
         db,
         prestamo=prestamo,
@@ -248,7 +256,6 @@ def registrar_devolucion(
         actor_usuario_id=actor_usuario_id,
         ahora=fecha_devolucion,
     )
-
     try:
         db.commit()
         db.refresh(prestamo)

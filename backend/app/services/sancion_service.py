@@ -175,20 +175,19 @@ def registrar_sanciones_por_devolucion(
     return sanciones
 
 
-def sancion_bloqueante(
-    db: Session, usuario_id: int, *, ahora: datetime | None = None
-) -> Sancion | None:
-    """Devuelve la primera sanción vigente; vence por fecha o al resolverla."""
-    ahora = _ahora_utc(ahora)
-    vencidas = db.scalars(
-        select(Sancion)
-        .where(
-            Sancion.activa.is_(True),
-            Sancion.fin.is_not(None),
-            Sancion.fin <= ahora,
-        )
-        .with_for_update()
-    ).all()
+def _vencer_sanciones_expiradas(
+    db: Session, ahora: datetime, *, usuario_id: int | None = None
+) -> list[Sancion]:
+    """Cierra bloqueos temporales vencidos y agrega un evento por cada uno."""
+    consulta = select(Sancion).where(
+        Sancion.activa.is_(True),
+        Sancion.fin.is_not(None),
+        Sancion.fin <= ahora,
+    )
+    if usuario_id is not None:
+        consulta = consulta.where(Sancion.usuario_id == usuario_id)
+
+    vencidas = list(db.scalars(consulta.with_for_update()))
     for sancion in vencidas:
         sancion.activa = False
         _registrar_evento(
@@ -200,6 +199,15 @@ def sancion_bloqueante(
         )
     if vencidas:
         db.flush()
+    return vencidas
+
+
+def sancion_bloqueante(
+    db: Session, usuario_id: int, *, ahora: datetime | None = None
+) -> Sancion | None:
+    """Devuelve la primera sanción vigente y cierra vencimientos de ese usuario."""
+    ahora = _ahora_utc(ahora)
+    _vencer_sanciones_expiradas(db, ahora, usuario_id=usuario_id)
 
     return db.scalar(
         select(Sancion)
@@ -238,11 +246,14 @@ def listar_sanciones(
     ahora: datetime | None = None,
 ) -> list[Sancion]:
     ahora = _ahora_utc(ahora)
-    sancion_bloqueante(db, actor.id, ahora=ahora)
+    # Actualiza los estados que verá el usuario, custodio o administrador.
+    # El listado administrativo también refleja vencimientos de terceros.
+    _vencer_sanciones_expiradas(db, ahora)
     consulta = select(Sancion).options(
         selectinload(Sancion.usuario),
         selectinload(Sancion.prestamo).selectinload(Prestamo.recurso),
         selectinload(Sancion.eventos).selectinload(SancionEvento.actor),
+        selectinload(Sancion.eventos).selectinload(SancionEvento.recurso_reposicion),
     )
 
     if mias or not actor.tiene_rol(
@@ -259,7 +270,9 @@ def listar_sanciones(
 
     if activas is not None:
         consulta = consulta.where(Sancion.activa.is_(activas))
-    resultado = list(db.scalars(consulta.order_by(Sancion.inicio.desc(), Sancion.id.desc())))
+    resultado = list(
+        db.scalars(consulta.order_by(Sancion.inicio.desc(), Sancion.id.desc()))
+    )
     try:
         db.commit()  # persiste eventos VENCIDA creados al consultar el historial.
     except Exception:
@@ -320,9 +333,26 @@ def crear_sancion_manual(
     else:
         if prestamo.estado != EstadoPrestamo.DEVUELTO:
             raise ConflictoSancion("Daño o pérdida se registra al devolver el préstamo")
-        if prestamo.recurso.estado != EstadoRecurso.MANTENIMIENTO:
-            raise ConflictoSancion("El recurso debe estar en MANTENIMIENTO para registrar daño o pérdida")
-
+        recurso = prestamo.recurso
+        if motivo == MotivoSancion.DANIO:
+            if prestamo.perdido:
+                raise ConflictoSancion("Una pérdida no puede registrarse también como daño")
+            if recurso.estado != EstadoRecurso.MANTENIMIENTO:
+                raise ConflictoSancion(
+                    "El recurso debe estar en MANTENIMIENTO para registrar daño"
+                )
+            prestamo.danado = True
+        else:
+            if prestamo.danado and not prestamo.perdido:
+                raise ConflictoSancion(
+                    "El préstamo ya está registrado como daño, no como pérdida"
+                )
+            if recurso.estado not in (EstadoRecurso.BAJA, EstadoRecurso.MANTENIMIENTO):
+                raise ConflictoSancion(
+                    "El recurso debe estar retirado o en MANTENIMIENTO para registrar pérdida"
+                )
+            prestamo.perdido = True
+            recurso.estado = EstadoRecurso.BAJA
     sancion = _crear_registro(
         db,
         prestamo=prestamo,
@@ -383,19 +413,32 @@ def resolver_sancion(
         if recurso_reposicion_id is not None:
             raise ConflictoSancion("Una sanción por daño debe resolverse con una reparación")
         recurso = sancion.prestamo.recurso
+        if sancion.prestamo.perdido:
+            raise ConflictoSancion("El préstamo está registrado como pérdida, no como daño")
         if recurso.estado == EstadoRecurso.MANTENIMIENTO:
             recurso.estado = EstadoRecurso.DISPONIBLE
+        elif recurso.estado != EstadoRecurso.DISPONIBLE:
+            raise ConflictoSancion(
+                "El recurso debe estar en mantenimiento o reparado antes de cerrar la sanción"
+            )
     else:
         tipo_evento = "REPOSICION_REGISTRADA"
+        original = sancion.prestamo.recurso
+        if not sancion.prestamo.perdido or original.estado != EstadoRecurso.BAJA:
+            raise ConflictoSancion(
+                "La pérdida debe permanecer en BAJA hasta registrar la reposición"
+            )
         if recurso_reposicion_id is None:
             raise ConflictoSancion("Registra primero el ejemplar de reposición en inventario")
         reposicion = db.get(Recurso, recurso_reposicion_id)
         if reposicion is None:
             raise SancionNoEncontrada("Recurso de reposición no encontrado")
-        original = sancion.prestamo.recurso
         if reposicion.id == original.id:
             raise ConflictoSancion("El recurso de reposición debe ser otro ejemplar")
-        if reposicion.gestor != original.gestor or reposicion.tipo_recurso != original.tipo_recurso:
+        if (
+            reposicion.gestor != original.gestor
+            or reposicion.tipo_recurso != original.tipo_recurso
+        ):
             raise ConflictoSancion("La reposición debe corresponder al mismo gestor y tipo de recurso")
         if reposicion.estado != EstadoRecurso.DISPONIBLE:
             raise ConflictoSancion("El recurso de reposición debe estar disponible en inventario")

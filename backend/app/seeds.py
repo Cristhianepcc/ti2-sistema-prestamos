@@ -98,6 +98,13 @@ def _recursos() -> list[Recurso]:
             estado=EstadoRecurso.DISPONIBLE,
             isbn="9788448190330", autor="Abraham Silberschatz", categoria="Bases de datos",
         ),
+        Libro(
+            codigo="LIB-005", nombre="Patrones de Diseño",
+            descripcion="Catálogo de patrones de diseño orientado a objetos (GoF)",
+            ubicacion="Estante B-4", gestor=Gestor.CENTRO_ESTUDIANTES,
+            estado=EstadoRecurso.DISPONIBLE,
+            isbn="9780201633610", autor="Erich Gamma", categoria="Software",
+        ),
         # Implementos deportivos — Centro de Estudiantes
         ImplementoDeportivo(
             codigo="DEP-001", nombre="Balón de fútbol",
@@ -116,6 +123,18 @@ def _recursos() -> list[Recurso]:
             descripcion="Tablero y piezas completas",
             ubicacion="Sala de estudiantes", gestor=Gestor.CENTRO_ESTUDIANTES,
             estado=EstadoRecurso.MANTENIMIENTO, tipo_deportivo="Ajedrez",
+        ),
+        ImplementoDeportivo(
+            codigo="DEP-004", nombre="Red de vóley",
+            descripcion="Dada de baja: se reportó perdida en una devolución anterior",
+            ubicacion="Depósito CE", gestor=Gestor.CENTRO_ESTUDIANTES,
+            estado=EstadoRecurso.BAJA, tipo_deportivo="Vóley",
+        ),
+        ImplementoDeportivo(
+            codigo="DEP-005", nombre="Paleta de ping pong",
+            descripcion="Par de paletas con pelota",
+            ubicacion="Depósito CE", gestor=Gestor.CENTRO_ESTUDIANTES,
+            estado=EstadoRecurso.DISPONIBLE, tipo_deportivo="Ping pong",
         ),
         # Implementos académicos — Infraestructura
         ImplementoAcademico(
@@ -240,24 +259,28 @@ def _sembrar_solicitudes(db: Session) -> int:
 def _sembrar_prestamos(db: Session) -> int:
     """Crea préstamos aceptando solicitudes, sin estados PRESTADO ficticios.
 
-    Variados a propósito (activos, uno ya vencido, uno devuelto, con y sin
-    garantía) para que el reporte de préstamos y el historial (RF6) tengan
-    datos reales que mostrar en vez de listas vacías.
+    Variados a propósito (activos, uno ya vencido, uno devuelto a tiempo, uno
+    devuelto dañado y uno devuelto perdido, con y sin garantía) para que el
+    reporte de préstamos, el historial de usuario y el historial por recurso
+    (RF6) tengan datos reales que mostrar en vez de listas vacías.
     """
     solicitante = db.scalar(select(Usuario).where(Usuario.email == "diego@unsa.edu.pe"))
     custodio = db.scalar(select(Usuario).where(Usuario.email == "pedro@unsa.edu.pe"))
     if solicitante is None or custodio is None:
         return 0
 
-    # codigo, modalidad, dias hasta el plazo (negativo = ya vencido), garantía, ¿se devuelve?
+    # codigo, modalidad, dias hasta el plazo (negativo = ya vencido), garantía,
+    # resultado: None = sigue activo; "OK"/"DANADO"/"PERDIDO" = cómo se devolvió.
     ejemplos = (
-        ("LIB-002", ModalidadUso.RETIRO_TEMPORAL, 2, None, False),
-        ("DEP-002", ModalidadUso.EN_SITIO, 1, None, False),
-        ("LIB-003", ModalidadUso.RETIRO_TEMPORAL, -5, {"tipo": "DNI", "valor": Decimal("20.00")}, False),
-        ("LIB-004", ModalidadUso.RETIRO_TEMPORAL, 7, None, True),
+        ("LIB-002", ModalidadUso.RETIRO_TEMPORAL, 2, None, None),
+        ("DEP-002", ModalidadUso.EN_SITIO, 1, None, None),
+        ("LIB-003", ModalidadUso.RETIRO_TEMPORAL, -5, {"tipo": "DNI", "valor": Decimal("20.00")}, None),
+        ("LIB-004", ModalidadUso.RETIRO_TEMPORAL, 7, None, "OK"),
+        ("LIB-005", ModalidadUso.RETIRO_TEMPORAL, 7, None, "DANADO"),
+        ("DEP-005", ModalidadUso.RETIRO_TEMPORAL, 1, None, "PERDIDO"),
     )
     nuevos = 0
-    for codigo, modalidad, dias, garantia, devuelto in ejemplos:
+    for codigo, modalidad, dias, garantia, resultado in ejemplos:
         recurso = db.scalar(select(Recurso).where(Recurso.codigo == codigo))
         if recurso is None:
             continue
@@ -300,11 +323,18 @@ def _sembrar_prestamos(db: Session) -> int:
             condicion_entrega="Buen estado",
             garantia=garantia,
         )
-        if devuelto:
+        if resultado is not None:
+            condicion = {
+                "OK": "Buen estado, sin daños",
+                "DANADO": "Llegó con la tapa rota",
+                "PERDIDO": "El prestatario reportó que lo perdió",
+            }[resultado]
             registrar_devolucion(
                 db,
                 prestamo_id=solicitud.prestamo_id,
-                condicion_devolucion="Buen estado, sin daños",
+                condicion_devolucion=condicion,
+                danado=resultado == "DANADO",
+                perdido=resultado == "PERDIDO",
             )
         nuevos += 1
     return nuevos
@@ -341,8 +371,10 @@ def _reset(db: Session) -> None:
     """Borra usuarios y recursos (y lo que dependa de ellos: reservas y préstamos)."""
     db.query(Garantia).delete()
     db.query(Notificacion).delete()
-    db.query(Solicitud).delete()
+    # Prestamo.solicitud_id referencia a Solicitud: hay que borrar los
+    # préstamos antes, si no Postgres rechaza el DELETE de solicitud por la FK.
     db.query(Prestamo).delete()
+    db.query(Solicitud).delete()
     db.query(Reserva).delete()
     db.query(UsuarioRol).delete()
     db.query(Usuario).delete()

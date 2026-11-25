@@ -104,7 +104,7 @@ Modelo relacional derivado del diccionario de datos del doc oficial (§4). La he
 | `rol` | ESTUDIANTE · DOCENTE · CUSTODIO_CE · CUSTODIO_INFRA · ADMINISTRADOR_SISTEMA |
 | `gestor` | CENTRO_ESTUDIANTES · INFRAESTRUCTURA |
 | `tipo_recurso` | LIBRO · DEPORTIVO · ACADEMICO |
-| `estado_recurso` | DISPONIBLE · RESERVADO · PRESTADO · MANTENIMIENTO |
+| `estado_recurso` | DISPONIBLE · RESERVADO · PRESTADO · MANTENIMIENTO · BAJA |
 | `estado_reserva` | PENDIENTE · CONFIRMADA · CANCELADA · VENCIDA |
 | `tipo_solicitud` | SIMPLE · POR_CURSO · EXCEPCIONAL |
 | `estado_solicitud` | SOLICITADA · AVALADA · AUTORIZADA · ACEPTADA · RECHAZADA |
@@ -131,7 +131,7 @@ erDiagram
   SOLICITUD |o--|| PRESTAMO : habilita
   SOLICITUD ||--o{ NOTIFICACION : genera
   PRESTAMO ||--o| GARANTIA : respalda
-  PRESTAMO ||--o| SANCION : "puede generar"
+  PRESTAMO ||--o{ SANCION : "puede generar una por causa"
 ```
 
 ### 3.3 Tablas (DDL PostgreSQL)
@@ -234,6 +234,8 @@ CREATE TABLE prestamo (
   modalidad_uso       modalidad_uso NOT NULL,
   condicion_entrega   TEXT,
   condicion_devolucion TEXT,
+  danado              BOOLEAN NOT NULL DEFAULT FALSE,
+  perdido             BOOLEAN NOT NULL DEFAULT FALSE,
   -- Invariante: un custodio no se autoregistra un préstamo
   CONSTRAINT chk_registrador_distinto CHECK (registrado_por_id <> prestatario_id)
 );
@@ -600,11 +602,15 @@ sequenceDiagram
   participant DB as PostgreSQL
   C->>API: POST /api/prestamos/{id}/devolucion
   API->>S: registrar_devolucion(condicion, danado, perdido)
-  S->>DB: UPDATE prestamo (DEVUELTO, fecha_devolucion)
+  S->>DB: UPDATE prestamo (DEVUELTO, fecha_devolucion, danado, perdido)
   alt devolución normal
     S->>DB: UPDATE recurso.estado = DISPONIBLE
   else dañado/perdido
-    S->>DB: UPDATE recurso.estado = MANTENIMIENTO
+    alt pérdida
+      S->>DB: UPDATE recurso.estado = BAJA
+    else daño
+      S->>DB: UPDATE recurso.estado = MANTENIMIENTO
+    end
   end
   opt daño/pérdida/retraso
     S->>DB: INSERT una sancion por causa aplicable + evento REGISTRADA

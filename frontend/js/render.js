@@ -55,10 +55,13 @@ function formValues(form) {
 // para que no se pueda hacer doble submit.
 function setBusy(boton, busy, textoOcupado = "Enviando…") {
   if (busy) {
+    if (boton.dataset.busy === "1") return; // ya estaba ocupado: no pisar textoOriginal
+    boton.dataset.busy = "1";
     boton.dataset.textoOriginal = boton.innerHTML;
     boton.disabled = true;
     boton.innerHTML = `<span class="spinner" style="width:14px;height:14px;border-width:2px;margin:0;"></span>${esc(textoOcupado)}`;
   } else {
+    delete boton.dataset.busy;
     boton.disabled = false;
     if (boton.dataset.textoOriginal) boton.innerHTML = boton.dataset.textoOriginal;
   }
@@ -66,13 +69,14 @@ function setBusy(boton, busy, textoOcupado = "Enviando…") {
 
 // Muestra u oculta el mensaje de error de un formulario.
 function showFormError(el, msg) {
+  if (!el) return;
   if (!msg) {
     el.hidden = true;
     el.textContent = "";
     return;
   }
   el.hidden = false;
-  el.className = "alert-danger";
+  el.classList.add("alert-danger"); // classList: no pisa otras clases como form-error-msg
   el.textContent = msg; // textContent ya escapa, no hace falta esc()
 }
 

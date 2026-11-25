@@ -123,7 +123,7 @@ function abrirModalNuevoUsuario() {
       <div class="field">
         Roles
         <div class="form-card">${rolesCheckboxHTML()}</div>
-        <span class="hint">Selecciona al menos un rol.</span>
+        <span class="hint">Una cuenta puede tener varios roles a la vez.</span>
       </div>
       <div class="alert-danger form-error-msg" role="alert" hidden></div>
       <div class="acciones">
@@ -140,7 +140,7 @@ function abrirModalRoles(usuario) {
     `<form data-accion="roles" data-usuario-id="${esc(usuario.id)}">
       <p class="hint">Selecciona los roles de <b>${esc(usuario.nombres)}</b>. La selección reemplazará los roles actuales.</p>
       <div class="form-card">${rolesCheckboxHTML(usuario.roles || [])}</div>
-      <span class="hint">El usuario debe conservar al menos un rol.</span>
+      <span class="hint">Marca todos los roles que debe tener la cuenta.</span>
       <div class="alert-danger form-error-msg" role="alert" hidden></div>
       <div class="acciones">
         <button type="button" class="btn btn-ghost btn-sm" data-cerrar-modal>Cancelar</button>
@@ -189,18 +189,33 @@ async function guardarRoles(form) {
   const error = form.querySelector(".form-error-msg");
   const roles = new FormData(form).getAll("roles");
   if (roles.length === 0) {
-    showFormError(error, "El usuario debe conservar al menos un rol.");
+    showFormError(error, "No puedes guardar sin ningún rol: marca al menos uno.");
     return;
   }
 
   const usuarioId = Number(form.dataset.usuarioId);
   setBusy(boton, true, "Guardando…");
   showFormError(error, "");
+
+  // 1) La llamada a la API: solo esto puede dejar el modal abierto con error.
+  let actualizado;
   try {
-    const actualizado = await api.put(`/usuarios/${usuarioId}/roles`, { roles });
-    closeModal();
+    actualizado = await api.put(`/usuarios/${usuarioId}/roles`, { roles });
+  } catch (e) {
+    showFormError(error, e.message);
+    setBusy(boton, false);
+    return;
+  }
+
+  closeModal();
+
+  // 2) Lo que sigue ya no depende del modal: si falla, se avisa en la página.
+  try {
     const sesion = currentUser();
     if (sesion && sesion.id === actualizado.id) {
+      if (!Array.isArray(actualizado.roles)) {
+        throw new Error("Respuesta sin roles");
+      }
       localStorage.setItem("user", JSON.stringify(actualizado));
       if (!actualizado.roles.includes("ADMINISTRADOR_SISTEMA")) {
         location.href = "inicio.html";
@@ -215,8 +230,7 @@ async function guardarRoles(form) {
         : "Roles actualizados; no se pudo actualizar la lista. Recarga la página."
     );
   } catch (e) {
-    showFormError(error, e.message);
-    setBusy(boton, false);
+    mostrarMensaje("Roles guardados, pero la pantalla no se pudo refrescar. Recarga la página.", "error");
   }
 }
 

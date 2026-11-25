@@ -78,6 +78,16 @@ class Prestamo(Base):
     )
     condicion_entrega: Mapped[str | None] = mapped_column(Text, nullable=True)
     condicion_devolucion: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Persisten lo que `registrar_devolucion` recibe por parámetro (antes se
+    # usaba solo para decidir el estado del recurso y se descartaba): sin
+    # esto, RF6 no puede reportar qué préstamo dañó o perdió un recurso ni
+    # cuándo, porque `condicion_devolucion` es texto libre, no una bandera.
+    danado: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    perdido: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     garantia: Mapped["Garantia | None"] = relationship(uselist=False)
  
     def __repr__(self) -> str:

@@ -51,6 +51,45 @@ class HistorialResponse(BaseModel):
     items: list[HistorialItem]
 
 
+class RecursoHistorialRecurso(BaseModel):
+    """Recurso consultado, con su estado actual (encabezado del reporte)."""
+
+    id: int
+    codigo: str
+    nombre: str
+    tipo_recurso: TipoRecurso
+    estado: EstadoRecurso
+
+
+class PrestatarioHistorialRecurso(BaseModel):
+    id: int
+    codigo: str
+    nombres: str
+
+
+class HistorialRecursoItem(BaseModel):
+    prestamo_id: int
+    prestatario: PrestatarioHistorialRecurso
+    tipo_prestamo: TipoPrestamo
+    modalidad_uso: ModalidadUso
+    estado: EstadoPrestamo
+    fecha_entrega: datetime
+    fecha_limite: datetime
+    fecha_devolucion: datetime | None
+    condicion_entrega: str | None
+    condicion_devolucion: str | None
+    danado: bool
+    perdido: bool
+
+
+class HistorialRecursoResponse(BaseModel):
+    recurso: RecursoHistorialRecurso
+    total: int
+    limite: int
+    offset: int
+    items: list[HistorialRecursoItem]
+
+
 class ReporteInventario(BaseModel):
     total_recursos: int
     por_tipo: dict[TipoRecurso, int]

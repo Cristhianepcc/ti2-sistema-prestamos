@@ -35,8 +35,10 @@ function pintarCatalogo() {
 }
 
 // Los tres tipos de recurso admiten reserva anticipada cuando están ocupados.
+// MANTENIMIENTO y BAJA no: ninguno de los dos va a volver a estar disponible
+// por sí solo (BAJA nunca, MANTENIMIENTO cuando el custodio lo revise a mano).
 function puedeReservar(r) {
-    return !r.disponible && r.estado !== "MANTENIMIENTO";
+    return !r.disponible && r.estado !== "MANTENIMIENTO" && r.estado !== "BAJA";
 }
 
 // Toda entrega, SIMPLE incluido, nace de una Solicitud que acepta un custodio.

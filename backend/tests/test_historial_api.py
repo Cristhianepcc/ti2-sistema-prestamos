@@ -69,7 +69,7 @@ def test_no_puede_ver_el_historial_de_otro_sin_ser_admin(db_session):
     otro = crear_actor(db_session, "HAPI-B", Rol.ESTUDIANTE)
 
     respuesta = cliente(db_session, usuario).get(
-        "/api/historial", params={"usuario_id": otro.id}
+        "/api/historial", params={"codigo": otro.codigo}
     )
 
     assert respuesta.status_code == 403
@@ -83,17 +83,33 @@ def test_admin_ve_el_historial_de_cualquier_usuario(db_session):
     _crear_prestamo(db_session, recurso=recurso, prestatario=otro, registrador=registrador)
 
     respuesta = cliente(db_session, admin).get(
-        "/api/historial", params={"usuario_id": otro.id}
+        "/api/historial", params={"codigo": otro.codigo}
     )
 
     assert respuesta.status_code == 200
     assert respuesta.json()["total"] == 1
 
 
-def test_usuario_id_inexistente_recibe_404(db_session):
+def test_admin_puede_ver_historial_de_un_custodio(db_session):
+    """Un custodio nunca es `prestatario_id` en el flujo normal, pero su
+    historial (vía código) debe igual poder consultarse y dar vacío, no 404."""
+    admin = crear_actor(db_session, "HAPI-ADMIN2", Rol.ADMINISTRADOR_SISTEMA)
+    custodio = crear_actor(db_session, "HAPI-CUST", Rol.CUSTODIO_CE)
+
+    respuesta = cliente(db_session, admin).get(
+        "/api/historial", params={"codigo": custodio.codigo}
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["total"] == 0
+
+
+def test_codigo_inexistente_recibe_404(db_session):
     admin = crear_actor(db_session, "HAPI-404", Rol.ADMINISTRADOR_SISTEMA)
 
-    respuesta = cliente(db_session, admin).get("/api/historial", params={"usuario_id": 999})
+    respuesta = cliente(db_session, admin).get(
+        "/api/historial", params={"codigo": "NO-EXISTE"}
+    )
 
     assert respuesta.status_code == 404
 

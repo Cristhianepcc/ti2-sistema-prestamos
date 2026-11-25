@@ -206,11 +206,19 @@ def registrar_devolucion(
     prestamo.estado = EstadoPrestamo.DEVUELTO
     prestamo.fecha_devolucion = datetime.now(timezone.utc)
     prestamo.condicion_devolucion = condicion_devolucion
+    prestamo.danado = danado
+    prestamo.perdido = perdido
     motivo_sancion = _motivo_sancion_devolucion(prestamo, danado=danado, perdido=perdido)
-    if perdido or danado:
-        # TODO(RF1): agregar estado BAJA y retirar el recurso perdido del catálogo.
-        # Mientras no exista esa decisión, MANTENIMIENTO lo mantiene no disponible.
+    if perdido:
+        # Perdido: no vuelve, se retira del catálogo (RF1).
+        recurso.estado = EstadoRecurso.BAJA
+    elif danado:
+        # Dañado: no disponible hasta que el custodio lo revise, pero puede volver.
         recurso.estado = EstadoRecurso.MANTENIMIENTO
+    else:
+        recurso.estado = EstadoRecurso.DISPONIBLE
+
+    if perdido or danado:
         db.query(Reserva).filter(
             Reserva.recurso_id == recurso.id,
             Reserva.estado == EstadoReserva.PENDIENTE,
@@ -218,8 +226,6 @@ def registrar_devolucion(
             {Reserva.estado: EstadoReserva.CANCELADA},
             synchronize_session=False,
         )
-    else:
-        recurso.estado = EstadoRecurso.DISPONIBLE
     # TODO(RF5): crear la sanción usando motivo_sancion cuando exista ese módulo.
     _ = motivo_sancion
 

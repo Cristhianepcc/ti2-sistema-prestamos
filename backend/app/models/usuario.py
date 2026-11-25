@@ -9,7 +9,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
-from .enums import Rol
+from .enums import Gestor, Rol
 
 
 class UsuarioRol(Base):
@@ -60,6 +60,19 @@ class Usuario(Base):
     def tiene_rol(self, *roles: Rol) -> bool:
         """True si el usuario tiene al menos uno de los roles indicados."""
         return any(rol in self.roles for rol in roles)
+
+    def puede_gestionar(self, gestor: Gestor) -> bool:
+        """Si puede administrar o consultar recursos de ese gestor (RF1/RF6).
+
+        El administrador del sistema supervisa todo el inventario; cada
+        custodio, solo el suyo. Regla compartida por `recurso.py` (alta/edición)
+        y `reporte.py` (historial por recurso) para que ambos la apliquen igual.
+        """
+        if self.tiene_rol(Rol.ADMINISTRADOR_SISTEMA):
+            return True
+        if gestor is Gestor.CENTRO_ESTUDIANTES:
+            return self.tiene_rol(Rol.CUSTODIO_CE)
+        return self.tiene_rol(Rol.CUSTODIO_INFRA)
 
     def __repr__(self) -> str:
         return f"<Usuario {self.codigo} {self.email}>"

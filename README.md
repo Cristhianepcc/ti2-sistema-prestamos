@@ -162,7 +162,7 @@ en distintos estados. La contraseña de todos es `prestamos123`.
 
 > **Esquema de la base de datos:** la API crea las tablas faltantes al arrancar y aplica
 > una vez los scripts SQL pendientes de `backend/migrations/`. `create_all` por sí solo no
-> cambia tablas existentes; la migración `001_sanciones.sql` agrega `BAJA` y las banderas
+> cambia tablas existentes; la migración `003_sanciones.sql` agrega `BAJA` y las banderas
 > de daño/pérdida necesarias para sanciones. No borres el volumen de PostgreSQL para aplicar
 > esa migración. Otros cambios de modelo deben incluir su propia migración.
 

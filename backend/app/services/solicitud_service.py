@@ -47,6 +47,13 @@ class DatosSolicitudInvalidos(ErrorSolicitud):
 class PermisoSolicitud(ErrorSolicitud):
     """El usuario autenticado no tiene permiso para la transición."""
 
+#: Estados en los que una solicitud sigue "viva" (aún no es ACEPTADA ni RECHAZADA).
+_ESTADOS_ACTIVOS = (
+    EstadoSolicitud.SOLICITADA,
+    EstadoSolicitud.AVALADA,
+    EstadoSolicitud.AUTORIZADA,
+)
+
 
 def _validar_sancion_activa(db: Session, usuario_id: int) -> None:
     """Punto de extensión para el módulo de sanciones RF5, aún no implementado."""
@@ -135,6 +142,19 @@ def crear_solicitud(
     recurso = db.get(Recurso, recurso_id)
     if recurso is None:
         raise SolicitudNoEncontrada("Recurso no encontrado")
+
+    duplicada = db.scalar(
+        select(Solicitud.id)
+        .where(
+            Solicitud.solicitante_id == solicitante_id,
+            Solicitud.recurso_id == recurso_id,
+            Solicitud.estado.in_(_ESTADOS_ACTIVOS),
+        )
+        .limit(1)
+    )
+    if duplicada is not None:
+        raise ConflictoSolicitud("Ya tienes una solicitud pendiente para este recurso")
+    
     if not recurso.disponible:
         raise ConflictoSolicitud(
             "El recurso no está disponible; crea una reserva para una fecha futura"

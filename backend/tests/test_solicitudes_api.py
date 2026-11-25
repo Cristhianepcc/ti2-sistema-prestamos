@@ -137,3 +137,19 @@ def test_aceptar_notifica_al_dueño_y_protege_patch_de_otro_usuario(db_session, 
     assert marcada.status_code == 200
     assert marcada.json() == {"leida": True}
     assert client_solicitante.get("/api/notificaciones?leidas=false").json() == []
+
+def test_segunda_solicitud_activa_del_mismo_recurso_devuelve_409(db_session):
+    solicitante = crear_actor(db_session, "API-DUP-SOL")
+    recurso = crear_recurso(db_session, TipoRecurso.ACADEMICO, "API-DUP")
+    client = cliente(db_session, solicitante)
+    cuerpo = {
+        "recurso_id": recurso.id,
+        "tipo_solicitud": "EXCEPCIONAL",
+        "motivo": "tesis",
+    }
+
+    assert client.post("/api/solicitudes", json=cuerpo).status_code == 201
+    segunda = client.post("/api/solicitudes", json={**cuerpo, "motivo": "profesión"})
+
+    assert segunda.status_code == 409
+    assert segunda.json()["detail"] == "Ya tienes una solicitud pendiente para este recurso"

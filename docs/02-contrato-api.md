@@ -634,6 +634,7 @@ desde cualquier paso previo a `ACEPTADA`.
 | `404` | `recurso_id` no existe |
 | `409` | El recurso no está disponible; para una fecha futura se debe crear una reserva |
 | `409` | `tipo_solicitud=SIMPLE` sobre un recurso `ACADEMICO`, o `POR_CURSO`/`EXCEPCIONAL` sobre uno que no lo es (mismo invariante tipo↔recurso del Anexo RF3) |
+| `409` | El solicitante ya tiene una solicitud del mismo recurso en estado `SOLICITADA`, `AVALADA` o `AUTORIZADA` ("Ya tienes una solicitud pendiente para este recurso"). Una `RECHAZADA` o `ACEPTADA` no bloquea una nueva |
 | `422` | Falta `motivo` con `tipo_solicitud` distinto de `SIMPLE` |
 
 ---

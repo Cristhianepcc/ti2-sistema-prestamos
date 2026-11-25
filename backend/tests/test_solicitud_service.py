@@ -277,3 +277,63 @@ def test_no_crea_solicitud_si_recurso_no_esta_disponible(db_session, estado):
             recurso_id=recurso.id,
             tipo_solicitud=TipoSolicitud.SIMPLE,
         )
+
+def test_no_permite_segunda_solicitud_activa_del_mismo_usuario_y_recurso(db_session):
+    solicitante = crear_usuario(db_session, "DUP-SOL")
+    recurso = crear_recurso(db_session, TipoRecurso.ACADEMICO, "DUP")
+    crear_solicitud(
+        db_session,
+        solicitante_id=solicitante.id,
+        recurso_id=recurso.id,
+        tipo_solicitud=TipoSolicitud.EXCEPCIONAL,
+        motivo="tesis",
+    )
+
+    with pytest.raises(ConflictoSolicitud, match="Ya tienes una solicitud pendiente"):
+        crear_solicitud(
+            db_session,
+            solicitante_id=solicitante.id,
+            recurso_id=recurso.id,
+            tipo_solicitud=TipoSolicitud.EXCEPCIONAL,
+            motivo="profesión",
+        )
+
+    assert db_session.query(Solicitud).count() == 1
+
+
+def test_otro_usuario_si_puede_solicitar_el_mismo_recurso(db_session):
+    uno = crear_usuario(db_session, "DUP-UNO")
+    dos = crear_usuario(db_session, "DUP-DOS")
+    recurso = crear_recurso(db_session, TipoRecurso.LIBRO, "DUP-OTRO")
+
+    for usuario in (uno, dos):
+        crear_solicitud(
+            db_session,
+            solicitante_id=usuario.id,
+            recurso_id=recurso.id,
+            tipo_solicitud=TipoSolicitud.SIMPLE,
+        )
+
+    assert db_session.query(Solicitud).count() == 2
+
+
+def test_puede_volver_a_solicitar_si_la_anterior_fue_rechazada(db_session):
+    solicitante = crear_usuario(db_session, "DUP-RECH")
+    custodio = actor(db_session, "DUP-CE", Rol.CUSTODIO_CE)
+    recurso = crear_recurso(db_session, TipoRecurso.LIBRO, "DUP-RECH")
+    primera = crear_solicitud(
+        db_session,
+        solicitante_id=solicitante.id,
+        recurso_id=recurso.id,
+        tipo_solicitud=TipoSolicitud.SIMPLE,
+    )
+    rechazar_solicitud(db_session, solicitud_id=primera.id, usuario_id=custodio.id)
+
+    segunda = crear_solicitud(
+        db_session,
+        solicitante_id=solicitante.id,
+        recurso_id=recurso.id,
+        tipo_solicitud=TipoSolicitud.SIMPLE,
+    )
+
+    assert segunda.id != primera.id

@@ -262,6 +262,15 @@ async function enviarSolicitud(form) {
             <p class="alert-success">Solicitud enviada — queda ${siguientePaso}.</p>
             <div class="acciones"><button type="button" class="btn btn-primary btn-sm" data-cerrar-modal>Cerrar</button></div>`;
     } catch (e) {
+        // 409 por solicitud duplicada: no tiene sentido reintentar, se lleva al
+        // usuario a ver la que ya tiene.
+        if (e.status === 409 && e.message.startsWith("Ya tienes una solicitud")) {
+            modalBody().innerHTML = `
+                <p class="alert-danger">${esc(e.message)}</p>
+                <p class="hint">Puedes seguir su avance en <a href="mis-actividades.html?tab=solicitudes">Mis Actividades → Solicitudes</a>.</p>
+                <div class="acciones"><button type="button" class="btn btn-primary btn-sm" data-cerrar-modal>Entendido</button></div>`;
+            return;
+        }
         showFormError(errorDiv, e.message);
         setBusy(boton, false);
     }

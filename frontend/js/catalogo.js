@@ -267,7 +267,7 @@ async function enviarSolicitud(form) {
         if (e.status === 409 && e.message.startsWith("Ya tienes una solicitud")) {
             modalBody().innerHTML = `
                 <p class="alert-danger">${esc(e.message)}</p>
-                <p class="hint">Puedes seguir su avance en <a href="mis-actividades.html?tab=solicitudes">Mis Actividades</a>.</p>
+                <p class="hint">Puedes seguir su avance en <a href="mis-actividades.html?tab=solicitudes">Mis Actividades → Solicitudes</a>.</p>
                 <div class="acciones"><button type="button" class="btn btn-primary btn-sm" data-cerrar-modal>Entendido</button></div>`;
             return;
         }

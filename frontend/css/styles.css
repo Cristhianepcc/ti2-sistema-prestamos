@@ -1185,6 +1185,57 @@ td .sub {
   border-color: var(--warn);
 }
 
+.sancion-card {
+  cursor: default;
+}
+
+.sancion-contenido {
+  width: 100%;
+  min-width: 0;
+}
+
+.sancion-detalle {
+  margin: 8px 0 0;
+  color: var(--tinta-suave);
+  font-size: 12px;
+}
+
+.sancion-eventos {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--linea);
+  font-size: 12px;
+}
+
+.sancion-eventos summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.sancion-eventos ol {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.sancion-eventos li + li {
+  margin-top: 8px;
+}
+
+.sancion-eventos li span,
+.sancion-eventos li small {
+  margin-left: 6px;
+  color: var(--tinta-suave);
+}
+
+.sancion-eventos li p {
+  margin: 3px 0 0;
+}
+
+.sancion-resolucion {
+  margin-top: 12px;
+  padding: 14px;
+}
+
 .loan.seleccionado {
   border-color: var(--azul);
   box-shadow: 0 0 0 1px var(--azul);

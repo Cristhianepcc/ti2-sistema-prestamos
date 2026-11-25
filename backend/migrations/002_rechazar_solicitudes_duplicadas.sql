@@ -1,7 +1,5 @@
--- Deja viva la solicitud más antigua por (solicitante, recurso) y rechaza las demás.
--- Ejecutar una sola vez:
---   docker compose exec -T db psql -U prestamos -d prestamos < backend/migrations/002_rechazar_solicitudes_duplicadas.sql
-BEGIN;
+-- La API ejecuta esta limpieza una sola vez mediante el registro de migraciones.
+-- Conserva la solicitud activa más antigua y rechaza las duplicadas.
 
 WITH ranqueadas AS (
   SELECT id,
@@ -17,5 +15,3 @@ SET estado = 'RECHAZADA',
     motivo_rechazo = 'Solicitud duplicada rechazada automáticamente'
 FROM ranqueadas r
 WHERE s.id = r.id AND r.rn > 1;
-
-COMMIT;

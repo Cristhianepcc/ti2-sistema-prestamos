@@ -13,6 +13,7 @@ from ..schemas.prestamo import DevolucionCreate, PrestamoCreate, PrestamoPublico
 from ..security import UsuarioActual, require_role
 from ..services.prestamo_service import (
     ConflictoPrestamo,
+    PermisoPrestamo,
     RegistroPrestamoNoEncontrado,
     crear_prestamo,
     registrar_devolucion,
@@ -65,6 +66,7 @@ def registrar_prestamo(
 def devolver_prestamo(
     id: int,
     datos: DevolucionCreate,
+    usuario: UsuarioActual,
     db: Annotated[Session, Depends(get_db)],
 ) -> Prestamo:
     """Registra la devolución de un préstamo activo o atrasado."""
@@ -75,9 +77,12 @@ def devolver_prestamo(
             condicion_devolucion=datos.condicion_devolucion,
             danado=datos.danado,
             perdido=datos.perdido,
+            actor_usuario_id=usuario.id,
         )
     except RegistroPrestamoNoEncontrado as e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
+    except PermisoPrestamo as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(e)) from e
     except ConflictoPrestamo as e:
         raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
 

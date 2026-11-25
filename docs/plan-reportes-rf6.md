@@ -1,6 +1,9 @@
 # Plan de implementación — Historial y Reportes (RF6)
 
 Estado: propuesta v4, pendiente de confirmar las decisiones de la sección 12.
+La sección 1 es una fotografía histórica del repositorio al redactar esta propuesta;
+no describe el estado de esta rama de trabajo, que incluye cambios posteriores de RF5/RF6.
+Para el estado vigente, consultar `docs/01-sdd.md` y `README.md`.
 Cambios v4: se corrigió el riesgo obsoleto de `seeds.py` (ya mergeado en PR #65) y
 se dejó explícita la decisión de paginación de `/historial` frente a la nota
 pendiente de `docs/02-contrato-api.md` §6.

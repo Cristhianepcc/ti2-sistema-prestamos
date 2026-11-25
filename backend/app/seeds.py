@@ -265,9 +265,21 @@ def _sembrar_prestamos(db: Session) -> int:
     (RF6) tengan datos reales que mostrar en vez de listas vacías.
     """
     solicitante = db.scalar(select(Usuario).where(Usuario.email == "diego@unsa.edu.pe"))
+    solicitante_perdida = db.scalar(
+        select(Usuario).where(Usuario.email == "lucia@unsa.edu.pe")
+    )
     custodio = db.scalar(select(Usuario).where(Usuario.email == "pedro@unsa.edu.pe"))
-    if solicitante is None or custodio is None:
+    if solicitante is None or solicitante_perdida is None or custodio is None:
         return 0
+
+    # El sembrado representa operaciones de demostración durante horario hábil.
+    # No debe depender de la hora real a la que se ejecute `python -m app.seeds`.
+    ahora_demo = datetime.now(ZoneInfo("America/Lima")).replace(
+        hour=10, minute=0, second=0, microsecond=0
+    )
+    while ahora_demo.weekday() >= 5:
+        ahora_demo += timedelta(days=1)
+    ahora_demo = ahora_demo.astimezone(timezone.utc)
 
     # codigo, modalidad, dias hasta el plazo (negativo = ya vencido), garantía,
     # resultado: None = sigue activo; "OK"/"DANADO"/"PERDIDO" = cómo se devolvió.
@@ -281,6 +293,9 @@ def _sembrar_prestamos(db: Session) -> int:
     )
     nuevos = 0
     for codigo, modalidad, dias, garantia, resultado in ejemplos:
+        # Una persona con sanción activa no puede generar una nueva solicitud.
+        # La demo conserva ejemplos separados de daño y pérdida con solicitantes distintos.
+        prestatario = solicitante_perdida if resultado == "PERDIDO" else solicitante
         recurso = db.scalar(select(Recurso).where(Recurso.codigo == codigo))
         if recurso is None:
             continue
@@ -300,7 +315,7 @@ def _sembrar_prestamos(db: Session) -> int:
 
         solicitud = db.scalar(
             select(Solicitud).where(
-                Solicitud.solicitante_id == solicitante.id,
+                Solicitud.solicitante_id == prestatario.id,
                 Solicitud.recurso_id == recurso.id,
                 Solicitud.tipo_solicitud == TipoSolicitud.SIMPLE,
             )
@@ -308,7 +323,7 @@ def _sembrar_prestamos(db: Session) -> int:
         if solicitud is None:
             solicitud = crear_solicitud(
                 db,
-                solicitante_id=solicitante.id,
+                solicitante_id=prestatario.id,
                 recurso_id=recurso.id,
                 tipo_solicitud=TipoSolicitud.SIMPLE,
             )
@@ -319,9 +334,10 @@ def _sembrar_prestamos(db: Session) -> int:
             solicitud_id=solicitud.id,
             custodio_id=custodio.id,
             modalidad_uso=modalidad,
-            fecha_limite=datetime.now(timezone.utc) + timedelta(days=dias),
+            fecha_limite=ahora_demo + timedelta(days=dias),
             condicion_entrega="Buen estado",
             garantia=garantia,
+            ahora=ahora_demo,
         )
         if resultado is not None:
             condicion = {

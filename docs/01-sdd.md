@@ -104,7 +104,7 @@ Modelo relacional derivado del diccionario de datos del doc oficial (§4). La he
 | `rol` | ESTUDIANTE · DOCENTE · CUSTODIO_CE · CUSTODIO_INFRA · ADMINISTRADOR_SISTEMA |
 | `gestor` | CENTRO_ESTUDIANTES · INFRAESTRUCTURA |
 | `tipo_recurso` | LIBRO · DEPORTIVO · ACADEMICO |
-| `estado_recurso` | DISPONIBLE · RESERVADO · PRESTADO · MANTENIMIENTO |
+| `estado_recurso` | DISPONIBLE · RESERVADO · PRESTADO · MANTENIMIENTO · BAJA |
 | `estado_reserva` | PENDIENTE · CONFIRMADA · CANCELADA · VENCIDA |
 | `tipo_solicitud` | SIMPLE · POR_CURSO · EXCEPCIONAL |
 | `estado_solicitud` | SOLICITADA · AVALADA · AUTORIZADA · ACEPTADA · RECHAZADA |
@@ -131,7 +131,7 @@ erDiagram
   SOLICITUD |o--|| PRESTAMO : habilita
   SOLICITUD ||--o{ NOTIFICACION : genera
   PRESTAMO ||--o| GARANTIA : respalda
-  PRESTAMO ||--o| SANCION : "puede generar"
+  PRESTAMO ||--o{ SANCION : "puede generar una por causa"
 ```
 
 ### 3.3 Tablas (DDL PostgreSQL)
@@ -234,6 +234,8 @@ CREATE TABLE prestamo (
   modalidad_uso       modalidad_uso NOT NULL,
   condicion_entrega   TEXT,
   condicion_devolucion TEXT,
+  danado              BOOLEAN NOT NULL DEFAULT FALSE,
+  perdido             BOOLEAN NOT NULL DEFAULT FALSE,
   -- Invariante: un custodio no se autoregistra un préstamo
   CONSTRAINT chk_registrador_distinto CHECK (registrado_por_id <> prestatario_id)
 );
@@ -251,12 +253,26 @@ CREATE TABLE garantia (
 CREATE TABLE sancion (
   id          SERIAL PRIMARY KEY,
   usuario_id  INTEGER NOT NULL REFERENCES usuario(id),
-  prestamo_id INTEGER REFERENCES prestamo(id),
+  prestamo_id INTEGER NOT NULL REFERENCES prestamo(id),
   motivo      motivo_sancion NOT NULL,
-  inicio      DATE NOT NULL DEFAULT CURRENT_DATE,
-  fin         DATE,
-  monto       NUMERIC(10,2) NOT NULL DEFAULT 0,
-  activa      BOOLEAN NOT NULL DEFAULT TRUE
+  inicio      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  fin         TIMESTAMPTZ,
+  monto       NUMERIC(10,2), -- NULL mientras no se defina una política de multas
+  activa      BOOLEAN NOT NULL DEFAULT TRUE,
+  detalle     TEXT,
+  UNIQUE (prestamo_id, motivo)
+);
+
+-- Historial append-only de cambios de una sanción.
+CREATE TABLE sancion_evento (
+  id                    SERIAL PRIMARY KEY,
+  sancion_id            INTEGER NOT NULL REFERENCES sancion(id) ON DELETE CASCADE,
+  tipo                  VARCHAR(40) NOT NULL,
+  detalle               TEXT NOT NULL,
+  actor_usuario_id      INTEGER REFERENCES usuario(id),
+  recurso_reposicion_id INTEGER REFERENCES recurso(id),
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (recurso_reposicion_id)
 );
 
 -- Reportes (vista/registro de solo lectura; se construye a partir de eventos)
@@ -278,10 +294,14 @@ Además de los `CHECK` de BD, la **capa de servicio** garantiza:
   manualmente** (ya no hay aprobación automática de `SIMPLE`); al aceptar, la misma acción
   crea la fila `prestamo`. Al aceptar o rechazar se crea una fila `notificacion` para el
   solicitante.
-- **Bloqueo por sanción:** el diseño define que no se permite crear reserva/solicitud/préstamo
-  si el usuario tiene alguna `sancion.activa = TRUE`. **Pendiente:** RF5 todavía no implementa
-  la entidad ni la consulta; el servicio conserva puntos de extensión, así que el bloqueo aún
-  no se aplica.
+- **Sanciones:** una devolución puede generar una sanción por cada causa aplicable. La pérdida
+  prevalece sobre el daño, pero el retraso se registra aparte si también ocurrió. `RETRASO`
+  bloquea por 72 horas desde que el custodio registra la devolución; `DANIO` bloquea hasta que
+  un custodio registre la reparación; `PERDIDA` bloquea hasta que registre un ejemplar de
+  reposición del mismo gestor y tipo. Un usuario no puede crear reservas/solicitudes/préstamos
+  mientras tenga al menos una sanción vigente. La multa no se calcula hasta que exista una
+  política institucional de montos. Cada alta, vencimiento, reparación o reposición queda en
+  `sancion_evento`.
 - **Cola de reservas:** las solicitudes pendientes de un recurso se atienden por FIFO:
   `created_at ASC, id ASC`. El campo `prioridad` queda en 0 por compatibilidad y no ordena la cola.
 - **Marcar vencidos:** un proceso/consulta cambia a `ATRASADO` los préstamos `ACTIVO` cuyo
@@ -353,7 +373,8 @@ la lista completa de roles y no permite quitar el rol del último administrador 
 La API actual crea, lista y cancela reservas y valida que la fecha/franja no hayan pasado.
 El tipo solo se valida durante el alta y no se persiste en la tabla `reserva`; por eso la
 confirmación del custodio y la conversión de una reserva en préstamo requieren una decisión
-de esquema e integración posterior. El bloqueo por sanciones queda pendiente de RF5.
+de esquema e integración posterior. Una sanción vigente sí bloquea la creación de reservas
+y solicitudes, con respuesta HTTP 409.
 
 ### 4.4 Préstamos / Devoluciones (RF3) — issues #29, #30, #31
 | Método | Ruta | Rol | Descripción |
@@ -371,6 +392,11 @@ de esquema e integración posterior. El bloqueo por sanciones queda pendiente de
 // 409 -> { "detail": "El registrador no puede ser el prestatario" }
 // 409 -> { "detail": "Un libro solo admite préstamo SIMPLE" }
 ```
+
+Al devolver, solo puede actuar el custodio que administra el recurso. La devolución registra
+en una misma transacción el préstamo, el estado del recurso y las sanciones aplicables:
+RETRASO si venció el plazo, DANIO o PERDIDA según la condición. Una pérdida prevalece sobre
+daño; el retraso puede coexistir con una de esas causas.
 
 ### 4.5 Solicitudes (RF3 para SIMPLE, RF4 para POR_CURSO/EXCEPCIONAL)
 
@@ -396,9 +422,10 @@ de esquema e integración posterior. El bloqueo por sanciones queda pendiente de
 ### 4.7 Sanciones (RF5)
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
-| POST | `/api/sanciones` | CUSTODIO_CE / CUSTODIO_INFRA | Registrar sanción (daño/pérdida/retraso) |
+| POST | `/api/sanciones` | CUSTODIO_CE / CUSTODIO_INFRA | Registrar un caso histórico o corregido; la devolución genera las sanciones normales automáticamente |
 | GET | `/api/sanciones?mias=true` | autenticado | Mis sanciones |
-| PATCH | `/api/sanciones/{id}/levantar` | custodios | Marcar `activa=false` |
+| GET | `/api/sanciones` | custodios / administrador | Custodios ven sanciones de sus gestores; administrador ve todas |
+| PATCH | `/api/sanciones/{id}/levantar` | custodio del gestor | Registrar reparación o reposición; no permite levantar antes un retraso |
 
 ### 4.8 Historial y reportes (RF6)
 | Método | Ruta | Rol | Descripción |
@@ -574,12 +601,21 @@ sequenceDiagram
   participant S as prestamo_service
   participant DB as PostgreSQL
   C->>API: POST /api/prestamos/{id}/devolucion
-  API->>S: registrar_devolucion(condicion)
-  S->>DB: UPDATE prestamo (DEVUELTO, fecha_devolucion)
-  S->>DB: UPDATE recurso.estado = DISPONIBLE
-  alt tarde o dañado/perdido
-    S->>DB: INSERT sancion (activa=true)
+  API->>S: registrar_devolucion(condicion, danado, perdido)
+  S->>DB: UPDATE prestamo (DEVUELTO, fecha_devolucion, danado, perdido)
+  alt devolución normal
+    S->>DB: UPDATE recurso.estado = DISPONIBLE
+  else dañado/perdido
+    alt pérdida
+      S->>DB: UPDATE recurso.estado = BAJA
+    else daño
+      S->>DB: UPDATE recurso.estado = MANTENIMIENTO
+    end
   end
+  opt daño/pérdida/retraso
+    S->>DB: INSERT una sancion por causa aplicable + evento REGISTRADA
+  end
+  Note over S,DB: RETRASO vence en 72 h; DANIO/PERDIDA esperan reparación/reposición<br/>Cada acción se integra en la misma transacción de la devolución
   API-->>C: 200 devolución registrada
 ```
 
@@ -615,7 +651,7 @@ sequenceDiagram
 | **RF2** Reservas | `reserva` | `/api/reservas*` | `reserva_service` (FIFO) | #10, #11 |
 | **RF3** Préstamos | `prestamo`, `garantia`, `solicitud` (SIMPLE), `notificacion` | `/api/prestamos*`, `/api/solicitudes*`, `/api/notificaciones*` | `prestamo_service`, `solicitud_service` (invariantes, vencidos, aceptación) | #13, #14 |
 | **RF4** Autorización acad. | `solicitud` (POR_CURSO/EXCEPCIONAL) | `/api/solicitudes*` | `routers/solicitudes`, `solicitud_service` | (60%) |
-| **RF5** Sanciones | `sancion` | `/api/sanciones*` | `sancion_service` (bloqueo) | (60/100%) |
+| **RF5** Sanciones | `sancion`, `sancion_evento` | `/api/sanciones*` | `sancion_service`, devolución y validación central de bloqueo | Implementado; regla de multas pendiente de definición |
 | **RF6** Historial/Reportes | solo lectura sobre `prestamo`/`recurso`/`garantia` (sin tabla `reporte` propia) | `/api/historial`, `/api/reportes*` | `routers/reporte`, `reporte_service` | (100%) |
 | **RF7** Usuarios/Roles | `usuario`, `usuario_rol` | `/api/auth*`, `/api/usuarios*` | `security.py`, `routers/auth`, `routers/usuarios` | #4, #6, #12, #13, #14, #60 |
 | **RNF1** Seguridad | — | (todos) | `security.py` | #4 |

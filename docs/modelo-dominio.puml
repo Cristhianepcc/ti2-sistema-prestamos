@@ -87,6 +87,7 @@ package "Catalogo de Recursos  «soporte»" {
     RESERVADO
     PRESTADO
     MANTENIMIENTO
+    BAJA
   }
 }
 
@@ -147,6 +148,8 @@ package "Prestamos  «NUCLEO»" #FFF6E5 {
     - modalidadUso : ModalidadUso
     - condicionEntrega : String
     - condicionDevolucion : String
+    - danado : boolean
+    - perdido : boolean
     --
     + registrarDevolucion(cond : String) : void
     + estaAtrasado() : boolean
@@ -180,12 +183,21 @@ package "Prestamos  «NUCLEO»" #FFF6E5 {
 package "Sanciones  «soporte»" {
   class Sancion {
     - motivo : MotivoSancion
-    - inicio : Date
-    - fin : Date
-    - monto : BigDecimal
+    - inicio : DateTime
+    - fin : DateTime?
+    - monto : BigDecimal?
     - activa : boolean
+    - detalle : String?
     --
-    + estaVigente(hoy : Date) : boolean
+    + estaVigente(ahora : DateTime) : boolean
+  }
+
+  class SancionEvento {
+    - tipo : String
+    - detalle : String
+    - createdAt : DateTime
+    - actorUsuarioId : Integer?
+    - recursoReposicionId : Integer?
   }
 
   enum MotivoSancion {
@@ -236,8 +248,9 @@ Recurso "1" -- "0..*" Prestamo : entrega <
 
 ' --- Nivel 3: las consecuencias ---
 Prestamo "1" *-- "0..1" Garantia : respalda >
-Prestamo "1" -- "0..1" Sancion : puede generar >
+Prestamo "1" -- "0..*" Sancion : puede generar una por causa >
 Usuario "1" -- "0..*" Sancion : afecta <
+Sancion "1" *-- "1..*" SancionEvento : historial >
 
 ' ======================== Invariantes del dominio =========================
 note right of Prestamo

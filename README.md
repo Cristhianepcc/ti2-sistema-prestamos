@@ -46,7 +46,8 @@ El dominio se organiza en subdominios:
 - **SolicitudAcademica** — solo para préstamos `POR_CURSO` y `EXCEPCIONAL`.
 - **Prestamo** — entidad núcleo, con `tipoPrestamo` y `modalidadUso`
   (la categoría del prestatario se deriva del rol; ver auditoría §8 del doc base).
-- **Garantia**, **Sancion** (`RETRASO`, `DANIO`, `PERDIDA`), **Reporte**.
+- **Garantia**, **Sancion** (`RETRASO`, `DANIO`, `PERDIDA`) con historial de eventos,
+  **Reporte**.
 
 ### Roles
 
@@ -56,6 +57,10 @@ El dominio se organiza en subdominios:
 - **Solicitar:** cualquier rol, único requisito no tener sanción activa. Toda solicitud se
   hace **desde la plataforma**, incluso para préstamos SIMPLE (ya no hay registro directo en
   persona sin solicitud previa).
+- **Sanciones:** una devolución fuera de plazo crea un bloqueo de 72 horas; daño bloquea hasta
+  que el custodio registre la reparación; pérdida, hasta que registre una reposición del mismo
+  tipo y gestor. El bloqueo impide nuevas solicitudes, reservas y préstamos. No hay cálculo de
+  multas porque el equipo aún no definió montos.
 - **Aprobar/gestionar:**
   - `CUSTODIO_CE` → **acepta o rechaza manualmente** las solicitudes SIMPLE de libros/deportivos
     y registra la entrega al aceptar.
@@ -155,9 +160,10 @@ en distintos estados. La contraseña de todos es `prestamos123`.
 
 > Son credenciales de desarrollo, solo para la demo. No usar en nada real.
 
-> **Nota sobre el esquema:** todavía no hay migraciones (Alembic). Las tablas se crean
-> al arrancar la API a partir de los modelos, y `create_all` **no** modifica tablas ya
-> existentes: si cambian las columnas de un modelo, hay que recrear la base con
-> `docker compose down -v`.
+> **Esquema de la base de datos:** la API crea las tablas faltantes al arrancar y aplica
+> una vez los scripts SQL pendientes de `backend/migrations/`. `create_all` por sí solo no
+> cambia tablas existentes; la migración `003_sanciones.sql` agrega `BAJA` y las banderas
+> de daño/pérdida necesarias para sanciones. No borres el volumen de PostgreSQL para aplicar
+> esa migración. Otros cambios de modelo deben incluir su propia migración.
 
 > Repositorio del semestre; se irá completando conforme avancen las entregas del curso.

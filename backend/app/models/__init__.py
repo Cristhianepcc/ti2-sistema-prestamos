@@ -7,6 +7,7 @@ from .enums import (
     EstadoRecurso,
     Gestor,
     ModalidadUso,
+    MotivoSancion,
     Rol,
     TipoNotificacion,
     TipoPrestamo,
@@ -19,6 +20,7 @@ from .usuario import Usuario, UsuarioRol
 from .prestamo import Garantia, Prestamo
 from .solicitud import Solicitud
 from .notificacion import Notificacion
+from .sancion import Sancion, SancionEvento
 
 __all__ = [
     # Enums
@@ -28,6 +30,7 @@ __all__ = [
     "EstadoSolicitud",
     "Gestor",
     "ModalidadUso",
+    "MotivoSancion",
     "Rol",
     "TipoNotificacion",
     "TipoPrestamo",
@@ -49,4 +52,7 @@ __all__ = [
     # Solicitudes y notificaciones
     "Solicitud",
     "Notificacion",
+    # Sanciones
+    "Sancion",
+    "SancionEvento",
 ]

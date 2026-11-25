@@ -138,6 +138,12 @@ function badgePrestamo(estado) {
   return `<span class="badge ${e.color}">${esc(e.texto)}</span>`;
 }
 
+const ETIQUETA_MOTIVO_SANCION = {
+  RETRASO: "Retraso",
+  DANIO: "Daño",
+  PERDIDA: "Pérdida",
+};
+
 function badgeEstado(estado) {
   const e = ETIQUETA_ESTADO[estado] || { texto: estado, color: "neutral" };
   return `<span class="badge ${e.color}">${esc(e.texto)}</span>`;

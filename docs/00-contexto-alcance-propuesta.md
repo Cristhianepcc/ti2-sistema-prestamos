@@ -141,7 +141,8 @@ Organización por subdominios (DDD):
   cuando se libere. Al aceptarse o rechazarse, dispara una `Notificacion` para el solicitante.
 - **Notificacion** — aviso dentro de la plataforma cuando cambia el `estado` de una `Solicitud`.
 - **Prestamo** — núcleo; con `tipoPrestamo`, `modalidadUso`, `condicionEntrega/Devolucion`.
-- **Garantia**, **Sancion** (`RETRASO`/`DANIO`/`PERDIDA`), **Reporte**.
+- **Garantia**, **Sancion** (`RETRASO`/`DANIO`/`PERDIDA`) y su historial
+  **SancionEvento**, **Reporte**.
 
 `modalidadUso` (`EN_SITIO` / `RETIRO_TEMPORAL`) indica si el ítem **sale del recinto** —
 dato independiente del tipo (un libro SIMPLE es RETIRO; un deportivo SIMPLE es EN_SITIO).
@@ -189,7 +190,8 @@ dato independiente del tipo (un libro SIMPLE es RETIRO; un deportivo SIMPLE es E
 | **Solicitud** | `motivo:String`, `fecha:Date`, `tipo:TipoSolicitud`, `estado:EstadoSolicitud` |
 | **Prestamo** | `fechaEntrega:Date`, `fechaLimite:Date`, `fechaDevolucion:Date`, `estado:EstadoPrestamo`, `tipoPrestamo:TipoPrestamo`, `modalidadUso:ModalidadUso`, `condicionEntrega:String`, `condicionDevolucion:String`, `registradoPorId`, `prestatarioId` |
 | **Garantia** | `tipo:String`, `valor:BigDecimal`, `devuelta:boolean` |
-| **Sancion** | `motivo:MotivoSancion`, `inicio:Date`, `fin:Date`, `monto:BigDecimal`, `activa:boolean` |
+| **Sancion** | `motivo:MotivoSancion`, `inicio:DateTime`, `fin:DateTime?`, `monto:BigDecimal?`, `activa:boolean`, `detalle:String?` |
+| **SancionEvento** | `tipo:String`, `detalle:String`, `createdAt:DateTime`, `actorUsuarioId:int?`, `recursoReposicionId:int?` |
 | **Reporte** | `tipo:String`, `generadoEn:Date` |
 | **Notificacion** | `mensaje:String`, `tipo:TipoNotificacion`, `leida:boolean`, `creadaEn:Date` |
 
@@ -229,7 +231,7 @@ dato independiente del tipo (un libro SIMPLE es RETIRO; un deportivo SIMPLE es E
 | Usuario | 1 — 0..* | Prestamo | registra (custodio; `registradoPorId ≠ prestatarioId`) |
 | Prestamo | 0..* — 1 | Recurso | entrega |
 | Prestamo | 1 — 0..1 | Garantia | respalda *(composición)* |
-| Prestamo | 1 — 0..1 | Sancion | puede generar |
+| Prestamo | 1 — 0..* | Sancion | puede generar una por causa (`RETRASO`, `DANIO` o `PERDIDA`) |
 | Usuario | 1 — 0..* | Solicitud | solicita (cualquier rol sin sanción) |
 | Usuario | 1 — 0..* | Solicitud | avala (docente; solo POR_CURSO/EXCEPCIONAL) |
 | Usuario | 1 — 0..* | Solicitud | autoriza (dirección; solo EXCEPCIONAL) |
@@ -240,6 +242,7 @@ dato independiente del tipo (un libro SIMPLE es RETIRO; un deportivo SIMPLE es E
 | Solicitud | 1 — 0..* | Notificacion | genera (al aceptarse/rechazarse) |
 | Notificacion | 0..* — 1 | Usuario | notifica a (el solicitante) |
 | Sancion | 0..* — 1 | Usuario | afecta |
+| Sancion | 1 — 1..* | SancionEvento | conserva el historial |
 | Usuario | 1 — 0..* | Reporte | genera (dirección) |
 
 > **Este documento es la fuente de verdad del modelo.** El diagrama
@@ -456,7 +459,7 @@ del análisis. Cada hallazgo quedó resuelto así:
 | 7 | RF3 (R1) "dispara sanciones" pero RF5 está en R2. | R1 incluye **bloqueo básico por sanción**; el módulo completo de sanciones queda en R2. |
 | 8 | Tres significados de "administrativo". | **`CUSTODIO_ADMINISTRATIVO` → `CUSTODIO_INFRA`**. |
 | 9 | Dos modelos de dominio vivos (puml viejo de 5 roles vs actualizado). | Fuente de verdad = **este documento** (§4). El `.puml` de `Tarea-1/` (5 roles) y el PDF `modelo-dominio-grupo8.pdf` son versiones previas a regenerar. |
-| 10 | "Reposición" no se modela limpio en `Sancion`. | Pendiente menor: se refinará en Fase A (BD) al detallar `Sancion`. |
+| 10 | "Reposición" no se modela limpio en `Sancion`. | Resuelto en RF5: la reposición queda registrada en `SancionEvento` y se valida contra el recurso en inventario. |
 | 11 | RNF1 pide login institucional real, inviable para prototipo. | **Login propio (mock institucional)**; SSO UNSA = trabajo futuro. |
 | 12 | Invariante `registradoPor ≠ prestatario` chocaba con autoservicio. | Aclarado: la **solicitud** es autoservicio; el **préstamo** siempre lo registra otra persona. |
 | 13 | El catálogo solo dejaba reservar; pedir un préstamo SIMPLE no tenía solicitud digital — el custodio lo registraba en persona sin ningún paso previo en la plataforma. | **Se generaliza `SolicitudAcademica` → `Solicitud`:** todo préstamo (SIMPLE incluido) se pide desde la plataforma. Para SIMPLE, `CUSTODIO_CE` acepta/rechaza manualmente (ya no automático) y registra al aceptar; POR_CURSO/EXCEPCIONAL conservan el aval docente / autorización de Dirección ya definidos. Se agrega `Notificacion` dentro de la plataforma al aceptar/rechazar. La parte SIMPLE se adelanta a **R1** (extiende RF3); el resto de académicos sigue en RF4/R2. |

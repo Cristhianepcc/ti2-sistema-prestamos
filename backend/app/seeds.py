@@ -105,6 +105,13 @@ def _recursos() -> list[Recurso]:
             estado=EstadoRecurso.DISPONIBLE,
             isbn="9780201633610", autor="Erich Gamma", categoria="Software",
         ),
+        Libro(
+            codigo="LIB-006", nombre="Refactoring",
+            descripcion="Mejora del diseño de código ya existente",
+            ubicacion="Estante B-5", gestor=Gestor.CENTRO_ESTUDIANTES,
+            estado=EstadoRecurso.DISPONIBLE,
+            isbn="9780134757599", autor="Martin Fowler", categoria="Software",
+        ),
         # Implementos deportivos — Centro de Estudiantes
         ImplementoDeportivo(
             codigo="DEP-001", nombre="Balón de fútbol",
@@ -260,16 +267,23 @@ def _sembrar_prestamos(db: Session) -> int:
     """Crea préstamos aceptando solicitudes, sin estados PRESTADO ficticios.
 
     Variados a propósito (activos, uno ya vencido, uno devuelto a tiempo, uno
-    devuelto dañado y uno devuelto perdido, con y sin garantía) para que el
-    reporte de préstamos, el historial de usuario y el historial por recurso
-    (RF6) tengan datos reales que mostrar en vez de listas vacías.
+    devuelto dañado, uno devuelto perdido y uno devuelto tarde, con y sin
+    garantía) para que el reporte de préstamos, el historial de usuario, el
+    historial por recurso y las sanciones (RF5/RF6) tengan datos reales que
+    mostrar en vez de listas vacías.
     """
     solicitante = db.scalar(select(Usuario).where(Usuario.email == "diego@unsa.edu.pe"))
     solicitante_perdida = db.scalar(
         select(Usuario).where(Usuario.email == "lucia@unsa.edu.pe")
     )
+    solicitante_tardio = db.scalar(select(Usuario).where(Usuario.email == "rosa@unsa.edu.pe"))
     custodio = db.scalar(select(Usuario).where(Usuario.email == "pedro@unsa.edu.pe"))
-    if solicitante is None or solicitante_perdida is None or custodio is None:
+    if (
+        solicitante is None
+        or solicitante_perdida is None
+        or solicitante_tardio is None
+        or custodio is None
+    ):
         return 0
 
     # El sembrado representa operaciones de demostración durante horario hábil.
@@ -282,7 +296,9 @@ def _sembrar_prestamos(db: Session) -> int:
     ahora_demo = ahora_demo.astimezone(timezone.utc)
 
     # codigo, modalidad, dias hasta el plazo (negativo = ya vencido), garantía,
-    # resultado: None = sigue activo; "OK"/"DANADO"/"PERDIDO" = cómo se devolvió.
+    # resultado: None = sigue activo; "OK"/"DANADO"/"PERDIDO"/"OK_TARDE" = cómo
+    # se devolvió ("OK_TARDE": a tiempo en condición, pero después del plazo —
+    # dispara la sanción por retraso igual que una devolución tardía real).
     ejemplos = (
         ("LIB-002", ModalidadUso.RETIRO_TEMPORAL, 2, None, None),
         ("DEP-002", ModalidadUso.EN_SITIO, 1, None, None),
@@ -290,12 +306,18 @@ def _sembrar_prestamos(db: Session) -> int:
         ("LIB-004", ModalidadUso.RETIRO_TEMPORAL, 7, None, "OK"),
         ("LIB-005", ModalidadUso.RETIRO_TEMPORAL, 7, None, "DANADO"),
         ("DEP-005", ModalidadUso.RETIRO_TEMPORAL, 1, None, "PERDIDO"),
+        ("LIB-006", ModalidadUso.RETIRO_TEMPORAL, -3, None, "OK_TARDE"),
     )
     nuevos = 0
     for codigo, modalidad, dias, garantia, resultado in ejemplos:
         # Una persona con sanción activa no puede generar una nueva solicitud.
-        # La demo conserva ejemplos separados de daño y pérdida con solicitantes distintos.
-        prestatario = solicitante_perdida if resultado == "PERDIDO" else solicitante
+        # La demo conserva ejemplos separados de daño, pérdida y retraso con
+        # solicitantes distintos.
+        prestatario = (
+            solicitante_perdida
+            if resultado == "PERDIDO"
+            else solicitante_tardio if resultado == "OK_TARDE" else solicitante
+        )
         recurso = db.scalar(select(Recurso).where(Recurso.codigo == codigo))
         if recurso is None:
             continue
@@ -342,6 +364,7 @@ def _sembrar_prestamos(db: Session) -> int:
         if resultado is not None:
             condicion = {
                 "OK": "Buen estado, sin daños",
+                "OK_TARDE": "Buen estado, devuelto fuera de plazo",
                 "DANADO": "Llegó con la tapa rota",
                 "PERDIDO": "El prestatario reportó que lo perdió",
             }[resultado]

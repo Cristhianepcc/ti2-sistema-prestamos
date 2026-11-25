@@ -35,6 +35,10 @@ class UsuarioNoEncontrado(ReporteError):
     """El `usuario_id` pedido no existe."""
 
 
+class RecursoNoEncontrado(ReporteError):
+    """El `recurso_id` pedido no existe."""
+
+
 class RangoInvalido(ReporteError):
     """`desde` es posterior a `hasta`."""
 
@@ -190,6 +194,66 @@ def listar_historial(
         for p in prestamos
     ]
     return {"total": total, "limite": limite, "offset": offset, "items": items}
+
+
+def historial_recurso(
+    db: Session,
+    *,
+    recurso_id: int,
+    limite: int = 20,
+    offset: int = 0,
+) -> dict:
+    """Historial de préstamos de un recurso: quién lo tuvo, cuándo, y si volvió
+    dañado o perdido (RF6). Simétrico a `listar_historial`, pero por recurso en
+    vez de por usuario; lo usa el admin para rastrear incidencias de un ítem
+    puntual del inventario.
+    """
+    recurso = db.get(Recurso, recurso_id)
+    if recurso is None:
+        raise RecursoNoEncontrado("Recurso no encontrado")
+
+    filtros = [Prestamo.recurso_id == recurso_id]
+    total = db.scalar(select(func.count()).select_from(Prestamo).where(*filtros)) or 0
+
+    filas = db.execute(
+        select(Prestamo, Usuario)
+        .join(Usuario, Usuario.id == Prestamo.prestatario_id)
+        .where(*filtros)
+        .order_by(Prestamo.fecha_entrega.desc())
+        .limit(limite)
+        .offset(offset)
+    ).all()
+
+    items = [
+        {
+            "prestamo_id": p.id,
+            "prestatario": {"id": u.id, "codigo": u.codigo, "nombres": u.nombres},
+            "tipo_prestamo": p.tipo_prestamo,
+            "modalidad_uso": p.modalidad_uso,
+            "estado": p.estado,
+            "fecha_entrega": p.fecha_entrega,
+            "fecha_limite": p.fecha_limite,
+            "fecha_devolucion": p.fecha_devolucion,
+            "condicion_entrega": p.condicion_entrega,
+            "condicion_devolucion": p.condicion_devolucion,
+            "danado": p.danado,
+            "perdido": p.perdido,
+        }
+        for p, u in filas
+    ]
+    return {
+        "recurso": {
+            "id": recurso.id,
+            "codigo": recurso.codigo,
+            "nombre": recurso.nombre,
+            "tipo_recurso": recurso.tipo_recurso,
+            "estado": recurso.estado,
+        },
+        "total": total,
+        "limite": limite,
+        "offset": offset,
+        "items": items,
+    }
 
 
 def reporte_inventario(db: Session) -> dict:

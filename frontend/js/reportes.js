@@ -195,7 +195,7 @@ function filaAtrasado(item) {
     <td>${esc(item.prestatario.nombres)} <span class="hint">${esc(item.prestatario.codigo)}</span></td>
     <td>${esc(formatearFecha(item.fecha_limite))}</td>
     <td><span class="badge danger">${esc(item.dias_atraso)} días</span></td>
-    <td class="no-imprimir"><a class="btn btn-ghost btn-sm" href="historial.html?codigo=${encodeURIComponent(item.prestatario.codigo)}">Ver historial</a></td>
+    <td class="no-imprimir"><a class="btn btn-ghost btn-sm" href="mis-actividades.html?tab=historial&codigo=${encodeURIComponent(item.prestatario.codigo)}">Ver historial</a></td>
   </tr>`;
 }
 

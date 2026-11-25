@@ -441,6 +441,13 @@ body.pagina-login {
   gap: 3px;
 }
 
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
 .app-sidebar .marca {
   font-family: var(--f-titulos);
   font-weight: 800;
@@ -448,6 +455,10 @@ body.pagina-login {
   color: #fff;
   margin-bottom: 10px;
   padding: 0 10px;
+}
+
+.sidebar-header .marca {
+  margin-bottom: 0;
 }
 
 .app-sidebar .marca span {
@@ -606,6 +617,62 @@ body.pagina-login {
   flex: none;
 }
 
+/* Ícono de notificaciones junto a la marca (ver sidebar-header en shell.js),
+   en vez de una fila más de la lista de navegación. */
+.btn-notif-icono {
+  position: relative;
+  display: flex;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.72);
+  padding: 6px;
+  margin-right: 2px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btn-notif-icono:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.btn-notif-icono .badge-icono {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  margin-left: 0;
+}
+
+/* ---- panel de notificaciones (dropdown, ver shell.js) ---- */
+
+.notif-panel {
+  position: fixed;
+  z-index: 100;
+  width: 320px;
+  max-width: calc(100vw - 28px);
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--fondo);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+}
+
+.notif-panel-head {
+  font-family: var(--f-titulos);
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--azul);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--linea);
+}
+
+.notif-panel-body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .app-main {
   padding: 30px 34px;
   background: var(--fondo-suave);
@@ -696,6 +763,31 @@ body.pagina-login {
   background: var(--azul);
   border-color: var(--azul);
   color: var(--sobre-azul);
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--linea);
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.tab {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  color: var(--tinta-suave);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.tab.active {
+  color: var(--azul);
+  border-bottom-color: var(--azul);
 }
 
 .cards {

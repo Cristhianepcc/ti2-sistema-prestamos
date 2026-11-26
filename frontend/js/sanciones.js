@@ -3,6 +3,7 @@ if (!requireAuth()) throw new Error("sin sesión");
 renderSidebar("sanciones");
 
 const cajaMias = document.getElementById("mis-sanciones");
+const bannerBloqueo = document.getElementById("banner-bloqueo-sancion");
 const seccionGestion = document.getElementById("seccion-gestion-sanciones");
 const tituloGestion = document.getElementById("titulo-gestion-sanciones");
 const ayudaGestion = document.getElementById("ayuda-gestion-sanciones");
@@ -12,7 +13,7 @@ const puedeConsultarGestion = hasRole(
   "CUSTODIO_INFRA",
   "ADMINISTRADOR_SISTEMA"
 );
-const puedeResolver = hasRole("CUSTODIO_CE", "CUSTODIO_INFRA");
+const puedeResolver = hasRole("CUSTODIO_CE", "CUSTODIO_INFRA", "ADMINISTRADOR_SISTEMA");
 const ETIQUETA_EVENTO_SANCION = {
   REGISTRADA: "Sanción registrada",
   REPARACION_REGISTRADA: "Reparación registrada",
@@ -40,6 +41,15 @@ function fechaHoraLocal(iso) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function pintarBloqueo(estado) {
+  if (!estado.bloqueado) {
+    bannerBloqueo.hidden = true;
+    return;
+  }
+  bannerBloqueo.hidden = false;
+  bannerBloqueo.innerHTML = `<div class="alert-danger" role="alert">Estás bloqueado: ${esc(estado.mensaje)}</div>`;
 }
 
 function estadoSancion(s) {
@@ -107,7 +117,11 @@ async function cargar() {
   showLoading(cajaMias);
   if (puedeConsultarGestion) showLoading(cajaGestion);
   try {
-    const mias = await api.get("/sanciones?mias=true");
+    const [bloqueo, mias] = await Promise.all([
+      api.get("/sanciones/bloqueo"),
+      api.get("/sanciones?mias=true"),
+    ]);
+    pintarBloqueo(bloqueo);
     renderList(cajaMias, mias, (s) => tarjetaSancion(s), "No tienes sanciones registradas.");
     if (puedeConsultarGestion) {
       const todas = await api.get("/sanciones");

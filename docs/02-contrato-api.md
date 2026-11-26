@@ -922,6 +922,20 @@ consulta sus propios registros; el administrador puede consultar todas las sanci
 Devuelve las sanciones propias con el préstamo, recurso y lista cronológica de eventos.
 `activas=true` limita el resultado a sanciones vigentes; `activas=false` devuelve las cerradas.
 
+### GET `/api/sanciones/bloqueo` — Mi estado de bloqueo
+
+Indica si el usuario autenticado está bloqueado ahora mismo (mismo chequeo que usan
+internamente `POST /solicitudes`, `POST /reservas` y `POST /prestamos`), sin necesidad de
+intentar una de esas operaciones para enterarse.
+
+```jsonc
+{ "bloqueado": true, "mensaje": "Tienes una sanción activa por daño. El bloqueo termina cuando el custodio registre la reparación del recurso.", "motivo": "DANIO", "fin": null }
+```
+
+Si `bloqueado` es `false`, los demás campos vienen en `null`. `fin` es `null` tanto si no hay
+bloqueo como si la sanción bloqueante es `DANIO`/`PERDIDA` sin resolver (sin fecha de
+vencimiento); solo trae fecha cuando el motivo es `RETRASO`.
+
 ### GET `/api/sanciones` — Vista de gestión
 
 Un custodio ve sanciones de su gestor. Un administrador ve todas. Para que un custodio vea
@@ -929,7 +943,7 @@ también las suyas como prestatario, debe usar `?mias=true`.
 
 ### POST `/api/sanciones` — Registro manual de un caso histórico/corregido
 
-Requiere rol custodio. La devolución normal crea las sanciones aplicables automáticamente;
+Requiere rol custodio o `ADMINISTRADOR_SISTEMA`. La devolución normal crea las sanciones aplicables automáticamente;
 este endpoint sirve para registrar un caso anterior o corregido. El usuario afectado se deriva
 del préstamo, no se acepta arbitrariamente en el body.
 
@@ -950,7 +964,8 @@ Para corregir un caso histórico, también acepta `MANTENIMIENTO` y lo mueve a `
 
 ### PATCH `/api/sanciones/{id}/levantar` — Registrar resolución
 
-Requiere ser custodio del gestor del préstamo. No elimina el registro: añade un evento con
+Requiere ser custodio del gestor del préstamo, o `ADMINISTRADOR_SISTEMA` (sin esa
+restricción de gestor). No elimina el registro: añade un evento con
 quién resolvió, cuándo y el detalle. Los retrasos no se pueden levantar antes de sus 72 horas.
 
 #### Reparación

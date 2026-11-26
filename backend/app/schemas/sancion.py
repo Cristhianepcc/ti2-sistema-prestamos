@@ -94,3 +94,12 @@ class SancionPublica(BaseModel):
     monto: Decimal | None
     detalle: str | None
     eventos: list[SancionEventoPublico]
+
+
+class EstadoBloqueoSancion(BaseModel):
+    """Estado de bloqueo del usuario autenticado, para pintar un aviso en el frontend."""
+
+    bloqueado: bool
+    mensaje: str | None
+    motivo: MotivoSancion | None
+    fin: datetime | None

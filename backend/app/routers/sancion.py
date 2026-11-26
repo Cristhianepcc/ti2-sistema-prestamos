@@ -8,19 +8,27 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models.enums import Rol
 from ..models.sancion import Sancion
-from ..schemas.sancion import SancionCreate, SancionPublica, SancionResolucionCreate
+from ..schemas.sancion import (
+    EstadoBloqueoSancion,
+    SancionCreate,
+    SancionPublica,
+    SancionResolucionCreate,
+)
 from ..security import UsuarioActual, require_role
 from ..services.sancion_service import (
     ConflictoSancion,
     PermisoSancion,
     SancionNoEncontrada,
     crear_sancion_manual,
+    estado_bloqueo,
     listar_sanciones,
+    mensaje_bloqueo,
     resolver_sancion,
 )
 
 router = APIRouter(prefix="/sanciones", tags=["sanciones"])
 ROLES_CUSTODIO = (Rol.CUSTODIO_CE, Rol.CUSTODIO_INFRA)
+ROLES_GESTION_SANCION = (*ROLES_CUSTODIO, Rol.ADMINISTRADOR_SISTEMA)
 
 
 @router.get("", response_model=list[SancionPublica])
@@ -34,11 +42,28 @@ def listar(
     return listar_sanciones(db, actor=usuario, mias=mias, activas=activas)
 
 
+@router.get("/bloqueo", response_model=EstadoBloqueoSancion)
+def mi_bloqueo(
+    usuario: UsuarioActual,
+    db: Annotated[Session, Depends(get_db)],
+) -> EstadoBloqueoSancion:
+    """Indica si el usuario autenticado está bloqueado ahora mismo y por qué."""
+    sancion = estado_bloqueo(db, usuario.id)
+    if sancion is None:
+        return EstadoBloqueoSancion(bloqueado=False, mensaje=None, motivo=None, fin=None)
+    return EstadoBloqueoSancion(
+        bloqueado=True,
+        mensaje=mensaje_bloqueo(sancion),
+        motivo=sancion.motivo,
+        fin=sancion.fin,
+    )
+
+
 @router.post(
     "",
     response_model=SancionPublica,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role(*ROLES_CUSTODIO))],
+    dependencies=[Depends(require_role(*ROLES_GESTION_SANCION))],
 )
 def registrar(
     datos: SancionCreate,
@@ -69,7 +94,7 @@ def registrar(
 @router.patch(
     "/{sancion_id}/levantar",
     response_model=SancionPublica,
-    dependencies=[Depends(require_role(*ROLES_CUSTODIO))],
+    dependencies=[Depends(require_role(*ROLES_GESTION_SANCION))],
 )
 def levantar(
     sancion_id: int,

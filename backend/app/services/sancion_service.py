@@ -62,6 +62,8 @@ def _obtener_prestamo(db: Session, prestamo_id: int) -> Prestamo:
 
 
 def _validar_custodio_del_recurso(actor: Usuario, prestamo: Prestamo) -> None:
+    if actor.tiene_rol(Rol.ADMINISTRADOR_SISTEMA):
+        return
     requerido = (
         Rol.CUSTODIO_CE
         if prestamo.recurso.gestor == Gestor.CENTRO_ESTUDIANTES
@@ -205,7 +207,7 @@ def _vencer_sanciones_expiradas(
 def sancion_bloqueante(
     db: Session, usuario_id: int, *, ahora: datetime | None = None
 ) -> Sancion | None:
-    """Devuelve la primera sanción vigente y cierra vencimientos de ese usuario."""
+    """Devuelve la sanción vigente que determina cuándo (o si) se desbloquea el usuario."""
     ahora = _ahora_utc(ahora)
     _vencer_sanciones_expiradas(db, ahora, usuario_id=usuario_id)
 
@@ -216,9 +218,33 @@ def sancion_bloqueante(
             Sancion.activa.is_(True),
             or_(Sancion.fin.is_(None), Sancion.fin > ahora),
         )
-        .order_by(Sancion.inicio.asc(), Sancion.id.asc())
+        .order_by(
+            Sancion.fin.is_(None).desc(),  # indefinida (DANIO/PERDIDA sin resolver) manda
+            Sancion.fin.desc(),            # entre fechadas, la de vencimiento más tardío
+            Sancion.inicio.asc(),
+            Sancion.id.asc(),              # desempate estable entre indefinidas simultáneas
+        )
         .limit(1)
     )
+
+
+def estado_bloqueo(
+    db: Session, usuario_id: int, *, ahora: datetime | None = None
+) -> Sancion | None:
+    """Sanción bloqueante vigente, persistiendo cualquier vencimiento detectado al consultar.
+
+    sancion_bloqueante no commitea (lo llaman los 3 servicios de negocio dentro de su propia
+    transacción); un GET de solo lectura no tiene ese commit envolvente, así que sin esto un
+    vencimiento detectado acá se perdería al cerrar la sesión (mismo motivo por el que
+    listar_sanciones commitea).
+    """
+    sancion = sancion_bloqueante(db, usuario_id, ahora=ahora)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return sancion
 
 
 def mensaje_bloqueo(sancion: Sancion) -> str:
